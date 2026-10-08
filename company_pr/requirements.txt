@@ -1,0 +1,5 @@
+scrapy>=2.13
+curl_cffi>=0.7
+dateparser>=1.2
+lxml>=5.0
+pypdf>=4.0

@@ -14,3 +14,9 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 *.tmp
+
+# Crawler runtime data and environments (clinicalTrialgov, company_pr, conference, pubmed)
+.venv/
+output/
+cache/
+.DS_Store
