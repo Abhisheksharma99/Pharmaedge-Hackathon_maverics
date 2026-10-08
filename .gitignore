@@ -22,3 +22,8 @@ venv/
 logs/
 # Crawled review JSON stays local / in MongoDB (third-party content; repo is public)
 data/
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
