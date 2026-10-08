@@ -1,0 +1,16 @@
+# Secrets
+.env
+
+# Local runtime data (cache, JSON output)
+Patents_Data/
+
+# Internal documentation and tests (kept locally, not published)
+DECISIONS.md
+FLOW.md
+tests/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.tmp
