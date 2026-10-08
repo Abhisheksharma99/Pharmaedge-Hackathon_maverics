@@ -27,3 +27,5 @@ dist/
 coverage/
 playwright-report/
 test-results/
+output/
+cache/
