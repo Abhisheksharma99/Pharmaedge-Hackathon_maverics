@@ -14,3 +14,11 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 *.tmp
+
+# --- Asset journey platform (crawler/, apps/) ---
+.venv/
+venv/
+.DS_Store
+logs/
+# Crawled review JSON stays local / in MongoDB (third-party content; repo is public)
+data/
