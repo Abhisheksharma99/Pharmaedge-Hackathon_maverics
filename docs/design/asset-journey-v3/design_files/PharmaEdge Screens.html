@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PharmaEdge · All screens</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:'Geist',system-ui,sans-serif;background:#f2f4f7;color:#101828;-webkit-font-smoothing:antialiased}
+a{color:#2347d9;text-decoration:none}a:hover{text-decoration:underline}
+header{position:sticky;top:0;z-index:5;background:rgba(255,255,255,.94);backdrop-filter:blur(10px);border-bottom:1px solid #e4e7ec;padding:16px 28px;display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px}
+header h1{margin:0;font-size:20px;font-weight:650;letter-spacing:-.02em}header h1 span{color:#2347d9}
+header p{margin:0;color:#475467;font-size:13px}
+.jump{display:flex;flex-wrap:wrap;gap:6px;margin-left:auto}
+.jump a{font-size:12.5px;font-weight:500;padding:5px 10px;border-radius:999px;background:#fff;border:1px solid #e4e7ec;color:#344054}.jump a:hover{border-color:#2347d9;color:#2347d9;text-decoration:none}
+main{padding:24px 28px 60px;display:flex;flex-direction:column;gap:36px}
+section h2{margin:0 0 4px;font-size:15px;font-weight:600}section>p{margin:0 0 14px;color:#475467;font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(460px,1fr));gap:20px}
+.card{background:#fff;border:1px solid #e4e7ec;border-radius:14px;overflow:hidden;box-shadow:0 1px 2px rgba(16,24,40,.04);display:flex;flex-direction:column;transition:box-shadow .2s,border-color .2s}
+.card:hover{border-color:#c4ccda;box-shadow:0 10px 28px rgba(16,24,40,.08)}
+.frame{position:relative;width:100%;aspect-ratio:1440/900;overflow:hidden;background:#f9fafb;border-bottom:1px solid #eef0f3}
+.frame iframe{position:absolute;left:0;top:0;width:1440px;height:900px;border:0;transform-origin:0 0;pointer-events:none}
+.frame a.cover{position:absolute;inset:0;z-index:2}
+.meta{display:flex;align-items:center;gap:10px;padding:12px 14px}
+.num{font-family:'Geist Mono',monospace;font-size:11px;color:#667085;background:#f2f4f7;border-radius:5px;padding:1px 6px}
+.meta b{font-weight:600;font-size:13.5px}.meta span.d{color:#667085;font-size:12.5px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.open{font-size:12.5px;font-weight:600;white-space:nowrap}
+</style>
+</head>
+<body>
+<header>
+<div><h1>Pharma<span>Edge</span> · all screens</h1><p>Every screen of the app, live. Click any screen to open it full size; the sidebar inside connects them all.</p></div>
+<nav class="jump"><a href="#workspace">Workspace</a><a href="#asset">Asset pages</a><a href="#data">Data &amp; settings</a><a href="PharmaEdge App.html" target="_top">Open the app →</a></nav>
+</header>
+<main id="main"></main>
+<script>
+const S = [
+  ['workspace', 'Workspace', 'Home dashboard, search, Asset AI and the ⌘K palette.', [
+    ['Home dashboard', 'Portfolio timeline, what changed, milestones, crawls', 'page=home&sim=34'],
+    ['Home · onboarding finished', 'Same dashboard once Treprostinil is ready', 'page=home&sim=done'],
+    ['Asset Search', 'Every tracked asset, primary and competitor', 'page=assets&sim=done'],
+    ['Asset AI', 'Add an asset by chatting; live crawl card; cited answers', 'page=chat&sim=30'],
+    ['Command palette (⌘K)', 'Search assets, events, NCT IDs and pages', 'page=home&sim=done&pal=1'],
+  ]],
+  ['asset', 'Asset pages', 'Treprostinil while its journey is being built, then every tab once it is ready.', [
+    ['Overview · live build', 'Agent pipeline, journey taking shape, activity log', 'page=asset&id=treprostinil&tab=overview&sim=30'],
+    ['Overview · journey tree', 'Trunk and branches, alternating cards, subtrees', 'page=asset&id=treprostinil&tab=overview&sim=done'],
+    ['Overview · horizontal journey', 'Scroll sideways; sticky branch names on the left', 'page=asset&id=treprostinil&tab=overview&sim=done&orient=h'],
+    ['Analytics', 'Pipeline, trials, evidence, patents, competition', 'page=asset&id=treprostinil&tab=analytics&sim=done'],
+    ['Event details', 'Opened from the timeline with comments and charts', 'page=asset&id=treprostinil&tab=overview&sim=done&focus=e24'],
+    ['Evidence', 'AI triage decisions on unstructured records', 'page=asset&id=treprostinil&tab=evidence&sim=done'],
+    ['Clinical', 'ClinicalTrials.gov studies', 'page=asset&id=treprostinil&tab=clinical&sim=done'],
+    ['Regulatory', 'FDA and EMA submissions, decisions, recalls', 'page=asset&id=treprostinil&tab=regulatory&sim=done'],
+    ['Publications', 'PubMed articles', 'page=asset&id=treprostinil&tab=publications&sim=done'],
+    ['Conferences', 'ERS, ATS and CHEST abstracts', 'page=asset&id=treprostinil&tab=conferences&sim=done'],
+    ['Documents', 'Prescribing information and reports', 'page=asset&id=treprostinil&tab=documents&sim=done'],
+    ['Company IR', 'Newsroom press releases', 'page=asset&id=treprostinil&tab=company-ir&sim=done'],
+    ['Patents', 'Patents with computed expiries', 'page=asset&id=treprostinil&tab=patents&sim=done'],
+    ['Competitors', 'Ranked competitors with indication coverage', 'page=asset&id=treprostinil&tab=competitors&sim=done'],
+    ['Another asset · Sotatercept', 'Journey tree for a ready asset', 'page=asset&id=sotatercept&tab=overview&sim=done'],
+    ['Competitor asset · Yutrepia', 'Competitor journey with “competitor of”', 'page=asset&id=yutrepia&tab=competitors&sim=done'],
+  ]],
+  ['data', 'Data & settings', 'Crawl jobs and their steps, uploads and settings.', [
+    ['Crawl jobs', 'Every run with status, steps and duration', 'page=jobs&sim=30'],
+    ['Crawl job · live', 'Step-by-step progress with counts and warnings', 'page=job&id=j-2041&sim=30'],
+    ['Crawl job · failed', 'A failed competitor crawl', 'page=job&id=j-2036&sim=done'],
+    ['Uploads', 'Coming soon', 'page=uploads&sim=done'],
+    ['Settings', 'Profile, notifications and team', 'page=settings&sim=done'],
+  ]],
+];
+let n = 0;
+const main = document.getElementById('main');
+main.innerHTML = S.map(([id, t, d, items]) => `<section id="${id}"><h2>${t}</h2><p>${d}</p><div class="grid">${items.map(([l, s, h]) => { n++; const url = 'PharmaEdge App.html#' + h; return `<div class="card"><div class="frame"><iframe loading="lazy" title="${l}" data-src="${url}"></iframe><a class="cover" href="${url}" target="_blank" aria-label="Open ${l}"></a></div><div class="meta"><span class="num">${String(n).padStart(2, '0')}</span><b>${l}</b><span class="d">${s}</span><a class="open" href="${url}" target="_blank">Open ↗</a></div></div>`; }).join('')}</div></section>`).join('');
+const fit = () => document.querySelectorAll('.frame').forEach((f) => { f.querySelector('iframe').style.transform = `scale(${f.clientWidth / 1440})`; });
+fit(); window.addEventListener('resize', fit);
+const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { const fr = e.target.querySelector('iframe'); if (!fr.src) fr.src = fr.dataset.src; io.unobserve(e.target); } }), { rootMargin: '400px 0px' });
+document.querySelectorAll('.frame').forEach((f) => io.observe(f));
+</script>
+</body>
+</html>
