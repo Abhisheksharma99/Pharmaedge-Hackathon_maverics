@@ -17,30 +17,35 @@ from .store import open_store
 async def main() -> None:
     ap = argparse.ArgumentParser(prog="patent_intel", description="Drug -> developer -> Google Patents biblio data (no credentials)")
     ap.add_argument("drugs", nargs="*", help="AdisInsight drug id or URL (developers are read from that profile)")
-    ap.add_argument("--name", help="drug name, when there is no Adis id (needs --company)")
+    ap.add_argument("--name", help="drug name, when there is no Adis id (company is looked up on ClinicalTrials.gov)")
     ap.add_argument("--company", action="append", help="company name(s); overrides Adis developers (repeatable)")
     ap.add_argument("--all-developers", action="store_true", help="use every Adis developer, not just the profile's primary company")
     ap.add_argument("--term", action="append", help="override drug terms (repeatable); default: drug + Adis alternative names")
     ap.add_argument("--seed", action="append", help="known publication number(s) to start from, e.g. US9604901B2")
     ap.add_argument("--max-pages", type=int, default=settings().max_pages, help="Google Patents page budget per drug (~1 page/s)")
     ap.add_argument("--probe", type=int, default=settings().probe_pages, help="max PubChem probe pages used to find seeds")
+    ap.add_argument("--no-regulatory", action="store_true", help="skip the PDUFA/approval timeline (SEC EDGAR + openFDA)")
+    ap.add_argument("--no-fda-calendar", action="store_true", help="skip the FDA Tracker PDUFA/AdCom calendar")
     a = ap.parse_args()
-    if not a.drugs and not (a.name and a.company):
-        ap.error("give AdisInsight id(s), or --name with --company")
+    if not a.drugs and not a.name:
+        ap.error("give AdisInsight id(s) or --name")
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     logging.getLogger("httpx").setLevel(logging.WARNING)  # one line per request is noise; progress logs every 50 pages
 
     s = settings()
-    store = await open_store(s.store_spec(), s.mongo_db)
+    store = await open_store(s.store_spec(), s.mongo_db, s.mongo_tls_ca_file)
     http = Http(Cache(s.data_dir / ".cache"))
     jobs = [{"adis_ref": r} for r in a.drugs] or [{"drug_name": a.name}]
     try:
         for job in jobs:
             try:
                 run = await run_drug(http=http, store=store, companies=a.company, all_developers=a.all_developers,
-                                     terms=a.term, seeds=a.seed, max_pages=a.max_pages, probe_budget=a.probe, **job)
+                                     terms=a.term, seeds=a.seed, max_pages=a.max_pages, probe_budget=a.probe,
+                                     regulatory=not a.no_regulatory, fda_calendar=not a.no_fda_calendar, **job)
                 cov = {**run["coverage"], "family_members_not_fetched": len(run["coverage"]["family_members_not_fetched"])}
-                print(json.dumps({"drug": run["drug_name"], "drug_id": run["drug_id"], **cov}, indent=1, default=str))
+                print(json.dumps({"drug": run["drug_name"], "drug_id": run["drug_id"], **cov,
+                                  "regulatory": run.get("regulatory"), "fda_calendar": run.get("fda_calendar")},
+                                 indent=1, default=str))
             except Exception as e:  # keep going with the next drug
                 logging.error("%s: %s: %s", job, type(e).__name__, e)
     finally:

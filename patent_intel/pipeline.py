@@ -10,12 +10,16 @@ import re
 from collections import Counter
 from datetime import datetime, UTC
 
+from . import fdacal
 from . import google_patents as gp
 from .adis import fetch_drug
+from .ctgov import other_product, other_products, resolve_by_name
 from .crawler import classify, crawl
 from .matching import normalize
 from .net import Http, stats
 from .pubchem import patent_ids
+from .regulatory import collect
+from .config import settings
 from .store import Store
 
 log = logging.getLogger("patent_intel")
@@ -51,21 +55,32 @@ def drug_id_for(name: str) -> str:
 
 
 async def resolve_drug(http: Http, adis_ref: str | None, drug_name: str | None, companies: list[str] | None) -> dict:
-    """Adis profile when an id/url is given; otherwise the caller-supplied name + companies."""
+    """AdisInsight profile when an id/url is given; otherwise the drug name, with its company + other names from
+    ClinicalTrials.gov (or openFDA) unless companies are given explicitly."""
     if adis_ref:
-        drug = await fetch_drug(http, adis_ref)
-        return {"_id": drug["adis_id"], **drug, "input_companies": companies or []}
-    if not drug_name or not companies:
-        raise ValueError("give an AdisInsight id/url, or a drug name plus at least one company")
-    return {"_id": drug_id_for(drug_name), "adis_id": None, "url": None, "name": drug_name.strip(),
-            "primary_companies": companies, "alternative_names": [], "originators": [], "developers": companies,
-            "input_companies": companies}
+        adis = await fetch_drug(http, adis_ref)
+        drug = {"_id": adis["adis_id"], **adis, "company_source": "AdisInsight", "input_companies": companies or [],
+                "other_products": await other_products(http, adis["name"])}
+    elif drug_name:
+        found = await resolve_by_name(http, drug_name)
+        if companies:  # explicit companies override the looked-up ones; names are still enriched
+            found |= {"primary_companies": companies, "developers": companies, "company_source": "request"}
+        drug = {"_id": drug_id_for(drug_name), "adis_id": None, "url": None, **found, "input_companies": companies or []}
+    else:
+        raise ValueError("give an AdisInsight id/url or a drug name")
+    # a different substance that merely contains the name (e.g. 'TransCon treprostinil', 'treprostinil palmitil')
+    # is never used as a name for this drug - even when a source lists it as an alternative name
+    others = set(drug["other_products"]) | {o for a in drug["alternative_names"] if (o := other_product(a, drug["name"]))}
+    drug["other_products"] = sorted(others)
+    drug["alternative_names"] = [a for a in drug["alternative_names"] if not other_product(a, drug["name"])]
+    return drug
 
 
 async def run_drug(*, http: Http, store: Store, adis_ref: str | None = None,
                    drug_name: str | None = None, companies: list[str] | None = None, all_developers: bool = False,
                    terms: list[str] | None = None, seeds: list[str] | None = None,
-                   max_pages: int = 600, probe_budget: int = 150) -> dict:
+                   max_pages: int = 600, probe_budget: int = 150, regulatory: bool = True,
+                   fda_calendar: bool = True) -> dict:
     started, before = _now(), stats.copy()
     drug = await resolve_drug(http, adis_ref, drug_name, companies)
     did = drug["_id"]
@@ -133,6 +148,30 @@ async def run_drug(*, http: Http, store: Store, adis_ref: str | None = None,
     await store.upsert("drug_patents", links)
     # links this run no longer confirms are flagged, not deleted (a smaller-budget run must not erase earlier findings)
     run["coverage"]["links_marked_stale"] = await store.mark_stale("drug_patents", {"drug_id": did}, {lk["_id"] for lk in links})
+    cfg = settings()
+    start, end = cfg.reg_window()  # computed now: end moves forward with the current date
+    run["window"] = {"start": start, "end": end}
+    if regulatory:  # PDUFA dates / CRLs (SEC EDGAR) + submissions/approvals (openFDA), one de-duplicated timeline
+        events, rep = await collect(http, drug_id=did, terms=terms, companies=companies, sec_user_agent=cfg.sec_user_agent,
+                                    start=start, end=end, max_docs=cfg.reg_max_filings, exclude=drug["other_products"])
+        await store.upsert("regulatory_events", events)
+        # events no longer confirmed (e.g. extraction rules tightened) are flagged, not silently kept as current
+        rep["events_marked_stale"] = await store.mark_stale("regulatory_events", {"drug_id": did}, {e["_id"] for e in events})
+        run["regulatory"] = rep
+        log.info("run %s | regulatory events %d (%s)", drug["name"], len(events), rep.get("by_type"))
+    if fda_calendar:  # FDA Tracker PDUFA/AdCom calendar, filtered to this drug by name (calendar text, link, document)
+        web = Http(http.cache, public_web=True)  # SSRF-guarded client for arbitrary source links
+        try:
+            cal, rep = await fdacal.collect(http, web, drug_id=did, terms=fdacal.drug_terms(drug["name"], drug["alternative_names"]),
+                                            companies=list(dict.fromkeys(companies + drug["developers"])),
+                                            sec_user_agent=cfg.sec_user_agent, start=start, end=end,
+                                            exclude=drug["other_products"])
+        finally:
+            await web.aclose()
+        await store.upsert("fda_calendar_events", cal)
+        rep["events_marked_stale"] = await store.mark_stale("fda_calendar_events", {"drug_id": did}, {e["_id"] for e in cal})
+        run["fda_calendar"] = rep
+        log.info("run %s | FDA calendar: %d matched, %d unresolved", drug["name"], rep["matched"], rep["unresolved"])
     await store.upsert("drugs", [{**drug, "updated_at": _now()}])
     await store.upsert("crawl_runs", [run])
     return run

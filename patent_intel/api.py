@@ -51,9 +51,11 @@ class CrawlRequest(BaseModel):
 
     adis: str | None = Field(None, max_length=120, description="AdisInsight drug id or URL (preferred: developers come from Adis)")
     drug_name: Name | None = Field(None, description="drug name, used when no Adis id is given")
-    companies: list[Name] | None = Field(None, max_length=10, description="company names; required with drug_name, optional override with adis")
+    companies: list[Name] | None = Field(None, max_length=10, description="optional: override the looked-up company")
     all_developers: bool = False
     max_pages: int | None = Field(None, ge=10, description="page budget; capped by server MAX_PAGES")
+    regulatory: bool = Field(True, description="also build the PDUFA/approval timeline (SEC EDGAR + openFDA)")
+    fda_calendar: bool = Field(True, description="also match the FDA Tracker PDUFA/AdCom calendar to this drug")
 
     @field_validator("adis")
     @classmethod
@@ -62,8 +64,8 @@ class CrawlRequest(BaseModel):
 
     @model_validator(mode="after")
     def _need_input(self) -> CrawlRequest:
-        if not self.adis and not (self.drug_name and self.companies):
-            raise ValueError("give `adis`, or `drug_name` together with `companies`")
+        if not self.adis and not self.drug_name:
+            raise ValueError("give `drug_name` (company is looked up) or `adis`")
         return self
 
     def drug_key(self) -> str:
@@ -115,7 +117,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     cfg = settings()
     if not cfg.api_keys:
         raise RuntimeError("API_KEYS is empty - refusing to start an unauthenticated API")
-    S.store = await open_store(cfg.store_spec(), cfg.mongo_db)
+    S.store = await open_store(cfg.store_spec(), cfg.mongo_db, cfg.mongo_tls_ca_file)
     S.http = Http(Cache(cfg.data_dir / ".cache"))
     S.sem = asyncio.Semaphore(cfg.max_concurrent_jobs)
     try:
@@ -227,12 +229,14 @@ async def _run_job(job: dict[str, Any], req: CrawlRequest) -> None:
                 run = await run_drug(http=S.http, store=S.store, adis_ref=req.adis, drug_name=req.drug_name,
                                      companies=req.companies, all_developers=req.all_developers,
                                      max_pages=min(req.max_pages or cfg.max_pages, cfg.max_pages),
-                                     probe_budget=cfg.probe_pages)
+                                     probe_budget=cfg.probe_pages, regulatory=req.regulatory,
+                                     fda_calendar=req.fda_calendar)
             cov = run["coverage"]
             job.update(status="done", drug_id=run["drug_id"], summary={
                 k: cov[k] for k in ("included", "uncertain", "rejected", "families", "offices", "legal_status",
                                     "pages_fetched", "budget_exhausted", "pubchem_linked_publications")
-            } | {"family_members_not_fetched": len(cov["family_members_not_fetched"]), "companies": run["companies"]})
+            } | {"family_members_not_fetched": len(cov["family_members_not_fetched"]), "companies": run["companies"],
+                 "regulatory": run.get("regulatory"), "fda_calendar": run.get("fda_calendar")})
     except TimeoutError:
         job.update(status="failed", error=f"timed out after {cfg.job_timeout_s}s")
     except ValueError as e:  # input-level problems (bad Adis page, missing company) are safe to show
@@ -310,6 +314,44 @@ async def list_patents(drug_id: Annotated[str, Path(pattern=DRUG_ID)],
     pats = await S.store.get_many("patents", [lk["patent_id"] for lk in links if lk.get("patent_id")])
     items = [{"match": lk["match"], **(pats.get(lk["patent_id"]) or lk.get("row") or {})} for lk in links]
     return PatentPage(drug_id=drug_id, decision=decision, total=total, skip=skip, limit=limit, items=items)
+
+
+class EventPage(BaseModel):
+    drug_id: str
+    total: int
+    skip: int
+    limit: int
+    items: list[dict[str, Any]]
+
+
+EventType = Literal["pdufa_date", "complete_response_letter", "approval", "tentative_approval"]
+
+
+@app.get("/v1/drugs/{drug_id}/regulatory", response_model=EventPage, dependencies=[Auth])
+async def list_regulatory(drug_id: Annotated[str, Path(pattern=DRUG_ID)],
+                          type: EventType | None = None,  # public query parameter name (shadows builtin by design)
+                          category: Literal["original", "efficacy", "labeling", "manufacturing", "major", "other"] | None = None,
+                          stale: bool = False,
+                          skip: Annotated[int, Query(ge=0, le=100_000)] = 0,
+                          limit: Annotated[int, Query(ge=1, le=200)] = 100) -> EventPage:
+    """Regulatory timeline sorted by date: PDUFA target dates and CRLs (SEC filings, with the source sentence)
+    and FDA submissions/approvals (openFDA)."""
+    where: dict[str, Any] = ({"drug_id": drug_id, "stale": stale} | ({"type": type} if type else {})
+                             | ({"category": category} if category else {}))
+    items, total = await S.store.find("regulatory_events", where, skip, limit, sort="date")
+    return EventPage(drug_id=drug_id, total=total, skip=skip, limit=limit, items=items)
+
+
+@app.get("/v1/drugs/{drug_id}/fda-calendar", response_model=EventPage, dependencies=[Auth])
+async def list_fda_calendar(drug_id: Annotated[str, Path(pattern=DRUG_ID)],
+                            status: Literal["matched", "unresolved"] = "matched",
+                            stale: bool = False,
+                            skip: Annotated[int, Query(ge=0, le=100_000)] = 0,
+                            limit: Annotated[int, Query(ge=1, le=200)] = 100) -> EventPage:
+    """FDA Tracker calendar events (PDUFA dates, advisory committees) identified as this drug, with evidence."""
+    items, total = await S.store.find("fda_calendar_events", {"drug_id": drug_id, "status": status, "stale": stale},
+                                      skip, limit, sort="date")
+    return EventPage(drug_id=drug_id, total=total, skip=skip, limit=limit, items=items)
 
 
 def _main() -> None:  # python -m patent_intel.api  (binds localhost by default; put a TLS proxy in front)

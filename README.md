@@ -12,6 +12,8 @@ permit automated access.
 AdisInsight drug profile ──► drug name, brand/code names, developer company
 PubChem (public API)     ──► patent publications linked to the compound
 Google Patents pages     ──► patent family + same-company citations ──► classify ──► MongoDB
+SEC EDGAR + openFDA      ──► PDUFA dates, CRLs, approvals ─────────────► timeline ──► MongoDB
+FDA Tracker calendar     ──► PDUFA / AdCom events ──► drug from text, link, document ──► MongoDB
 ```
 
 **Example — treprostinil (United Therapeutics):** 711 publications in 42 patent families across 12 offices
@@ -24,6 +26,8 @@ Google Patents pages     ──► patent family + same-company citations ──
 - [How it works](#how-it-works)
 - [Requirements and setup](#requirements-and-setup)
 - [Choosing drugs](#choosing-drugs)
+- [Regulatory timeline (PDUFA dates, CRLs, approvals)](#regulatory-timeline-pdufa-dates-crls-approvals)
+- [FDA calendar (PDUFA dates and advisory committees)](#fda-calendar-pdufa-dates-and-advisory-committees)
 - [REST API](#rest-api)
 - [Data model](#data-model)
 - [Reliability: duplicates, re-runs, performance](#reliability-duplicates-re-runs-performance)
@@ -74,12 +78,14 @@ Edit `.env` (it is git-ignored — never commit real values):
 |---|---|
 | `MONGO_URI` | MongoDB connection string. Empty → JSON files in `DATA_DIR` |
 | `MONGO_DB` | database name (default `patent_intel`) |
+| `MONGO_TLS_CA_FILE` | CA used to verify MongoDB: unset = `certifi` bundle (Atlas), `system` = the server's OS trust store, or a path to a CA file |
 | `DATA_DIR` | cache and JSON output directory (default `Patents_Data`) |
 | `API_KEYS` | comma-separated API keys, each ≥ 32 characters — `python -c "import secrets;print(secrets.token_urlsafe(32))"` |
 | `CORS_ORIGINS` | comma-separated frontend origins (`https://…`; `http://` only for localhost) |
 | `ENABLE_DOCS` | `true` exposes interactive docs at `/docs` (keep `false` in production) |
 | `MAX_CONCURRENT_JOBS` / `MAX_QUEUED_JOBS` | API job concurrency and queue size |
 | `JOB_TIMEOUT_S` | hard time limit for one crawl job (default 7200) |
+| `REG_START` / `REG_END_MONTHS` | regulatory & FDA-calendar window: start date, and months after today for the end (default 2013-01-01, 19) |
 | `MAX_PAGES` / `PROBE_PAGES` | crawl budgets; API requests may lower but never raise them |
 
 **MongoDB Atlas notes**
@@ -87,8 +93,9 @@ Edit `.env` (it is git-ignored — never commit real values):
 - Add the IP address(es) of every machine that connects under *Network Access*. Networks that load-balance
   across several internet lines need **each** public IP listed; otherwise connections fail intermittently with
   `TLSV1_ALERT_INTERNAL_ERROR`.
-- Certificate verification uses the `certifi` CA bundle, so python.org builds on macOS (which ship without
-  system certificates) connect without extra setup.
+- Certificate verification is always on. By default MongoDB's certificate is checked against the `certifi`
+  public CA bundle, so python.org builds on macOS (which ship without system certificates) connect without extra
+  setup. See [TLS certificates on servers](#tls-certificates-on-servers) for private or corporate CAs.
 - Indexes, including the unique constraints, are created automatically on first connect.
 
 ---
@@ -116,6 +123,66 @@ so a drug is identified by this id — or by a drug name plus company.
 
 ---
 
+## Regulatory timeline (PDUFA dates, CRLs, approvals)
+
+Each crawl also builds a de-duplicated regulatory timeline for the drug. Date window: **2013-01-01 to today + 19
+months**, computed at the start of every run so it moves forward automatically (`REG_START`, `REG_END_MONTHS`;
+`REG_END` pins a fixed end date):
+
+| source | what it provides |
+|---|---|
+| SEC EDGAR full-text search + filing archive | PDUFA target dates and complete response letters stated in company filings (8-K press releases, 10-K, 10-Q, 6-K, 20-F) — the sentence and the filing link are kept as evidence |
+| openFDA `drugsfda` | FDA submissions and approvals, categorized `original`, `efficacy`, `labeling`, `manufacturing` |
+
+Only the given drug is kept:
+
+- the drug name or one of its brand names must appear in the dated sentence or the sentence immediately before it
+  (filings name the product, then state the date);
+- the filer/sponsor must be the drug's company — competitors' products of the same molecule and generics are
+  excluded, as are sentences that describe another company's event;
+- complete response letters count only when actually received/issued (not requested or hypothetical).
+
+The same PDUFA date reported in many filings becomes **one** event with all its sources. Events no longer
+confirmed by a later run are flagged `stale` and hidden by default.
+
+The SEC requires a declared contact: set `SEC_USER_AGENT="Company Name contact@email.com"` in `.env`
+(without it, only openFDA is used). Filings are searched from two years before the window, since PDUFA dates
+are announced months in advance.
+
+---
+
+## FDA calendar (PDUFA dates and advisory committees)
+
+Events from the FDA Tracker calendar (<https://www.fdatracker.com/fda-calendar/>) are matched to the drug for the
+same date window (2013-01-01 to today + 19 months).
+
+**Acquisition.** The page embeds two public Google Calendars (*PDUFA*, *Adcom*). Their public iCal exports return
+every event — date, title (`TICKER Company TYPE`), description and source link — in one HTTP request each; no
+browser automation is needed.
+
+**Identifying the drug** — an event is kept only when one of the drug's names (generic, brand, code names) is found
+in, in order of preference:
+
+| evidence | example |
+|---|---|
+| `calendar_text` | the event description names the drug |
+| `link_url` | the source link's URL slug: `…New-Drug-Application-for-Ralinepag-to-Treat-…` |
+| `link_document` | the linked document (SEC filing / press release): the sentence stating the event date and the sentence before it, or a press release's lead |
+| `sec_copy` | when the link cannot be fetched: the same announcement filed by the company on SEC EDGAR (ticker → CIK, event date) |
+
+Each stored event carries the matched names, the evidence text and URLs, whether the sponsor is the drug's
+developer (`is_company`), and full provenance (feed URL, event UID, source last-modified, retrieval time and method).
+
+**Unresolved events.** Some press-release hosts reset connections from automated clients (bot protection). Such
+blocks are not bypassed: the host is recorded in `blocked_hosts`, the SEC copy is tried, and events of the drug's own
+company that still cannot be verified are stored as `status: unresolved` with the exact problem — never guessed.
+
+Links found in third-party data point to arbitrary websites, so they are fetched through an SSRF-guarded client:
+`http`/`https` on default ports only, no embedded credentials, and every redirect hop must resolve exclusively to
+public IP addresses.
+
+---
+
 ## REST API
 
 ```bash
@@ -130,6 +197,8 @@ All endpoints except `/healthz` require the header `X-API-Key`.
 | `GET` | `/v1/crawls/{job_id}` | job status (`queued`, `running`, `done`, `failed`) and summary |
 | `GET` | `/v1/drugs/{drug_id}` | drug profile |
 | `GET` | `/v1/drugs/{drug_id}/patents` | patents; query: `decision=include\|uncertain`, `stale=false`, `skip`, `limit` (≤ 200) |
+| `GET` | `/v1/drugs/{drug_id}/regulatory` | timeline sorted by date; query: `type`, `category`, `stale=false`, `skip`, `limit` |
+| `GET` | `/v1/drugs/{drug_id}/fda-calendar` | FDA calendar events for the drug; query: `status=matched\|unresolved`, `stale=false`, `skip`, `limit` |
 | `GET` | `/healthz` | liveness check |
 
 `drug_id` is the AdisInsight id (`800010447`) or `name:<slug>` (`name:treprostinil`); it is returned in the job.
@@ -178,6 +247,8 @@ served largely from cache.
 | `patents` | `GP:<publication>`, e.g. `GP:EP2026816B1` | publication and application numbers, kind, filing/priority/publication dates, original and current assignees, inventors, CPC, priority applications, family id and members, legal status, events, legal events, provenance, content hash, `first_seen`, `last_seen` |
 | `drug_patents` | `<drug_id>:<publication>` | decision (`include` / `uncertain`), match evidence (score, how it was found, which family it came through), `stale` flag |
 | `crawl_runs` | `<drug_id>:<timestamp>` | coverage report: pages fetched, included/uncertain/rejected, families, offices, legal-status distribution, budget status, errors |
+| `regulatory_events` | hash of drug, type, date, sponsor | type (`pdufa_date`, `complete_response_letter`, `approval`, …), date, category, sponsor, status (`upcoming`/`past`), first/last reported, evidence (sentence, context, filing link) |
+| `fda_calendar_events` | `<drug_id>:<event uid>` | date, event type (`pdufa`, `adcom`), ticker, company, `is_company`, status (`matched`/`unresolved`), matched names, evidence, links, provenance |
 | `crawl_jobs` | job id | API job status |
 
 A patent shared by several drugs is stored once in `patents` and linked from each drug in `drug_patents`.
@@ -234,6 +305,18 @@ interrupted jobs are marked on restart. One failing drug does not stop the next.
   Build links only from `publication_number`.
 - Use MongoDB in production (JSON mode is for local use) and prune `Patents_Data/.cache` periodically.
 
+### TLS certificates on servers
+
+Certificate verification is never disabled. Which certificate authorities are trusted:
+
+| connection | default | override |
+|---|---|---|
+| MongoDB | `certifi` public CA bundle (MongoDB Atlas) | `MONGO_TLS_CA_FILE=system` (OS trust store, e.g. a private CA installed on the server) or `MONGO_TLS_CA_FILE=/path/ca.pem`. If the connection string itself sets `tlsCAFile` / `tlsInsecure` / `tlsAllowInvalidCertificates`, the connection string decides and nothing is added. |
+| outbound HTTP (sources) | `certifi` public CA bundle | standard `SSL_CERT_FILE` / `SSL_CERT_DIR` environment variables — needed when the server sits behind a proxy that inspects TLS with a corporate CA |
+
+Self-hosted MongoDB with a private CA: either install the CA in the server's trust store and set
+`MONGO_TLS_CA_FILE=system`, or point `MONGO_TLS_CA_FILE` at the CA file.
+
 ---
 
 ## Architecture
@@ -245,6 +328,8 @@ interrupted jobs are marked on restart. One failing drug does not stop the next.
 | `patent_intel/google_patents.py` | parsing of one Google Patents page |
 | `patent_intel/crawler.py` | concurrent crawl frontier and final classification |
 | `patent_intel/matching.py` | company-name normalization and scoring |
+| `patent_intel/regulatory.py` | SEC EDGAR + openFDA regulatory timeline |
+| `patent_intel/fdacal.py` | FDA Tracker calendar events matched to the drug |
 | `patent_intel/pipeline.py` | orchestration for one drug and the coverage report |
 | `patent_intel/store.py` | MongoDB or JSON storage behind one async interface |
 | `patent_intel/net.py` | HTTP client: host allow-list, size limits, pacing, retries, disk cache |
@@ -267,6 +352,8 @@ CLI / API ─► pipeline.run_drug
 - **Permitted sources only.** WIPO PATENTSCOPE's terms prohibit automated queries and scraping, and its paid
   API covers PCT applications only; Google Patents' search endpoints are disallowed by robots.txt. The crawler
   therefore uses only Google Patents document pages, PubChem's documented API and AdisInsight profile pages.
+  The FDA calendar is read through its public iCal exports, and technical access controls (bot protection) are
+  never bypassed — blocked sources are reported and the SEC copy of the announcement is used instead.
 - **No credentials required.** Google's BigQuery patent dataset was evaluated but needs a cloud account; the
   family/citation crawl achieves comparable discovery without one.
 - **Deterministic matching.** Company ownership is decided by normalized-name rules with recorded evidence;
