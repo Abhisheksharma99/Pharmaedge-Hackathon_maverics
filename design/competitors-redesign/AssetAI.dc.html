@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Asset AI — PharmaEdge</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F5F7}
+a{color:#2347D9;text-decoration:none}a:hover{color:#1A36A8}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+button,input,textarea{font:inherit}
+button{cursor:pointer}
+input::placeholder,textarea::placeholder{color:#667085;opacity:1}
+a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid #2347D9;outline-offset:2px}
+@keyframes pe-spin{to{transform:rotate(360deg)}}
+@keyframes pe-rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes pe-blink{0%,100%{opacity:1}50%{opacity:0}}
+@keyframes pe-pulse{0%{box-shadow:0 0 0 0 rgba(35,71,217,.35)}70%{box-shadow:0 0 0 8px rgba(35,71,217,0)}100%{box-shadow:0 0 0 0 rgba(35,71,217,0)}}
+@keyframes pe-shimmer{0%{background-position:-200px 0}100%{background-position:200px 0}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; background: #F4F5F7; color: #344054; font-family: 'Geist', ui-sans-serif, system-ui, sans-serif; font-size: 14px; line-height: 1.45;">
+
+<nav aria-label="Primary" style="flex: 0 0 64px; box-sizing: border-box; background: #FFFFFF; border-right: 1px solid #E4E7EC; padding: 14px 10px; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+<a href="#" aria-label="PharmaEdge home" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px;"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" rx="8" fill="{{accent}}"></rect><path d="M10 21.5V8.5h5.75a4.25 4.25 0 0 1 0 8.5H10" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="20.5" cy="20.5" r="2.1" fill="#FFFFFF"></circle></svg></a>
+<a href="#" aria-label="Home" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #475467;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5 9.5V21h14V9.5"></path><path d="M9.5 21v-6h5v6"></path></svg></a>
+<a href="AddAsset.dc.html" aria-label="Asset Search" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #475467;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></a>
+<a href="#" aria-label="Asset AI" aria-current="page" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: {{accentTint}}; color: {{accent}};"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c.4 3.9 2.1 5.6 6 6-3.9.4-5.6 2.1-6 6-.4-3.9-2.1-5.6-6-6 3.9-.4 5.6-2.1 6-6z"></path></svg></a>
+<span aria-hidden="true" style="width: 28px; height: 1px; background: #E4E7EC; margin: 6px 0;"></span>
+<a href="Timeline.dc.html" aria-label="Asset Journey" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #475467;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="19" r="2.5"></circle><circle cx="18" cy="5" r="2.5"></circle><path d="M8.5 19H16a3.5 3.5 0 0 0 0-7H8a3.5 3.5 0 0 1 0-7h7.5"></path></svg></a>
+<a href="Analytics.dc.html" aria-label="Insights" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #475467;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"></path><path d="M7 16v-5M12 16V6M17 16v-8"></path></svg></a>
+<a href="Pipeline.dc.html" aria-label="Crawl jobs" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #475467;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="6" r="2"></circle><circle cx="5" cy="18" r="2"></circle><circle cx="19" cy="12" r="2"></circle><path d="M7 6h3a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H7M13 12h4"></path></svg></a>
+</nav>
+
+<div style="flex: 1 1 0; min-width: 0; display: flex; flex-wrap: wrap; align-items: stretch;">
+
+<!-- History -->
+<aside aria-label="Chat history" style="flex: 1 1 240px; max-width: 280px; box-sizing: border-box; background: #FFFFFF; border-right: 1px solid #E4E7EC; padding: 16px 12px; display: flex; flex-direction: column; gap: 14px;">
+<div style="display: flex; align-items: center; gap: 10px; padding: 0 4px;">
+<span style="width: 30px; height: 30px; border-radius: 9px; background: {{accent}}; display: flex; align-items: center; justify-content: center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="#FFFFFF" aria-hidden="true"><path d="M12 3c.4 3.9 2.1 5.6 6 6-3.9.4-5.6 2.1-6 6-.4-3.9-2.1-5.6-6-6 3.9-.4 5.6-2.1 6-6z"></path></svg></span>
+<h1 style="margin: 0; font-size: 16px; font-weight: 650; color: #101828;">Asset AI</h1>
+<span style="height: 20px; display: inline-flex; align-items: center; padding: 0 6px; border-radius: 6px; background: {{accentTint}}; color: {{accent}}; font-size: 12px; font-weight: 600;">Beta</span>
+</div>
+<a href="#" style="height: 40px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 10px; background: #101828; color: #FFFFFF; font-size: 13.5px; font-weight: 600; text-decoration: none;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>New chat</a>
+<div style="position: relative;">
+<label for="chat-search" class="sr-only">Search chats</label>
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#667085" stroke-width="2" stroke-linecap="round" aria-hidden="true" style="position: absolute; left: 10px; top: 11px;"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+<input id="chat-search" type="search" placeholder="Search chats" style="width: 100%; box-sizing: border-box; height: 36px; padding: 0 10px 0 32px; border: 1px solid #E4E7EC; border-radius: 9px; background: #F9FAFB; font-size: 13px; color: #101828;">
+</div>
+<div style="display: flex; flex-direction: column; gap: 14px; font-size: 13px;">
+<div>
+<p style="margin: 0 0 4px; padding: 0 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #667085;">Today</p>
+<ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px;">
+<li><a href="#" aria-current="page" style="display: flex; flex-direction: column; gap: 3px; padding: 8px; border-radius: 9px; background: {{accentTint}}; text-decoration: none;"><span style="font-weight: 600; color: #101828; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">How does Dupilumab compare with Tezepelumab?</span><span style="font-size: 12px; color: #475467;">Dupilumab · 2 questions</span></a></li>
+<li><a href="#" style="display: flex; flex-direction: column; gap: 3px; padding: 8px; border-radius: 9px; text-decoration: none;"><span style="font-weight: 500; color: #344054; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">What changed across my assets this month?</span><span style="font-size: 12px; color: #475467;">All assets</span></a></li>
+</ul>
+</div>
+<div>
+<p style="margin: 0 0 4px; padding: 0 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #667085;">Yesterday</p>
+<ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px;">
+<li><a href="#" style="display: flex; flex-direction: column; gap: 3px; padding: 8px; border-radius: 9px; text-decoration: none;"><span style="font-weight: 500; color: #344054; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Which upcoming milestones should I watch?</span><span style="font-size: 12px; color: #475467;">All assets</span></a></li>
+<li><a href="#" style="display: flex; flex-direction: column; gap: 3px; padding: 8px; border-radius: 9px; text-decoration: none;"><span style="font-weight: 500; color: #344054; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Summarize the latest Phase 3 readouts across my assets</span><span style="font-size: 12px; color: #475467;">All assets</span></a></li>
+</ul>
+</div>
+<div>
+<p style="margin: 0 0 4px; padding: 0 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #667085;">Previous 7 days</p>
+<ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px;">
+<li><a href="#" style="display: flex; flex-direction: column; gap: 3px; padding: 8px; border-radius: 9px; text-decoration: none;"><span style="font-weight: 500; color: #344054; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">What is expected from Treprostinil’s next regulatory decision?</span><span style="font-size: 12px; color: #475467;">Treprostinil</span></a></li>
+<li><a href="#" style="display: flex; flex-direction: column; gap: 3px; padding: 8px; border-radius: 9px; text-decoration: none;"><span style="font-weight: 500; color: #344054; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Add sotatercept</span><span style="font-size: 12px; color: #475467;">New asset · crawl started</span></a></li>
+<li><a href="#" style="display: flex; flex-direction: column; gap: 3px; padding: 8px; border-radius: 9px; text-decoration: none;"><span style="font-weight: 500; color: #344054; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Who are Dupilumab’s main competitors?</span><span style="font-size: 12px; color: #475467;">Dupilumab</span></a></li>
+</ul>
+</div>
+</div>
+</aside>
+
+<!-- Conversation -->
+<main style="flex: 999 1 440px; min-width: 0; display: flex; flex-direction: column;">
+<header style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding: 12px 24px; background: #FFFFFF; border-bottom: 1px solid #E4E7EC;">
+<div style="min-width: 0;">
+<h2 style="margin: 0; font-size: 15px; font-weight: 600; color: #101828; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">How does Dupilumab compare with Tezepelumab?</h2>
+<p style="margin: 0; font-size: 12.5px; color: #475467;">Grounded in Dupilumab and its 5 tracked competitors</p>
+</div>
+<div style="display: flex; align-items: center; gap: 6px;">
+<a href="Timeline.dc.html" style="height: 32px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border: 1px solid #E4E7EC; border-radius: 8px; color: #344054; font-size: 12.5px; font-weight: 500;"><span style="width: 7px; height: 7px; border-radius: 50%; background: {{accent}};"></span>Dupilumab</a>
+</div>
+</header>
+
+<div style="flex: 1 1 auto; padding: 24px 24px 8px;">
+<div style="max-width: 780px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px;">
+
+<!-- Turn 1 -->
+<div style="align-self: flex-end; max-width: 80%; padding: 10px 14px; border-radius: 16px 16px 4px 16px; background: {{accentTint}}; color: #101828; font-size: 14px; font-weight: 500;">How does Dupilumab compare with Tezepelumab?</div>
+
+<div style="display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 12px;">
+<span style="width: 30px; height: 30px; border-radius: 9px; background: {{accent}}; display: flex; align-items: center; justify-content: center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="#FFFFFF" aria-hidden="true"><path d="M12 3c.4 3.9 2.1 5.6 6 6-3.9.4-5.6 2.1-6 6-.4-3.9-2.1-5.6-6-6 3.9-.4 5.6-2.1 6-6z"></path></svg></span>
+<div style="min-width: 0; display: flex; flex-direction: column; gap: 12px;">
+
+<div style="border: 1px solid #E4E7EC; border-radius: 12px; background: #FFFFFF;">
+<button type="button" onClick="{{toggleSteps}}" aria-expanded="{{stepsExpanded}}" style="width: 100%; height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 0; background: transparent; border-radius: 12px; color: #344054; font-size: 13px; font-weight: 500; text-align: left;">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#08916F" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg>
+<span style="flex: 1;">Worked for 8 s · used 3 tools · 12 sources read</span>
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#667085" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="transform: {{stepsChevron}};"><path d="m6 9 6 6 6-6"></path></svg>
+</button>
+<sc-if value="{{stepsOpen}}" hint-placeholder-val="{{ false }}">
+<ol style="list-style: none; margin: 0; padding: 4px 12px 12px 34px; display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #F2F4F7; animation: pe-rise 0.3s ease both;">
+<li style="display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding-top: 8px; font-size: 13px;"><span style="color: #101828;">Comparing Dupilumab and Tezepelumab <span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 12px; color: #667085;">compare_assets</span></span><span style="color: #475467;">2 assets</span></li>
+<li style="display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; font-size: 13px;"><span style="color: #101828;">Reading the journey of Dupilumab <span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 12px; color: #667085;">get_timeline</span></span><span style="color: #475467;">20 events</span></li>
+<li style="display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; font-size: 13px;"><span style="color: #101828;">Searching evidence: COPD exacerbations <span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 12px; color: #667085;">search_evidence</span></span><span style="color: #475467;">8 passages</span></li>
+</ol>
+</sc-if>
+</div>
+
+<p style="margin: 0; font-size: 14px; line-height: 1.6; color: #344054;">Both are antibodies against type 2 inflammation, but Dupilumab is much further along: approved in 8 indications since 2017, against Tezepelumab’s severe-asthma approval in 2021<button type="button" onClick="{{c1.pick}}" aria-label="Source 1: Drugs@FDA, BLA 761055" style="margin-left: 2px; height: 18px; min-width: 18px; padding: 0 4px; border: 1px solid {{c1.bd}}; border-radius: 5px; background: {{c1.bg}}; color: {{accent}}; font-size: 11px; font-weight: 700; vertical-align: 2px;">1</button><button type="button" onClick="{{c2.pick}}" aria-label="Source 2: Drugs@FDA, Tezspire approval" style="margin-left: 2px; height: 18px; min-width: 18px; padding: 0 4px; border: 1px solid {{c2.bd}}; border-radius: 5px; background: {{c2.bg}}; color: {{accent}}; font-size: 11px; font-weight: 700; vertical-align: 2px;">2</button>. Dupilumab also has more Phase 3 work under way, and its COPD approval puts it ahead in the indication both companies are now chasing<button type="button" onClick="{{c3.pick}}" aria-label="Source 3: NOTUS trial record" style="margin-left: 2px; height: 18px; min-width: 18px; padding: 0 4px; border: 1px solid {{c3.bd}}; border-radius: 5px; background: {{c3.bg}}; color: {{accent}}; font-size: 11px; font-weight: 700; vertical-align: 2px;">3</button><button type="button" onClick="{{c4.pick}}" aria-label="Source 4: Regeneron press release on COPD approval" style="margin-left: 2px; height: 18px; min-width: 18px; padding: 0 4px; border: 1px solid {{c4.bd}}; border-radius: 5px; background: {{c4.bg}}; color: {{accent}}; font-size: 11px; font-weight: 700; vertical-align: 2px;">4</button>.</p>
+
+<!-- Comparison card -->
+<div style="border: 1px solid #E4E7EC; border-radius: 14px; overflow: hidden; background: #FFFFFF;">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px; background: #F9FAFB; border-bottom: 1px solid #EEF0F3;">
+<span style="font-size: 13px; font-weight: 600; color: #101828;">Dupilumab vs Tezepelumab</span>
+<span style="font-size: 12px; color: #475467;">8 attributes</span>
+</div>
+<div style="overflow-x: auto;">
+<table style="width: 100%; min-width: 520px; border-collapse: collapse; font-size: 13px;">
+<caption class="sr-only">Dupilumab versus Tezepelumab</caption>
+<thead><tr><th scope="col" style="width: 28%; padding: 9px 14px; text-align: left;"><span class="sr-only">Attribute</span></th><th scope="col" style="padding: 9px 14px; text-align: left; font-weight: 600; color: #101828;"><span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 8px; height: 8px; border-radius: 2px; background: {{accent}};"></span>Dupilumab</span></th><th scope="col" style="padding: 9px 14px; text-align: left; font-weight: 600; color: #101828;"><span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 8px; height: 8px; border-radius: 2px; background: #E0620F;"></span>Tezepelumab</span></th></tr></thead>
+<tbody>
+<tr><th scope="row" style="padding: 8px 14px; text-align: left; font-weight: 500; color: #475467; border-top: 1px solid #F2F4F7;">Mechanism</th><td style="padding: 8px 14px; color: #101828; border-top: 1px solid #F2F4F7;">IL-4Rα antagonist</td><td style="padding: 8px 14px; color: #101828; border-top: 1px solid #F2F4F7;">TSLP blocker</td></tr>
+<tr><th scope="row" style="padding: 8px 14px; text-align: left; font-weight: 500; color: #475467; border-top: 1px solid #F2F4F7;">Modality</th><td style="padding: 8px 14px; color: #101828; border-top: 1px solid #F2F4F7;">Antibody</td><td style="padding: 8px 14px; color: #101828; border-top: 1px solid #F2F4F7;">Antibody</td></tr>
+<tr><th scope="row" style="padding: 8px 14px; text-align: left; font-weight: 500; color: #475467; border-top: 1px solid #F2F4F7;">Approved indications</th><td style="padding: 8px 14px; color: #101828; border-top: 1px solid #F2F4F7;">AD, asthma, CRSwNP, EoE, PN, COPD, CSU, BP</td><td style="padding: 8px 14px; color: #101828; border-top: 1px solid #F2F4F7;">Severe asthma</td></tr>
+<tr><th scope="row" style="padding: 8px 14px; text-align: left; font-weight: 500; color: #475467; border-top: 1px solid #F2F4F7;">Investigational</th><td style="padding: 8px 14px; color: #101828; border-top: 1px solid #F2F4F7;">CPUO, ulcerative colitis</td><td style="padding: 8px 14px; color: #101828; border-top: 1px solid #F2F4F7;">COPD, CRSwNP</td></tr>
+<tr><th scope="row" style="padding: 8px 14px; text-align: left; font-weight: 500; color: #475467; border-top: 1px solid #F2F4F7;">First approval</th><td style="padding: 8px 14px; color: #101828; border-top: 1px solid #F2F4F7;">Mar 2017</td><td style="padding: 8px 14px; color: #101828; border-top: 1px solid #F2F4F7;">Dec 2021</td></tr>
+<tr><th scope="row" style="padding: 8px 14px; text-align: left; font-weight: 500; color: #475467; border-top: 1px solid #F2F4F7;">Active trials (Phase 3)</th><td style="padding: 8px 14px; color: #101828; font-weight: 600; border-top: 1px solid #F2F4F7; font-variant-numeric: tabular-nums;">31</td><td style="padding: 8px 14px; color: #101828; font-weight: 600; border-top: 1px solid #F2F4F7; font-variant-numeric: tabular-nums;">9</td></tr>
+<tr><th scope="row" style="padding: 8px 14px; text-align: left; font-weight: 500; color: #475467; border-top: 1px solid #F2F4F7;">Publications</th><td style="padding: 8px 14px; color: #101828; font-weight: 600; border-top: 1px solid #F2F4F7; font-variant-numeric: tabular-nums;">1,000</td><td style="padding: 8px 14px; color: #101828; font-weight: 600; border-top: 1px solid #F2F4F7; font-variant-numeric: tabular-nums;">286</td></tr>
+<tr><th scope="row" style="padding: 8px 14px; text-align: left; font-weight: 500; color: #475467; border-top: 1px solid #F2F4F7;">Latest milestone</th><td style="padding: 8px 14px; color: #101828; border-top: 1px solid #F2F4F7;">FDA approval: bullous pemphigoid</td><td style="padding: 8px 14px; color: #101828; border-top: 1px solid #F2F4F7;">Phase 3 readout in CRSwNP</td></tr>
+</tbody>
+</table>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 14px; border-top: 1px solid #EEF0F3;">
+<a href="Analytics.dc.html" style="height: 32px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border: 1px solid #D0D5DD; border-radius: 8px; color: #344054; font-size: 12.5px; font-weight: 500;">View evidence</a>
+<a href="Main.dc.html" style="height: 32px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border: 1px solid #D0D5DD; border-radius: 8px; color: #344054; font-size: 12.5px; font-weight: 500;">Compare journeys</a>
+<a href="#" style="height: 32px; display: inline-flex; align-items: center; gap: 4px; padding: 0 6px; color: {{accent}}; font-size: 12.5px; font-weight: 600;">Open Tezepelumab ↗</a>
+</div>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px;">
+<span style="font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #667085; margin-right: 4px;">Sources</span>
+<sc-for list="{{chips}}" as="ch" hint-placeholder-count="4"><button type="button" onClick="{{ch.pick}}" aria-pressed="{{ch.pressed}}" style="height: 28px; display: inline-flex; align-items: center; gap: 6px; padding: 0 8px; border: 1px solid {{ch.bd}}; border-radius: 8px; background: {{ch.bg}}; color: #344054; font-size: 12px; font-weight: 500; max-width: 240px;"><span style="font-family: 'Geist Mono', ui-monospace, monospace; font-weight: 700; color: {{accent}};">{{ch.n}}</span><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ch.short}}</span></button></sc-for>
+</div>
+<div style="display: flex; gap: 4px;">
+<button type="button" aria-label="Copy answer" style="width: 32px; height: 32px; border: 0; background: transparent; border-radius: 8px; color: #667085; display: flex; align-items: center; justify-content: center;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h10"></path></svg></button>
+<button type="button" aria-label="Retry" style="width: 32px; height: 32px; border: 0; background: transparent; border-radius: 8px; color: #667085; display: flex; align-items: center; justify-content: center;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5"></path></svg></button>
+</div>
+</div>
+</div>
+
+<!-- Turn 2 (live) -->
+<div style="align-self: flex-end; max-width: 80%; padding: 10px 14px; border-radius: 16px 16px 4px 16px; background: {{accentTint}}; color: #101828; font-size: 14px; font-weight: 500; animation: pe-rise 0.3s ease both;">Add tralokinumab</div>
+
+<div style="display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 12px;">
+<span style="width: 30px; height: 30px; border-radius: 9px; background: {{accent}}; display: flex; align-items: center; justify-content: center; animation: {{avatarAnim}};"><svg width="16" height="16" viewBox="0 0 24 24" fill="#FFFFFF" aria-hidden="true"><path d="M12 3c.4 3.9 2.1 5.6 6 6-3.9.4-5.6 2.1-6 6-.4-3.9-2.1-5.6-6-6 3.9-.4 5.6-2.1 6-6z"></path></svg></span>
+<div style="min-width: 0; display: flex; flex-direction: column; gap: 12px;" aria-live="polite">
+
+<div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid {{tool.bd}}; border-radius: 12px; background: #FFFFFF;">
+<sc-if value="{{tool.running}}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="{{accent}}" stroke-width="2.6" stroke-linecap="round" aria-label="Running" style="animation: pe-spin 0.9s linear infinite; flex: none;"><circle cx="12" cy="12" r="9" stroke="#E4E7EC"></circle><path d="M21 12a9 9 0 0 0-9-9"></path></svg></sc-if>
+<sc-if value="{{tool.done}}" hint-placeholder-val="{{ true }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#08916F" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-label="Done" style="flex: none;"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></sc-if>
+<span style="flex: 1; min-width: 0; font-size: 13px; color: #101828;">Looking up tralokinumab in FDA, EMA and ClinicalTrials.gov <span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 12px; color: #667085;">resolve_asset</span></span>
+<span style="font-size: 12.5px; color: #475467; white-space: nowrap;">{{tool.summary}}</span>
+</div>
+
+<sc-if value="{{showCard}}" hint-placeholder-val="{{ true }}">
+<div style="border: 1px solid #E4E7EC; border-radius: 14px; background: #FFFFFF; animation: pe-rise 0.45s ease both;">
+<div style="display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px 10px;">
+<span style="width: 40px; height: 40px; flex: none; border-radius: 11px; background: #FBF1DC; color: #854D0E; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;">Tr</span>
+<div style="flex: 1; min-width: 0;">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px;"><span style="font-size: 16px; font-weight: 650; color: #101828;">Tralokinumab</span><span style="height: 22px; display: inline-flex; align-items: center; padding: 0 8px; border-radius: 6px; background: #FFFAEB; border: 1px solid #FEDF89; color: #93370D; font-size: 12px; font-weight: 600;">Tracked as a competitor</span></div>
+<p style="margin: 2px 0 0; font-size: 12.5px; color: #475467;">Also known as Adbry · Adtralza · CAT-354</p>
+</div>
+</div>
+<dl style="margin: 0; padding: 0 16px 12px; display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 8px 12px; font-size: 13px;">
+<dt style="color: #475467;">Company</dt><dd style="margin: 0; color: #101828;"><b style="font-weight: 600;">LEO Pharma</b><span style="margin-left: 8px; font-size: 12.5px; color: #067647;">leo-pharma.com verified</span></dd>
+<dt style="color: #475467;">Approved for</dt><dd style="margin: 0;"><span style="height: 22px; display: inline-flex; align-items: center; padding: 0 8px; border-radius: 6px; border: 1px solid #E4E7EC; font-size: 12.5px; color: #344054;">Atopic dermatitis</span></dd>
+<dt style="color: #475467;">Mechanism</dt><dd style="margin: 0; color: #101828;">IL-13 neutralising antibody · Antibody</dd>
+<dt style="color: #475467;">Found in</dt><dd style="margin: 0; color: #344054;">FDA 1 · EMA 1 · Trials 40</dd>
+</dl>
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; border-top: 1px solid #EEF0F3; background: #FCFCFD; border-radius: 0 0 14px 14px;">
+<span style="font-size: 12.5px; color: #475467;">{{cardNote}}</span>
+<sc-if value="{{canTrack}}" hint-placeholder-val="{{ true }}"><button type="button" onClick="{{track}}" style="height: 36px; padding: 0 14px; border: 0; border-radius: 9px; background: {{accent}}; color: #FFFFFF; font-size: 13px; font-weight: 600; animation: pe-pulse 2s 2;">Track fully</button></sc-if>
+<sc-if value="{{tracking}}" hint-placeholder-val="{{ false }}"><span style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #067647;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg>Crawl started</span></sc-if>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{showThinking}}" hint-placeholder-val="{{ false }}"><p style="margin: 0; font-size: 13px; color: #475467;">Thinking…</p></sc-if>
+<sc-if value="{{hasText}}" hint-placeholder-val="{{ true }}"><p style="margin: 0; font-size: 14px; line-height: 1.6; color: #344054;">{{streamText}}<sc-if value="{{streaming}}" hint-placeholder-val="{{ false }}"><span aria-hidden="true" style="display: inline-block; width: 7px; height: 15px; margin-left: 2px; vertical-align: -2px; background: {{accent}}; animation: pe-blink 1s step-end infinite;"></span></sc-if></p></sc-if>
+
+<!-- Job card -->
+<sc-if value="{{tracking}}" hint-placeholder-val="{{ false }}">
+<div style="border: 1px solid {{jobBd}}; border-radius: 14px; background: #FFFFFF; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; animation: pe-rise 0.45s ease both;">
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;">
+<div><p style="margin: 0; font-size: 14px; font-weight: 600; color: #101828;">Collecting data for Tralokinumab</p><p style="margin: 2px 0 0; font-size: 12.5px; color: #475467;">{{job.line}}</p></div>
+<span style="height: 22px; display: inline-flex; align-items: center; gap: 6px; padding: 0 8px; border-radius: 999px; background: {{job.pillBg}}; color: {{job.pillFg}}; font-size: 12px; font-weight: 600;"><span style="width: 6px; height: 6px; border-radius: 50%; background: {{job.pillFg}};"></span>{{job.status}}</span>
+</div>
+<div aria-hidden="true" style="display: flex; gap: 10px;">
+<sc-for list="{{job.groups}}" as="g" hint-placeholder-count="4"><div style="flex: {{g.flex}}; display: flex; flex-direction: column; gap: 5px;"><span style="font-size: 11.5px; font-weight: 600; color: #667085; text-transform: uppercase; letter-spacing: 0.04em;">{{g.label}}</span><span style="display: flex; gap: 3px;"><sc-for list="{{g.steps}}" as="d" hint-placeholder-count="4"><span title="{{d.label}}" style="flex: 1; height: 8px; border-radius: 3px; background: {{d.bg}}; animation: {{d.anim}};"></span></sc-for></span></div></sc-for>
+</div>
+<div role="progressbar" aria-label="Crawl progress" aria-valuemin="0" aria-valuemax="15" aria-valuenow="{{job.done}}" class="sr-only"></div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px;">
+<a href="Pipeline.dc.html" style="height: 32px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border-radius: 8px; background: #101828; color: #FFFFFF; font-size: 12.5px; font-weight: 600;">Open live view</a>
+<a href="Timeline.dc.html" style="height: 32px; display: inline-flex; align-items: center; padding: 0 10px; border: 1px solid #D0D5DD; border-radius: 8px; color: #344054; font-size: 12.5px; font-weight: 500;">Open asset</a>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{showFollow}}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; flex-wrap: wrap; gap: 8px; animation: pe-rise 0.4s ease both;">
+<button type="button" style="height: 34px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border: 1px solid #E4E7EC; border-radius: 999px; background: #FFFFFF; color: #344054; font-size: 13px; font-weight: 500;">How does Tralokinumab compare with Dupilumab in AD?</button>
+<button type="button" style="height: 34px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border: 1px solid #E4E7EC; border-radius: 999px; background: #FFFFFF; color: #344054; font-size: 13px; font-weight: 500;">What is Tralokinumab’s next milestone?</button>
+<button type="button" style="height: 34px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border: 1px solid #E4E7EC; border-radius: 999px; background: #FFFFFF; color: #344054; font-size: 13px; font-weight: 500;">Show IL-13 competitors</button>
+</div>
+</sc-if>
+</div>
+</div>
+
+</div>
+</div>
+
+<!-- Composer -->
+<div style="position: sticky; bottom: 0; padding: 12px 24px 18px; background: linear-gradient(180deg, rgba(244,245,247,0) 0, #F4F5F7 24px);">
+<form onSubmit="{{prevent}}" style="max-width: 780px; margin: 0 auto; border: 1px solid #D0D5DD; border-radius: 16px; background: #FFFFFF; box-shadow: 0 8px 24px rgba(16,24,40,0.08); padding: 10px 10px 10px 14px; display: flex; flex-direction: column; gap: 8px;">
+<label for="ask" class="sr-only">Ask Asset AI</label>
+<textarea id="ask" rows="2" placeholder="Ask about your assets, or type “Add” and a drug name…" style="width: 100%; box-sizing: border-box; border: 0; resize: none; background: transparent; font-size: 14px; line-height: 1.5; color: #101828;"></textarea>
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px;">
+<button type="button" onClick="{{toggleScope}}" aria-pressed="{{scope.pressed}}" style="height: 30px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border: 1px solid #E4E7EC; border-radius: 8px; background: #F9FAFB; color: #344054; font-size: 12.5px; font-weight: 500;"><span style="width: 7px; height: 7px; border-radius: 50%; background: {{scope.dot}};"></span>{{scope.label}}</button>
+<span style="font-size: 12px; color: #667085;">Try <span style="font-family: 'Geist Mono', ui-monospace, monospace; color: #344054;">Add</span>, <span style="font-family: 'Geist Mono', ui-monospace, monospace; color: #344054;">compare</span> or <span style="font-family: 'Geist Mono', ui-monospace, monospace; color: #344054;">milestones</span></span>
+</div>
+<sc-if value="{{streaming}}" hint-placeholder-val="{{ false }}"><button type="button" aria-label="Stop answering" style="width: 38px; height: 38px; border: 0; border-radius: 10px; background: #101828; color: #FFFFFF; display: flex; align-items: center; justify-content: center;"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2"></rect></svg></button></sc-if>
+<sc-if value="{{notStreaming}}" hint-placeholder-val="{{ true }}"><button type="submit" aria-label="Send" style="width: 38px; height: 38px; border: 0; border-radius: 10px; background: {{accent}}; color: #FFFFFF; display: flex; align-items: center; justify-content: center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"></path><path d="m5 12 7-7 7 7"></path></svg></button></sc-if>
+</div>
+</form>
+<p style="max-width: 780px; margin: 8px auto 0; font-size: 12px; color: #667085; text-align: center;">AI answers can be wrong. Check the cited evidence before acting.</p>
+</div>
+</main>
+
+<!-- Source preview -->
+<aside aria-label="Source preview" style="flex: 1 1 300px; max-width: 360px; box-sizing: border-box; background: #FFFFFF; border-left: 1px solid #E4E7EC; padding: 18px 18px 24px; display: flex; flex-direction: column; gap: 16px;">
+<div>
+<p style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #667085;">Source {{src.n}} of 4</p>
+<h2 style="margin: 6px 0 0; font-size: 16px; line-height: 22px; font-weight: 600; color: #101828; animation: pe-rise 0.3s ease both;">{{src.title}}</h2>
+<p style="margin: 4px 0 0; font-size: 12.5px; color: #475467;">{{src.meta}}</p>
+</div>
+<blockquote style="margin: 0; padding: 12px 14px; border-radius: 12px; background: #F9FAFB; border: 1px solid #EEF0F3; font-size: 13.5px; line-height: 1.6; color: #344054;">{{src.excerpt}}</blockquote>
+<dl style="margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; font-size: 13px;">
+<div><dt style="font-size: 12px; color: #667085;">Collection</dt><dd style="margin: 2px 0 0; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 12.5px; color: #101828;">{{src.collection}}</dd></div>
+<div><dt style="font-size: 12px; color: #667085;">Opens in</dt><dd style="margin: 2px 0 0; color: #101828;">{{src.tab}} tab</dd></div>
+</dl>
+<div style="display: flex; flex-wrap: wrap; gap: 8px;">
+<a href="Timeline.dc.html" style="height: 36px; display: inline-flex; align-items: center; padding: 0 12px; border-radius: 9px; background: {{accent}}; color: #FFFFFF; font-size: 13px; font-weight: 600;">Open record</a>
+<button type="button" onClick="{{prevSrc}}" aria-label="Previous source" style="width: 36px; height: 36px; border: 1px solid #D0D5DD; background: #FFFFFF; border-radius: 9px; color: #344054; display: flex; align-items: center; justify-content: center;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg></button>
+<button type="button" onClick="{{nextSrc}}" aria-label="Next source" style="width: 36px; height: 36px; border: 1px solid #D0D5DD; background: #FFFFFF; border-radius: 9px; color: #344054; display: flex; align-items: center; justify-content: center;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg></button>
+</div>
+<div style="border-top: 1px solid #EEF0F3; padding-top: 14px; display: flex; flex-direction: column; gap: 8px;">
+<p style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #667085;">Context for this chat</p>
+<ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px;">
+<li style="display: flex; justify-content: space-between; gap: 8px;"><span style="color: #475467;">Asset</span><span style="font-weight: 600; color: #101828;">Dupilumab</span></li>
+<li style="display: flex; justify-content: space-between; gap: 8px;"><span style="color: #475467;">Competitors in scope</span><span style="font-weight: 600; color: #101828;">5</span></li>
+<li style="display: flex; justify-content: space-between; gap: 8px;"><span style="color: #475467;">Journey events</span><span style="font-weight: 600; color: #101828;">380</span></li>
+<li style="display: flex; justify-content: space-between; gap: 8px;"><span style="color: #475467;">Searchable passages</span><span style="font-weight: 600; color: #101828;">3,904</span></li>
+</ul>
+</div>
+</aside>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#2347D9","options":["#2347D9","#5B3FD1","#0E6EB8","#1F2937"]},"$preview":{"width":1440,"height":1500}}'>
+class Component extends DCLogic {
+  mix(hex, amt) {
+    var n = parseInt(hex.slice(1), 16);
+    var ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    return '#' + ch.map(function (c) {
+      var v = Math.round(c + (255 - c) * amt);
+      return (v < 16 ? '0' : '') + v.toString(16);
+    }).join('');
+  }
+  componentDidMount() { this.play(); }
+  componentWillUnmount() { clearInterval(this.timer); clearInterval(this.jobTimer); }
+  play() {
+    var self = this;
+    clearInterval(this.timer);
+    this.setState({ t: 0 });
+    this.timer = setInterval(function () {
+      var t = ((self.state && self.state.t) || 0) + 1;
+      if (t >= 22) { clearInterval(self.timer); }
+      self.setState({ t: t });
+    }, 380);
+  }
+  startJob() {
+    var self = this;
+    clearInterval(this.jobTimer);
+    this.setState({ tracking: true, j: 0 });
+    this.jobTimer = setInterval(function () {
+      var j = ((self.state && self.state.j) || 0) + 1;
+      if (j >= 15) { clearInterval(self.jobTimer); }
+      self.setState({ j: j });
+    }, 900);
+  }
+  renderVals() {
+    var self = this;
+    var s = this.state || {};
+    var raw = this.props.accent ?? '#2347D9';
+    var A = /^#[0-9a-fA-F]{6}$/.test(raw) ? raw : '#2347D9';
+    var tint = this.mix(A, 0.91);
+    var t = s.t !== undefined ? s.t : 22;
+    var TEXT = 'Tralokinumab is already tracked as a competitor of Dupilumab, with a lighter crawl. Track it fully to add company sources, patents and its own competitors, and it will get a complete journey.';
+    var words = TEXT.split(' ');
+    var toolDone = t >= 7;
+    var nWords = t <= 8 ? 0 : Math.min(words.length, Math.round((t - 8) * words.length / 12));
+    var streaming = t < 21;
+    var SOURCES = [
+      { short: 'Drugs@FDA · BLA 761055', title: 'Drugs@FDA · BLA 761055 · ORIG-1', meta: 'FDA · Mar 2017 · Dupilumab', excerpt: 'Original biologics licence application approved for moderate-to-severe atopic dermatitis in adults whose disease is not adequately controlled with topical prescription therapies.', collection: 'fda_records', tab: 'Regulatory' },
+      { short: 'Drugs@FDA · Tezspire', title: 'Drugs@FDA · Tezspire original approval', meta: 'FDA · Dec 2021 · Tezepelumab', excerpt: 'Original approval as add-on maintenance treatment of severe asthma in patients aged 12 years and older.', collection: 'fda_records', tab: 'Regulatory' },
+      { short: 'NOTUS · ClinicalTrials.gov', title: 'NOTUS: dupilumab in COPD with type 2 inflammation', meta: 'ClinicalTrials.gov · NCT04456673 · Phase 3', excerpt: 'Randomised, placebo-controlled Phase 3 trial of dupilumab in adults with COPD and evidence of type 2 inflammation; primary outcome is the annualised rate of moderate or severe exacerbations.', collection: 'trial_records', tab: 'Clinical' },
+      { short: 'Regeneron press release', title: 'FDA approves Dupixent as the first biologic for COPD', meta: 'Company · Sep 2024 · Regeneron', excerpt: 'Approved as an add-on maintenance treatment for adults with inadequately controlled COPD and an eosinophilic phenotype.', collection: 'company_records', tab: 'Company IR' }
+    ];
+    var selSrc = s.src !== undefined ? s.src : 0;
+    function cite(i) {
+      var on = selSrc === i;
+      return { bg: on ? A : tint, bd: on ? A : self.mix(A, 0.7), pick: function () { self.setState({ src: i }); } };
+    }
+    var c1 = cite(0), c2 = cite(1), c3 = cite(2), c4 = cite(3);
+    // when selected, the chip number must stay legible on the filled background
+    [c1, c2, c3, c4].forEach(function (c, i) { if (selSrc === i) { c.bg = tint; c.bd = A; } });
+    var chips = SOURCES.map(function (x, i) {
+      var on = selSrc === i;
+      return { n: String(i + 1), short: x.short, pressed: on ? 'true' : 'false', bd: on ? A : '#E4E7EC', bg: on ? tint : '#FFFFFF', pick: function () { self.setState({ src: i }); } };
+    });
+    var cur = SOURCES[selSrc];
+
+    var j = s.j || 0;
+    var GROUPS = [
+      { label: 'Collect', steps: ['Regulatory', 'Clinical trials', 'Publications', 'Conference abstracts', 'Company website', 'Press releases', 'Newswires', 'Industry news'] },
+      { label: 'Understand', steps: ['Journey rules', 'AI triage', 'AI events', 'Search index'] },
+      { label: 'Expand', steps: ['Competitors', 'Patents'] },
+      { label: 'Finish', steps: ['Finalize'] }
+    ];
+    var idx = 0;
+    var LABELS = [];
+    var groups = GROUPS.map(function (g) {
+      return {
+        label: g.label, flex: String(g.steps.length),
+        steps: g.steps.map(function (lab) {
+          var k = idx++;
+          LABELS.push(lab);
+          var done = k < j, running = k === j && j < 15;
+          return { label: lab, bg: done ? A : (running ? self.mix(A, 0.6) : '#EAECF0'), anim: running ? 'pe-pulse 1.4s infinite' : 'none' };
+        })
+      };
+    });
+    var finished = j >= 15;
+    var scopeAll = !!s.all;
+
+    return {
+      accent: A,
+      accentTint: tint,
+      stepsOpen: !!s.steps,
+      stepsExpanded: s.steps ? 'true' : 'false',
+      stepsChevron: s.steps ? 'rotate(180deg)' : 'none',
+      toggleSteps: function () { self.setState({ steps: !s.steps }); },
+      c1: c1, c2: c2, c3: c3, c4: c4,
+      chips: chips,
+      src: { n: String(selSrc + 1), title: cur.title, meta: cur.meta, excerpt: cur.excerpt, collection: cur.collection, tab: cur.tab },
+      prevSrc: function () { self.setState({ src: (selSrc + 3) % 4 }); },
+      nextSrc: function () { self.setState({ src: (selSrc + 1) % 4 }); },
+      avatarAnim: streaming ? 'pe-pulse 1.6s infinite' : 'none',
+      tool: { running: !toolDone, done: toolDone, summary: toolDone ? 'already tracked' : 'about 10–20 s', bd: toolDone ? '#E4E7EC' : self.mix(A, 0.7) },
+      showCard: toolDone,
+      showThinking: false,
+      hasText: nWords > 0,
+      streamText: words.slice(0, nWords).join(' '),
+      streaming: streaming,
+      notStreaming: !streaming,
+      showFollow: !streaming && !s.tracking,
+      canTrack: !streaming && !s.tracking,
+      tracking: !!s.tracking,
+      cardNote: s.tracking ? 'Full crawl started from this card.' : 'Tracked as a competitor today, with a lighter crawl.',
+      track: function () { self.startJob(); },
+      jobBd: finished ? '#ABEFC6' : self.mix(A, 0.75),
+      job: {
+        line: finished ? 'All 15 steps finished' : 'Step ' + (j + 1) + ' of 15 · ' + LABELS[Math.min(j, 14)],
+        status: finished ? 'Completed' : 'Running',
+        pillBg: finished ? '#ECFDF3' : tint,
+        pillFg: finished ? '#067647' : A,
+        done: String(Math.min(j, 15)),
+        groups: groups
+      },
+      scope: { label: scopeAll ? 'All assets' : 'Dupilumab + competitors', dot: scopeAll ? '#475467' : A, pressed: scopeAll ? 'true' : 'false' },
+      toggleScope: function () { self.setState({ all: !scopeAll }); },
+      prevent: function (e) { if (e && e.preventDefault) { e.preventDefault(); } }
+    };
+  }
+}
+</script>
+</body>
+</html>

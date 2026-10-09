@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Journey · Dupilumab — PharmaEdge</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F5F7}
+a{color:#2347D9;text-decoration:none}a:hover{color:#1A36A8}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+button{font:inherit;cursor:pointer}
+a:focus-visible,button:focus-visible{outline:2px solid #2347D9;outline-offset:2px}
+nav[aria-label="Asset sections"] a:focus-visible{outline-offset:-2px;border-radius:8px}
+@keyframes pe-pop{0%{opacity:0;transform:scale(.3)}70%{opacity:1;transform:scale(1.15)}100%{opacity:1;transform:scale(1)}}
+@keyframes pe-draw{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes pe-rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes pe-grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes pe-pulse{0%{box-shadow:0 0 0 0 rgba(35,71,217,.35)}70%{box-shadow:0 0 0 8px rgba(35,71,217,0)}100%{box-shadow:0 0 0 0 rgba(35,71,217,0)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; background: #F4F5F7; color: #344054; font-family: 'Geist', ui-sans-serif, system-ui, sans-serif; font-size: 14px; line-height: 1.45;">
+
+<nav aria-label="Primary" style="flex: 0 0 64px; box-sizing: border-box; background: #FFFFFF; border-right: 1px solid #E4E7EC; padding: 14px 10px; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+<a href="#" aria-label="PharmaEdge home" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px;"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" rx="8" fill="{{accent}}"></rect><path d="M10 21.5V8.5h5.75a4.25 4.25 0 0 1 0 8.5H10" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="20.5" cy="20.5" r="2.1" fill="#FFFFFF"></circle></svg></a>
+<a href="#" aria-label="Home" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #475467;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5 9.5V21h14V9.5"></path><path d="M9.5 21v-6h5v6"></path></svg></a>
+<a href="AddAsset.dc.html" aria-label="Asset Search" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #475467;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></a>
+<a href="AssetAI.dc.html" aria-label="Asset AI" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #475467;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c.4 3.9 2.1 5.6 6 6-3.9.4-5.6 2.1-6 6-.4-3.9-2.1-5.6-6-6 3.9-.4 5.6-2.1 6-6z"></path></svg></a>
+<span aria-hidden="true" style="width: 28px; height: 1px; background: #E4E7EC; margin: 6px 0;"></span>
+<a href="#" aria-label="Asset Journey" aria-current="page" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: {{accentTint}}; color: {{accent}};"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="19" r="2.5"></circle><circle cx="18" cy="5" r="2.5"></circle><path d="M8.5 19H16a3.5 3.5 0 0 0 0-7H8a3.5 3.5 0 0 1 0-7h7.5"></path></svg></a>
+<a href="Analytics.dc.html" aria-label="Insights" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #475467;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"></path><path d="M7 16v-5M12 16V6M17 16v-8"></path></svg></a>
+<a href="Pipeline.dc.html" aria-label="Crawl jobs" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #475467;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="6" r="2"></circle><circle cx="5" cy="18" r="2"></circle><circle cx="19" cy="12" r="2"></circle><path d="M7 6h3a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H7M13 12h4"></path></svg></a>
+</nav>
+
+<div style="flex: 1 1 0; min-width: 0; display: flex; flex-direction: column;">
+
+<main style="flex: 1 1 auto; box-sizing: border-box; width: 100%; max-width: 1400px; margin: 0 auto; padding: 22px 28px 48px; display: flex; flex-direction: column; gap: 18px;">
+
+<!-- Asset header -->
+<div style="display: flex; flex-direction: column; gap: 14px;">
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 24px;">
+<div style="display: flex; align-items: center; gap: 14px; min-width: 0;">
+<span style="width: 52px; height: 52px; flex: none; border-radius: 14px; background: {{accent}}; display: flex; align-items: center; justify-content: center;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21v-8"></path><path d="M12 13 6.5 6.5"></path><path d="m12 13 5.5-6.5"></path><path d="M9.2 14.6 4 8.8"></path><path d="m14.8 14.6 5.2-5.8"></path></svg></span>
+<div style="min-width: 0;">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px;">
+<h1 style="margin: 0; font-size: 26px; line-height: 32px; font-weight: 650; letter-spacing: -0.02em; color: #101828;">Dupilumab</h1>
+<span style="height: 24px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border-radius: 999px; background: #ECFDF3; color: #067647; font-size: 12.5px; font-weight: 600;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #17B26A;"></span>Approved · US, EU</span>
+</div>
+<p style="margin: 2px 0 0; font-size: 13.5px; color: #475467;"><span style="color: #101828; font-weight: 500;">Regeneron Pharmaceuticals</span> · Antibody · IL-4Rα antagonist · Dupixent</p>
+</div>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px;">
+<a href="Pipeline.dc.html" style="height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 14px; border: 1px solid #D0D5DD; background: #FFFFFF; border-radius: 10px; color: #344054; font-size: 14px; font-weight: 500;">Refresh data</a>
+<a href="AssetAI.dc.html" style="height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 14px; border-radius: 10px; background: {{accent}}; color: #FFFFFF; font-size: 14px; font-weight: 600;"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3c.4 3.9 2.1 5.6 6 6-3.9.4-5.6 2.1-6 6-.4-3.9-2.1-5.6-6-6 3.9-.4 5.6-2.1 6-6z"></path></svg>Ask Asset AI</a>
+</div>
+</div>
+<nav aria-label="Asset sections" style="border-bottom: 1px solid #E4E7EC; overflow-x: auto;">
+<ul style="display: flex; gap: 2px; list-style: none; margin: 0; padding: 0; min-width: max-content;">
+<li><a href="#" aria-current="page" style="display: inline-flex; align-items: center; height: 42px; padding: 0 12px; color: {{accent}}; font-weight: 600; border-bottom: 2px solid {{accent}};">Overview</a></li>
+<li><a href="Analytics.dc.html" style="display: inline-flex; align-items: center; height: 42px; padding: 0 12px; color: #475467; font-weight: 500; border-bottom: 2px solid transparent;">Evidence</a></li>
+<li><a href="#" style="display: inline-flex; align-items: center; height: 42px; padding: 0 12px; color: #475467; font-weight: 500; border-bottom: 2px solid transparent;">Clinical</a></li>
+<li><a href="#" style="display: inline-flex; align-items: center; height: 42px; padding: 0 12px; color: #475467; font-weight: 500; border-bottom: 2px solid transparent;">Regulatory</a></li>
+<li><a href="#" style="display: inline-flex; align-items: center; height: 42px; padding: 0 12px; color: #475467; font-weight: 500; border-bottom: 2px solid transparent;">Publications</a></li>
+<li><a href="#" style="display: inline-flex; align-items: center; height: 42px; padding: 0 12px; color: #475467; font-weight: 500; border-bottom: 2px solid transparent;">Conferences</a></li>
+<li><a href="#" style="display: inline-flex; align-items: center; height: 42px; padding: 0 12px; color: #475467; font-weight: 500; border-bottom: 2px solid transparent;">Documents</a></li>
+<li><a href="#" style="display: inline-flex; align-items: center; height: 42px; padding: 0 12px; color: #475467; font-weight: 500; border-bottom: 2px solid transparent;">Company IR</a></li>
+<li><a href="#" style="display: inline-flex; align-items: center; height: 42px; padding: 0 12px; color: #475467; font-weight: 500; border-bottom: 2px solid transparent;">Patents</a></li>
+<li><a href="Main.dc.html" style="display: inline-flex; align-items: center; height: 42px; padding: 0 12px; color: #475467; font-weight: 500; border-bottom: 2px solid transparent;">Competitors</a></li>
+</ul>
+</nav>
+</div>
+
+<!-- Journey card -->
+<section aria-labelledby="journey-title" style="background: #FFFFFF; border: 1px solid #E4E7EC; border-radius: 16px; box-shadow: 0 1px 2px rgba(16,24,40,0.04); overflow: hidden;">
+<div style="display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 14px 24px; padding: 18px 20px 14px;">
+<div style="min-width: 0;">
+<h2 id="journey-title" style="margin: 0; font-size: 18px; line-height: 26px; font-weight: 650; color: #101828;">Journey</h2>
+<p style="margin: 2px 0 0; font-size: 13.5px; color: #475467;">{{shownLine}}</p>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+<div role="group" aria-label="Time range" style="display: inline-flex; padding: 3px; gap: 2px; background: #EAECF0; border-radius: 10px;">
+<sc-for list="{{ranges}}" as="r" hint-placeholder-count="4"><button type="button" onClick="{{r.pick}}" aria-pressed="{{r.pressed}}" style="height: 32px; padding: 0 11px; border: 0; border-radius: 8px; background: {{r.bg}}; color: {{r.fg}}; font-size: 12.5px; font-weight: 600; box-shadow: {{r.shadow}};">{{r.label}}</button></sc-for>
+</div>
+<button type="button" onClick="{{replay}}" style="height: 38px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border: 1px solid #D0D5DD; background: #FFFFFF; border-radius: 10px; color: #344054; font-size: 13px; font-weight: 500;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5"></path></svg>Replay reveal</button>
+</div>
+</div>
+
+<div role="group" aria-label="Show categories" style="display: flex; flex-wrap: wrap; gap: 8px; padding: 0 20px 14px;">
+<sc-for list="{{cats}}" as="c" hint-placeholder-count="5"><button type="button" onClick="{{c.toggle}}" aria-pressed="{{c.pressed}}" style="height: 32px; display: inline-flex; align-items: center; gap: 8px; padding: 0 10px 0 10px; border-radius: 999px; border: 1px solid {{c.bd}}; background: {{c.bg}}; color: {{c.fg}}; font-size: 13px; font-weight: 500;"><span style="width: 10px; height: 10px; border-radius: 50%; background: {{c.dot}};"></span>{{c.label}}<span style="font-size: 12px; font-weight: 600; color: #475467; font-variant-numeric: tabular-nums;">{{c.count}}</span></button></sc-for>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; border-top: 1px solid #EEF0F3;">
+
+<!-- Visualization -->
+<div style="flex: 999 1 640px; min-width: 0; overflow-x: auto;">
+<sc-if value="{{revealOn}}" hint-placeholder-val="{{ true }}">
+<div style="position: relative; min-width: 640px; padding: 18px 20px 14px;">
+
+<!-- Approved indications staircase -->
+<div style="display: grid; grid-template-columns: 132px minmax(0, 1fr); align-items: end;">
+<div style="padding-bottom: 6px;"><div style="font-size: 13px; font-weight: 600; color: #101828;">Approved indications</div><div style="font-size: 12px; color: #475467;">US label, cumulative</div></div>
+<div style="position: relative; height: 132px;">
+<sc-for list="{{steps}}" as="st" hint-placeholder-count="8"><span aria-hidden="true" style="position: absolute; left: {{st.x}}%; width: {{st.w}}%; bottom: 0; height: {{st.h}}px; background: {{accentTint}}; border-top: 2px solid {{accent}}; transform-origin: bottom; animation: pe-grow 0.6s ease both; animation-delay: {{st.delay}};"></span></sc-for>
+<sc-for list="{{steps}}" as="st" hint-placeholder-count="8"><sc-if value="{{st.hasLabel}}" hint-placeholder-val="{{ true }}"><span style="position: absolute; left: {{st.x}}%; bottom: {{st.labelY}}px; transform: translateX(-2px); height: 20px; display: inline-flex; align-items: center; padding: 0 6px; border-radius: 6px; background: #FFFFFF; border: 1px solid {{st.bd}}; font-size: 11.5px; font-weight: 600; color: #101828; white-space: nowrap; animation: pe-rise 0.5s ease both; animation-delay: {{st.delay}};">{{st.label}}<span class="sr-only"> approved {{st.when}}</span></span></sc-if></sc-for>
+</div>
+</div>
+
+<!-- Lanes -->
+<div style="position: relative; margin-top: 10px;">
+<sc-for list="{{lanes}}" as="l" hint-placeholder-count="5">
+<div style="display: grid; grid-template-columns: 132px minmax(0, 1fr); align-items: center; height: 58px; border-top: 1px solid #F2F4F7;">
+<div style="display: flex; align-items: center; gap: 8px; min-width: 0;"><span style="width: 10px; height: 10px; flex: none; border-radius: 50%; background: {{l.color}};"></span><span style="font-size: 13px; font-weight: 600; color: #101828;">{{l.name}}</span><span style="font-size: 12px; color: #667085; font-variant-numeric: tabular-nums;">{{l.count}}</span></div>
+<div style="position: relative; height: 58px;">
+<span aria-hidden="true" style="position: absolute; left: 0; right: 0; top: 28px; height: 2px; border-radius: 1px; background: {{l.track}}; transform-origin: left; animation: pe-draw 0.8s ease both;"></span>
+<sc-if value="{{l.empty}}" hint-placeholder-val="{{ false }}"><span style="position: absolute; left: 8px; top: 34px; font-size: 12px; color: #667085;">No events in this range</span></sc-if>
+<sc-for list="{{l.events}}" as="e" hint-placeholder-count="4">
+<button type="button" onClick="{{e.pick}}" aria-pressed="{{e.pressed}}" aria-label="{{e.aria}}" title="{{e.tip}}" style="position: absolute; left: {{e.x}}%; top: {{e.top}}px; width: 28px; height: 28px; margin-left: -14px; padding: 0; border: 0; border-radius: 50%; background: transparent; display: flex; align-items: center; justify-content: center; z-index: {{e.z}};">
+<span style="display: block; width: {{e.size}}px; height: {{e.size}}px; box-sizing: border-box; border-radius: {{e.radius}}; background: {{e.fill}}; border: {{e.border}}; box-shadow: {{e.ring}}; transform: {{e.rot}}; animation: pe-pop 0.5s cubic-bezier(.2,.9,.3,1.3) both; animation-delay: {{e.delay}};"></span>
+</button>
+</sc-for>
+</div>
+</div>
+</sc-for>
+
+<!-- Today + future shading overlay -->
+<sc-if value="{{todayIn}}" hint-placeholder-val="{{ true }}">
+<div aria-hidden="true" style="position: absolute; left: 132px; right: 0; top: 0; bottom: 0; pointer-events: none;">
+<span style="position: absolute; left: {{todayX}}%; right: 0; top: 0; bottom: 0; background: repeating-linear-gradient(135deg, rgba(16,24,40,0.025) 0 6px, transparent 6px 12px);"></span>
+<span style="position: absolute; left: {{todayX}}%; top: -6px; bottom: 0; width: 0; border-left: 1.5px dashed #475467;"></span>
+<span style="position: absolute; left: {{todayX}}%; top: 4px; transform: translateX(5px); height: 18px; display: inline-flex; align-items: center; padding: 0 6px; border-radius: 5px; background: #101828; color: #FFFFFF; font-size: 11.5px; font-weight: 600;">Today</span>
+</div>
+</sc-if>
+</div>
+
+<!-- Axis -->
+<div style="display: grid; grid-template-columns: 132px minmax(0, 1fr); border-top: 1px solid #E4E7EC;">
+<span></span>
+<div aria-hidden="true" style="position: relative; height: 26px;">
+<sc-for list="{{ticks}}" as="tk" hint-placeholder-count="10"><span style="position: absolute; left: {{tk.x}}%; top: 0; height: 5px; border-left: 1px solid #D0D5DD;"></span><span style="position: absolute; left: {{tk.x}}%; top: 7px; transform: translateX(-50%); font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11.5px; color: #667085;">{{tk.label}}</span></sc-for>
+</div>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; padding-left: 132px; font-size: 12px; color: #475467;">
+<span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 13px; height: 13px; border-radius: 50%; background: #475467;"></span>High</span>
+<span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 10px; height: 10px; border-radius: 50%; background: #475467;"></span>Medium</span>
+<span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #475467;"></span>Low</span>
+<span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 10px; height: 10px; box-sizing: border-box; border: 1.5px dashed #475467; transform: rotate(45deg);"></span>Upcoming milestone</span>
+</div>
+</div>
+</sc-if>
+</div>
+
+<!-- Detail panel -->
+<aside aria-label="Selected event" style="flex: 1 1 320px; min-width: 0; box-sizing: border-box; border-left: 1px solid #EEF0F3; background: #FCFCFD; padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 14px;">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px;">
+<span style="height: 22px; display: inline-flex; align-items: center; gap: 6px; padding: 0 8px; border-radius: 6px; background: #FFFFFF; border: 1px solid #E4E7EC; font-size: 12px; font-weight: 600; color: #344054;"><span style="width: 8px; height: 8px; border-radius: 50%; background: {{sel.color}};"></span>{{sel.catLabel}}</span>
+<span style="height: 22px; display: inline-flex; align-items: center; padding: 0 8px; border-radius: 6px; background: {{sel.sigBg}}; color: {{sel.sigFg}}; font-size: 12px; font-weight: 600;">{{sel.sig}}</span>
+<sc-if value="{{sel.milestone}}" hint-placeholder-val="{{ false }}"><span style="height: 22px; display: inline-flex; align-items: center; padding: 0 8px; border-radius: 6px; border: 1px dashed #98A2B3; font-size: 12px; font-weight: 600; color: #475467;">Upcoming · illustrative</span></sc-if>
+</div>
+<div style="animation: pe-rise 0.35s ease both;">
+<p style="margin: 0; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 12.5px; color: #475467;">{{sel.when}}</p>
+<h3 style="margin: 4px 0 0; font-size: 17px; line-height: 24px; font-weight: 650; color: #101828;">{{sel.title}}</h3>
+<p style="margin: 8px 0 0; font-size: 13.5px; line-height: 1.55; color: #344054;">{{sel.summary}}</p>
+</div>
+<dl style="margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; font-size: 13px;">
+<div><dt style="font-size: 12px; color: #667085;">Type</dt><dd style="margin: 2px 0 0; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 12.5px; color: #101828;">{{sel.type}}</dd></div>
+<div><dt style="font-size: 12px; color: #667085;">Region</dt><dd style="margin: 2px 0 0; color: #101828;">{{sel.region}}</dd></div>
+<div><dt style="font-size: 12px; color: #667085;">Found by</dt><dd style="margin: 2px 0 0; color: #101828;">{{sel.origin}}</dd></div>
+<div><dt style="font-size: 12px; color: #667085;">Detail</dt><dd style="margin: 2px 0 0; color: #101828;">{{sel.detail}}</dd></div>
+</dl>
+<div>
+<p style="margin: 0 0 6px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #667085;">Sources · {{sel.sourceCount}}</p>
+<ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px;">
+<sc-for list="{{sel.sources}}" as="src" hint-placeholder-count="2"><li><a href="#" style="display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; padding: 8px 10px; border: 1px solid #E4E7EC; border-radius: 10px; background: #FFFFFF; color: #101828; text-decoration: none;"><span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 12px; font-weight: 600; color: {{accent}};">{{src.n}}</span><span style="min-width: 0;"><span style="display: block; font-size: 13px; font-weight: 500;">{{src.title}}</span><span style="display: block; font-size: 12px; color: #475467;">{{src.meta}}</span></span></a></li></sc-for>
+</ul>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto;">
+<a href="AssetAI.dc.html" style="height: 36px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border-radius: 9px; background: {{accent}}; color: #FFFFFF; font-size: 13px; font-weight: 600;"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3c.4 3.9 2.1 5.6 6 6-3.9.4-5.6 2.1-6 6-.4-3.9-2.1-5.6-6-6 3.9-.4 5.6-2.1 6-6z"></path></svg>Ask about this</a>
+<button type="button" onClick="{{prev}}" aria-label="Previous event" style="width: 36px; height: 36px; border: 1px solid #D0D5DD; background: #FFFFFF; border-radius: 9px; color: #344054; display: flex; align-items: center; justify-content: center;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg></button>
+<button type="button" onClick="{{next}}" aria-label="Next event" style="width: 36px; height: 36px; border: 1px solid #D0D5DD; background: #FFFFFF; border-radius: 9px; color: #344054; display: flex; align-items: center; justify-content: center;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg></button>
+</div>
+</aside>
+</div>
+</section>
+
+<!-- Chapters -->
+<section aria-labelledby="chapters-title" style="display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px;">
+<h2 id="chapters-title" style="margin: 0; font-size: 16px; line-height: 24px; font-weight: 600; color: #101828;">Chapters</h2>
+<span style="font-size: 13px; color: #475467;">Select a chapter to zoom the journey</span>
+</div>
+<ol style="list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px;">
+<sc-for list="{{chapters}}" as="ch" hint-placeholder-count="6">
+<li style="animation: pe-rise 0.5s ease both; animation-delay: {{ch.delay}};"><button type="button" onClick="{{ch.pick}}" aria-pressed="{{ch.pressed}}" style="width: 100%; height: 100%; box-sizing: border-box; text-align: left; padding: 14px 14px 12px; border-radius: 14px; border: 1px solid {{ch.bd}}; background: {{ch.bg}}; box-shadow: {{ch.shadow}}; display: flex; flex-direction: column; gap: 6px;">
+<span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 12px; color: #475467;">{{ch.span}}</span>
+<span style="font-size: 14.5px; font-weight: 650; color: #101828;">{{ch.name}}</span>
+<span style="font-size: 12.5px; line-height: 1.5; color: #475467;">{{ch.blurb}}</span>
+<span aria-hidden="true" style="display: flex; gap: 3px; margin-top: auto; padding-top: 6px;"><sc-for list="{{ch.dots}}" as="d" hint-placeholder-count="4"><span style="width: 8px; height: 8px; border-radius: 50%; background: {{d.c}};"></span></sc-for></span>
+<span style="font-size: 12px; font-weight: 600; color: #344054;">{{ch.count}}</span>
+</button></li>
+</sc-for>
+</ol>
+</section>
+
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#2347D9","options":["#2347D9","#5B3FD1","#0E6EB8","#1F2937"]},"$preview":{"width":1440,"height":1400}}'>
+class Component extends DCLogic {
+  mix(hex, amt) {
+    var n = parseInt(hex.slice(1), 16);
+    var ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    return '#' + ch.map(function (c) {
+      var v = Math.round(c + (255 - c) * amt);
+      return (v < 16 ? '0' : '') + v.toString(16);
+    }).join('');
+  }
+  componentWillUnmount() { clearTimeout(this.rt); }
+  renderVals() {
+    var self = this;
+    var s = this.state || {};
+    var raw = this.props.accent ?? '#2347D9';
+    var A = /^#[0-9a-fA-F]{6}$/.test(raw) ? raw : '#2347D9';
+    var tint = this.mix(A, 0.91);
+    var CAT = {
+      regulatory: { label: 'Regulatory', color: '#2347D9' },
+      clinical: { label: 'Clinical', color: '#08916F' },
+      company: { label: 'Company', color: '#E0620F' },
+      ip: { label: 'Patents', color: '#7A5AF8' },
+      safety: { label: 'Safety', color: '#C11574' }
+    };
+    var ORDER = ['regulatory', 'clinical', 'company', 'ip', 'safety'];
+    var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    function mi(d) { var p = d.split('-'); return (+p[0]) * 12 + (+p[1] - 1); }
+    function when(d) { var p = d.split('-'); return MON[+p[1] - 1] + ' ' + p[0]; }
+    var R = 'Rule · confidence 1.0', AI = 'AI extracted · confidence 0.8';
+    var EV = [
+      { id: 'k1', d: '2007-11', cat: 'company', sig: 'Medium', type: 'deal', title: 'Sanofi and Regeneron expand their antibody collaboration', summary: 'The expanded collaboration funds discovery and development of fully human antibodies, the programme that produced dupilumab.', region: 'Global', origin: AI, detail: 'Deal', src: [['Regeneron press release', 'Company · Nov 2007']] },
+      { id: 'p1', d: '2009-10', cat: 'ip', sig: 'Low', type: 'patent_grant', title: 'US patent granted: human antibodies to IL-4 receptor', summary: 'US grant covering high-affinity human antibodies to the IL-4 receptor (US 7,608,693).', region: 'US', origin: R, detail: 'B2 grant', src: [['US 7,608,693 B2', 'Patent · Oct 2009']] },
+      { id: 'c1', d: '2014-10', cat: 'clinical', sig: 'High', type: 'trial_start', title: 'Phase 3 trial started: LIBERTY AD SOLO 1', summary: 'Pivotal monotherapy trial in adults with moderate-to-severe atopic dermatitis.', region: 'Multinational', origin: R, detail: 'Phase 3 · NCT02277743', src: [['LIBERTY AD SOLO 1', 'ClinicalTrials.gov · NCT02277743']] },
+      { id: 'c2', d: '2016-10', cat: 'clinical', sig: 'High', type: 'trial_readout', title: 'SOLO 1 and SOLO 2 meet primary endpoints', summary: 'Both identical Phase 3 trials met their primary endpoints in atopic dermatitis; results published in NEJM.', region: 'Multinational', origin: AI + ' · merged from 3 sources', detail: 'Phase 3 · atopic dermatitis', src: [['Two Phase 3 trials of dupilumab versus placebo in atopic dermatitis', 'PubMed · NEJM'], ['Regeneron press release', 'Company · 2016'], ['BioSpace', 'News · 2016']] },
+      { id: 'r1', d: '2017-03', cat: 'regulatory', sig: 'High', type: 'approval', title: 'FDA approval: atopic dermatitis (adults)', summary: 'First approval: adults with moderate-to-severe atopic dermatitis not adequately controlled with topical therapies.', region: 'US', origin: R, detail: 'BLA 761055 · ORIG-1', src: [['Drugs@FDA · BLA 761055 ORIG-1', 'FDA · Mar 2017'], ['Regeneron press release', 'Company · Mar 2017']] },
+      { id: 'r2', d: '2017-09', cat: 'regulatory', sig: 'High', type: 'approval', title: 'EU approval: atopic dermatitis', summary: 'European Commission approval for adults with moderate-to-severe atopic dermatitis who are candidates for systemic therapy.', region: 'EU', origin: R, detail: 'EPAR · Authorised', src: [['Dupixent EPAR', 'EMA · Sep 2017']] },
+      { id: 'c3', d: '2018-05', cat: 'clinical', sig: 'High', type: 'trial_readout', title: 'QUEST Phase 3 results in asthma', summary: 'Reduced severe asthma exacerbations and improved lung function versus placebo; published in NEJM.', region: 'Multinational', origin: AI, detail: 'Phase 3 · asthma', src: [['Dupilumab efficacy and safety in moderate-to-severe uncontrolled asthma', 'PubMed · NEJM']] },
+      { id: 'r3', d: '2018-10', cat: 'regulatory', sig: 'High', type: 'label_expansion', title: 'FDA approval: asthma (age 12+)', summary: 'Add-on maintenance for moderate-to-severe asthma with an eosinophilic phenotype or oral-corticosteroid dependence.', region: 'US', origin: R, detail: 'Efficacy supplement', src: [['Drugs@FDA · BLA 761055 supplement', 'FDA · Oct 2018']] },
+      { id: 'r4', d: '2019-03', cat: 'regulatory', sig: 'High', type: 'label_expansion', title: 'FDA approval: atopic dermatitis, adolescents', summary: 'Atopic dermatitis label extended to adolescents aged 12–17.', region: 'US', origin: R, detail: 'Efficacy supplement', src: [['Drugs@FDA · BLA 761055 supplement', 'FDA · Mar 2019']] },
+      { id: 'r5', d: '2019-06', cat: 'regulatory', sig: 'High', type: 'label_expansion', title: 'FDA approval: CRSwNP', summary: 'Add-on maintenance for adults with inadequately controlled chronic rhinosinusitis with nasal polyps.', region: 'US', origin: R, detail: 'Efficacy supplement', src: [['Drugs@FDA · BLA 761055 supplement', 'FDA · Jun 2019']] },
+      { id: 'c4', d: '2019-09', cat: 'clinical', sig: 'High', type: 'trial_readout', title: 'SINUS-24 and SINUS-52 published', summary: 'Both Phase 3 trials improved nasal polyp size and congestion; published in The Lancet.', region: 'Multinational', origin: AI, detail: 'Phase 3 · CRSwNP', src: [['SINUS-24 and SINUS-52 trials', 'PubMed · The Lancet']] },
+      { id: 'r6', d: '2020-05', cat: 'regulatory', sig: 'High', type: 'label_expansion', title: 'FDA approval: atopic dermatitis, children 6–11', summary: 'Atopic dermatitis label extended to children aged 6–11.', region: 'US', origin: R, detail: 'Efficacy supplement', src: [['Drugs@FDA · BLA 761055 supplement', 'FDA · May 2020']] },
+      { id: 'r7', d: '2021-10', cat: 'regulatory', sig: 'High', type: 'label_expansion', title: 'FDA approval: asthma, children 6–11', summary: 'Asthma label extended to children aged 6–11.', region: 'US', origin: R, detail: 'Efficacy supplement', src: [['Drugs@FDA · BLA 761055 supplement', 'FDA · Oct 2021']] },
+      { id: 'r8', d: '2022-05', cat: 'regulatory', sig: 'High', type: 'label_expansion', title: 'FDA approval: eosinophilic esophagitis', summary: 'First approval for eosinophilic esophagitis, in patients aged 12 and over weighing at least 40 kg.', region: 'US', origin: R, detail: 'Efficacy supplement', src: [['Drugs@FDA · BLA 761055 supplement', 'FDA · May 2022']] },
+      { id: 'r9', d: '2022-06', cat: 'regulatory', sig: 'High', type: 'label_expansion', title: 'FDA approval: atopic dermatitis, 6 months to 5 years', summary: 'Atopic dermatitis label extended to children aged 6 months to 5 years.', region: 'US', origin: R, detail: 'Efficacy supplement', src: [['Drugs@FDA · BLA 761055 supplement', 'FDA · Jun 2022']] },
+      { id: 'r10', d: '2022-09', cat: 'regulatory', sig: 'High', type: 'label_expansion', title: 'FDA approval: prurigo nodularis', summary: 'First FDA-approved treatment for prurigo nodularis.', region: 'US', origin: R, detail: 'Efficacy supplement', src: [['Drugs@FDA · BLA 761055 supplement', 'FDA · Sep 2022']] },
+      { id: 'c5', d: '2023-03', cat: 'clinical', sig: 'High', type: 'trial_readout', title: 'BOREAS Phase 3 meets primary endpoint in COPD', summary: 'Reduced moderate or severe COPD exacerbations in patients with type 2 inflammation.', region: 'Multinational', origin: AI + ' · merged from 2 sources', detail: 'Phase 3 · COPD', src: [['Sanofi press release', 'Company · Mar 2023'], ['GlobeNewswire', 'News · Mar 2023']] },
+      { id: 'r11', d: '2023-10', cat: 'regulatory', sig: 'High', type: 'regulatory_decision', title: 'FDA complete response letter: CSU', summary: 'FDA asked for additional efficacy data in chronic spontaneous urticaria; a further Phase 3 trial followed.', region: 'US', origin: AI, detail: 'Complete response', src: [['Regeneron press release', 'Company · Oct 2023']] },
+      { id: 'c6', d: '2023-11', cat: 'clinical', sig: 'High', type: 'trial_readout', title: 'NOTUS confirms COPD benefit', summary: 'The second Phase 3 COPD trial confirmed the reduction in exacerbations seen in BOREAS.', region: 'Multinational', origin: AI, detail: 'Phase 3 · COPD', src: [['Regeneron press release', 'Company · Nov 2023']] },
+      { id: 'r12', d: '2024-01', cat: 'regulatory', sig: 'High', type: 'label_expansion', title: 'FDA approval: eosinophilic esophagitis, children 1–11', summary: 'Eosinophilic esophagitis label extended to children aged 1–11.', region: 'US', origin: R, detail: 'Efficacy supplement', src: [['Drugs@FDA · BLA 761055 supplement', 'FDA · Jan 2024']] },
+      { id: 'k2', d: '2024-02', cat: 'company', sig: 'Medium', type: 'financials', title: 'Dupixent full-year sales pass €10 billion', summary: 'Sanofi reported full-year 2023 Dupixent sales above €10 billion.', region: 'Global', origin: AI, detail: 'Financials', src: [['Sanofi full-year 2023 results', 'Company · Feb 2024']] },
+      { id: 'c7', d: '2024-05', cat: 'clinical', sig: 'Medium', type: 'publication', title: 'NOTUS results published in NEJM', summary: 'Full NOTUS results published alongside a congress presentation.', region: 'Multinational', origin: AI, detail: 'Publication · COPD', src: [['Dupilumab for COPD with blood eosinophil evidence of type 2 inflammation', 'PubMed · NEJM']] },
+      { id: 'r13', d: '2024-07', cat: 'regulatory', sig: 'Medium', type: 'label_expansion', title: 'EU approval: COPD', summary: 'EU approval for COPD with raised blood eosinophils, the first biologic approved for COPD.', region: 'EU', origin: R, detail: 'CHMP opinion', src: [['Dupixent post-authorisation opinion', 'EMA · 2024']] },
+      { id: 'r14', d: '2024-09', cat: 'regulatory', sig: 'High', type: 'label_expansion', title: 'FDA approval: COPD', summary: 'Add-on maintenance for adults with inadequately controlled COPD and an eosinophilic phenotype.', region: 'US', origin: R + ' · merged from 4 sources', detail: 'Efficacy supplement', src: [['Drugs@FDA · BLA 761055 supplement', 'FDA · Sep 2024'], ['Regeneron press release', 'Company · Sep 2024'], ['Reuters', 'News · Sep 2024']] },
+      { id: 'r15', d: '2025-04', cat: 'regulatory', sig: 'High', type: 'label_expansion', title: 'FDA approval: CSU', summary: 'Approval for chronic spontaneous urticaria in patients aged 12 and over who remain symptomatic on antihistamines.', region: 'US', origin: R, detail: 'Efficacy supplement', src: [['Drugs@FDA · BLA 761055 supplement', 'FDA · Apr 2025']] },
+      { id: 'r16', d: '2025-06', cat: 'regulatory', sig: 'High', type: 'label_expansion', title: 'FDA approval: bullous pemphigoid', summary: 'Approval for adults with bullous pemphigoid.', region: 'US', origin: R, detail: 'Efficacy supplement', src: [['Drugs@FDA · BLA 761055 supplement', 'FDA · Jun 2025']] },
+      { id: 'm1', d: '2027-03', cat: 'clinical', sig: 'Medium', type: 'expected_readout', ms: true, title: 'Phase 3 primary completion expected: CPUO', summary: 'Expected date taken from the trial’s registered primary completion. Shown here as an illustrative milestone.', region: 'Multinational', origin: R, detail: 'Phase 3 · CPUO', src: [['Registered Phase 3 trial', 'ClinicalTrials.gov']] },
+      { id: 'm2', d: '2027-10', cat: 'clinical', sig: 'Medium', type: 'expected_readout', ms: true, title: 'Phase 3 primary completion expected: ulcerative colitis', summary: 'Expected date taken from the trial’s registered primary completion. Shown here as an illustrative milestone.', region: 'Multinational', origin: R, detail: 'Phase 3 · UC', src: [['Registered Phase 3 trial', 'ClinicalTrials.gov']] },
+      { id: 'p2', d: '2031-03', cat: 'ip', sig: 'High', type: 'patent_expiry', ms: true, title: 'Last in-force US patent expires', summary: 'Last in-force US patent; loss of exclusivity. Shown here as an illustrative milestone.', region: 'US', origin: R, detail: 'Patent expiry', src: [['US patent family', 'Patent']] }
+    ];
+    var APPROVALS = [['AD', '2017-03'], ['Asthma', '2018-10'], ['CRSwNP', '2019-06'], ['EoE', '2022-05'], ['PN', '2022-09'], ['COPD', '2024-09'], ['CSU', '2025-04'], ['BP', '2025-06']];
+    var TODAY = mi('2026-10');
+    var RANGES = [
+      { id: 'all', label: 'All', a: mi('2007-01'), b: mi('2032-01') },
+      { id: 'since', label: 'Since approval', a: mi('2016-01'), b: mi('2028-01') },
+      { id: 'recent', label: 'Last 3 years', a: mi('2023-07'), b: mi('2028-01') },
+      { id: 'next', label: 'Upcoming', a: mi('2026-01'), b: mi('2032-01') }
+    ];
+    var CHAPTERS = [
+      { id: 'c-dev', name: 'Development', span: '2007–2016', a: mi('2007-01'), b: mi('2017-01'), blurb: 'Collaboration, first patents and the LIBERTY AD Phase 3 programme.' },
+      { id: 'c-first', name: 'First approval', span: '2017', a: mi('2016-07'), b: mi('2018-03'), blurb: 'US and EU approval in atopic dermatitis.' },
+      { id: 'c-resp', name: 'Respiratory expansion', span: '2018–2019', a: mi('2018-01'), b: mi('2020-01'), blurb: 'Asthma and nasal polyps, plus adolescents.' },
+      { id: 'c-new', name: 'New indications', span: '2020–2022', a: mi('2020-01'), b: mi('2023-01'), blurb: 'Children, eosinophilic esophagitis and prurigo nodularis.' },
+      { id: 'c-copd', name: 'COPD and CSU', span: '2023–2025', a: mi('2023-01'), b: mi('2026-01'), blurb: 'BOREAS and NOTUS, a CSU setback, then COPD, CSU and BP approvals.' },
+      { id: 'c-next', name: 'Ahead', span: '2026–2031', a: mi('2026-01'), b: mi('2032-01'), blurb: 'Expected readouts and loss of exclusivity.' }
+    ];
+    var rangeId = s.range || 'all';
+    var rng = null;
+    RANGES.forEach(function (r) { if (r.id === rangeId) { rng = r; } });
+    CHAPTERS.forEach(function (c) { if (c.id === rangeId) { rng = c; } });
+    if (!rng) { rng = RANGES[0]; }
+    var span = rng.b - rng.a;
+    function x(m) { return ((m - rng.a) / span) * 100; }
+    var off = s.off || {};
+    var selId = s.sel || 'r1';
+    var visible = EV.filter(function (e) { var m = mi(e.d); return !off[e.cat] && m >= rng.a && m <= rng.b; });
+    var orderIdx = {};
+    visible.forEach(function (e, i) { orderIdx[e.id] = i; });
+
+    var lanes = ORDER.map(function (k) {
+      var evs = visible.filter(function (e) { return e.cat === k; });
+      var lastPx = -99, flip = 1;
+      var nudges = evs.map(function (e) {
+        var px = x(mi(e.d)) / 100 * 800;
+        var close = px - lastPx < 13;
+        lastPx = px;
+        if (close) { flip = -flip; return flip * 9; }
+        flip = 1;
+        return 0;
+      });
+      var all = EV.filter(function (e) { return e.cat === k && mi(e.d) >= rng.a && mi(e.d) <= rng.b; });
+      return {
+        name: CAT[k].label, color: CAT[k].color, count: off[k] ? 'hidden' : String(all.length),
+        track: off[k] ? '#F2F4F7' : '#EAECF0',
+        empty: evs.length === 0,
+        events: evs.map(function (e, ei) {
+          var size = e.sig === 'High' ? 14 : (e.sig === 'Medium' ? 11 : 8);
+          var sel = e.id === selId;
+          var col = CAT[e.cat].color;
+          return {
+            x: x(mi(e.d)).toFixed(2),
+            top: 15 + nudges[ei],
+            size: e.ms ? size - 2 : size,
+            radius: e.ms ? '2px' : '50%',
+            rot: e.ms ? 'rotate(45deg)' : 'none',
+            fill: e.ms ? '#FFFFFF' : col,
+            border: e.ms ? '2px dashed ' + col : '0',
+            ring: sel ? '0 0 0 2px #FFFFFF, 0 0 0 4px ' + col : '0 0 0 2px #FFFFFF',
+            z: sel ? 3 : 1,
+            delay: (0.25 + (orderIdx[e.id] || 0) * 0.06).toFixed(2) + 's',
+            pressed: sel ? 'true' : 'false',
+            aria: when(e.d) + ': ' + e.title + ' (' + e.sig + ')',
+            tip: when(e.d) + ' · ' + e.title,
+            pick: function () { self.setState({ sel: e.id }); }
+          };
+        })
+      };
+    });
+
+    // staircase: cumulative approved indications; labels stacked so close approvals never collide
+    var TRACK_PX = 800;
+    var levels = [];
+    var steps = [];
+    APPROVALS.forEach(function (ap, i) {
+      var m = mi(ap[1]);
+      var nextM = i < APPROVALS.length - 1 ? mi(APPROVALS[i + 1][1]) : rng.b;
+      var a = Math.max(m, rng.a), b = Math.min(nextM, rng.b);
+      if (b <= a || m > rng.b) { return; }
+      var inRange = m >= rng.a;
+      var h = 8 + (i + 1) * 7;
+      var left = x(a) / 100 * TRACK_PX, width = 14 + ap[0].length * 7.5;
+      var lvl = 0;
+      while (levels[lvl] !== undefined && levels[lvl] > left - 4) { lvl++; }
+      if (inRange) { levels[lvl] = left + width; }
+      steps.push({
+        x: x(a).toFixed(2), w: (x(b) - x(a)).toFixed(2), h: h,
+        labelY: inRange ? h + 4 + lvl * 22 : 0,
+        label: inRange ? ap[0] : '', hasLabel: inRange, when: when(ap[1]),
+        bd: inRange ? '#E4E7EC' : 'transparent',
+        delay: (0.2 + i * 0.12).toFixed(2) + 's'
+      });
+    });
+
+    // ticks
+    var years = Math.ceil(span / 12);
+    var stepY = years > 16 ? 3 : (years > 8 ? 2 : 1);
+    var ticks = [];
+    var firstYear = Math.ceil(rng.a / 12);
+    for (var yv = firstYear; yv * 12 <= rng.b; yv += 1) {
+      if ((yv - firstYear) % stepY !== 0) { continue; }
+      var xv = x(yv * 12);
+      if (xv < 1 || xv > 99) { continue; }
+      ticks.push({ x: xv.toFixed(2), label: String(yv) });
+    }
+
+    var cats = ORDER.map(function (k) {
+      var on = !off[k];
+      var n = EV.filter(function (e) { return e.cat === k; }).length;
+      return {
+        label: CAT[k].label, count: String(n), pressed: on ? 'true' : 'false',
+        dot: on ? CAT[k].color : '#D0D5DD', bg: on ? '#FFFFFF' : '#F9FAFB', bd: on ? '#D0D5DD' : '#EAECF0', fg: on ? '#101828' : '#667085',
+        toggle: function () { var nx = Object.assign({}, off); nx[k] = !off[k]; self.setState({ off: nx }); }
+      };
+    });
+
+    var ranges = RANGES.map(function (r) {
+      var on = rangeId === r.id;
+      return { label: r.label, pressed: on ? 'true' : 'false', bg: on ? '#FFFFFF' : 'transparent', fg: on ? '#101828' : '#475467', shadow: on ? '0 1px 2px rgba(16,24,40,0.08)' : 'none', pick: function () { self.setState({ range: r.id }); } };
+    });
+
+    var chapters = CHAPTERS.map(function (c, i) {
+      var on = rangeId === c.id;
+      var evs = EV.filter(function (e) { var m = mi(e.d); return m >= c.a && m < c.b; });
+      return {
+        name: c.name, span: c.span, blurb: c.blurb,
+        count: evs.length + ' key events',
+        dots: evs.slice(0, 10).map(function (e) { return { c: CAT[e.cat].color }; }),
+        pressed: on ? 'true' : 'false',
+        bd: on ? A : '#E4E7EC', bg: on ? tint : '#FFFFFF', shadow: on ? '0 6px 18px rgba(35,71,217,0.12)' : '0 1px 2px rgba(16,24,40,0.04)',
+        delay: (0.1 + i * 0.07).toFixed(2) + 's',
+        pick: function () { self.setState({ range: on ? 'all' : c.id }); }
+      };
+    });
+
+    var cur = EV.filter(function (e) { return e.id === selId; })[0] || EV[4];
+    var idx = EV.indexOf(cur);
+    var sigStyle = { High: ['#FEF3F2', '#B42318'], Medium: ['#FFFAEB', '#93370D'], Low: ['#F2F4F7', '#344054'] };
+
+    return {
+      accent: A,
+      accentTint: tint,
+      revealOn: s.reveal !== false,
+      replay: function () { self.setState({ reveal: false }); clearTimeout(self.rt); self.rt = setTimeout(function () { self.setState({ reveal: true }); }, 60); },
+      shownLine: visible.length + ' key events shown of 380 · ' + EV.filter(function (e) { return e.ms; }).length + ' upcoming · rules and AI extraction combined',
+      ranges: ranges,
+      cats: cats,
+      lanes: lanes,
+      steps: steps,
+      ticks: ticks,
+      todayIn: TODAY >= rng.a && TODAY <= rng.b,
+      todayX: x(TODAY).toFixed(2),
+      chapters: chapters,
+      prev: function () { self.setState({ sel: EV[(idx - 1 + EV.length) % EV.length].id }); },
+      next: function () { self.setState({ sel: EV[(idx + 1) % EV.length].id }); },
+      sel: {
+        title: cur.title, summary: cur.summary, when: when(cur.d) + (cur.ms ? ' · expected' : ''),
+        catLabel: CAT[cur.cat].label, color: CAT[cur.cat].color,
+        sig: cur.sig, sigBg: sigStyle[cur.sig][0], sigFg: sigStyle[cur.sig][1],
+        milestone: !!cur.ms,
+        type: cur.type, region: cur.region, origin: cur.origin, detail: cur.detail,
+        sourceCount: String(cur.src.length),
+        sources: cur.src.map(function (x2, i) { return { n: '[' + (i + 1) + ']', title: x2[0], meta: x2[1] }; })
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

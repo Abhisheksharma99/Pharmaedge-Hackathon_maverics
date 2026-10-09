@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Add an asset — PharmaEdge</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F5F7}
+a{color:#2347D9;text-decoration:none}a:hover{color:#1A36A8}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+button,input{font:inherit}
+button{cursor:pointer}
+button:disabled{cursor:default}
+input::placeholder{color:#667085;opacity:1}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid #2347D9;outline-offset:2px}
+@keyframes pe-spin{to{transform:rotate(360deg)}}
+@keyframes pe-pulse{0%{box-shadow:0 0 0 0 rgba(35,71,217,.35)}70%{box-shadow:0 0 0 10px rgba(35,71,217,0)}100%{box-shadow:0 0 0 0 rgba(35,71,217,0)}}
+@keyframes pe-rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes pe-shimmer{0%{background-position:-240px 0}100%{background-position:240px 0}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; background: #F4F5F7; color: #344054; font-family: 'Geist', ui-sans-serif, system-ui, sans-serif; font-size: 14px; line-height: 1.45;">
+
+<!-- Collapsed app rail -->
+<nav aria-label="Primary" style="flex: 0 0 64px; box-sizing: border-box; background: #FFFFFF; border-right: 1px solid #E4E7EC; padding: 14px 10px; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+<a href="#" aria-label="PharmaEdge home" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px;"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" rx="8" fill="{{accent}}"></rect><path d="M10 21.5V8.5h5.75a4.25 4.25 0 0 1 0 8.5H10" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="20.5" cy="20.5" r="2.1" fill="#FFFFFF"></circle></svg></a>
+<a href="#" aria-label="Home" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #475467;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5 9.5V21h14V9.5"></path><path d="M9.5 21v-6h5v6"></path></svg></a>
+<a href="#" aria-label="Asset Search" aria-current="page" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: {{accentTint}}; color: {{accent}};"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></a>
+<a href="AssetAI.dc.html" aria-label="Asset AI" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #475467;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c.4 3.9 2.1 5.6 6 6-3.9.4-5.6 2.1-6 6-.4-3.9-2.1-5.6-6-6 3.9-.4 5.6-2.1 6-6z"></path></svg></a>
+<span aria-hidden="true" style="width: 28px; height: 1px; background: #E4E7EC; margin: 6px 0;"></span>
+<a href="Timeline.dc.html" aria-label="Asset Journey" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #475467;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="19" r="2.5"></circle><circle cx="18" cy="5" r="2.5"></circle><path d="M8.5 19H16a3.5 3.5 0 0 0 0-7H8a3.5 3.5 0 0 1 0-7h7.5"></path></svg></a>
+<a href="Analytics.dc.html" aria-label="Insights" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #475467;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"></path><path d="M7 16v-5M12 16V6M17 16v-8"></path></svg></a>
+<a href="Pipeline.dc.html" aria-label="Crawl jobs" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #475467;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="6" r="2"></circle><circle cx="5" cy="18" r="2"></circle><circle cx="19" cy="12" r="2"></circle><path d="M7 6h3a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H7M13 12h4"></path></svg></a>
+</nav>
+
+<div style="flex: 1 1 0; min-width: 0; display: flex; flex-direction: column;">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; padding: 12px 28px; background: #FFFFFF; border-bottom: 1px solid #E4E7EC;">
+<nav aria-label="Breadcrumb"><ol style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px; list-style: none; margin: 0; padding: 0; font-size: 13px; color: #475467;"><li><a href="#" style="color: #475467;">Asset Search</a></li><li aria-hidden="true" style="color: #98A2B3;">/</li><li aria-current="page" style="color: #101828; font-weight: 500;">Add an asset</li></ol></nav>
+<div style="margin-left: auto; display: flex; align-items: center; gap: 10px;">
+<span style="width: 34px; height: 34px; border-radius: 50%; background: #344054; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600;" aria-hidden="true">AR</span>
+<span style="font-size: 14px; font-weight: 500; color: #101828;">Anand Rai</span>
+</div>
+</header>
+
+<main style="flex: 1 1 auto; box-sizing: border-box; width: 100%; max-width: 1280px; margin: 0 auto; padding: 28px 28px 48px; display: flex; flex-direction: column; gap: 24px;">
+
+<!-- Stepper -->
+<div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px 24px;">
+<div style="min-width: 0;">
+<h1 style="margin: 0; font-size: 26px; line-height: 32px; font-weight: 650; letter-spacing: -0.02em; color: #101828;">Add an asset</h1>
+<p style="margin: 4px 0 0; font-size: 14px; color: #475467;">Asset AI identifies the drug, verifies the company and plans the crawl. Nothing is collected until you confirm.</p>
+</div>
+<ol aria-label="Progress" style="list-style: none; margin: 0; padding: 4px; display: flex; gap: 4px; background: #FFFFFF; border: 1px solid #E4E7EC; border-radius: 12px;">
+<li style="display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: 9px; background: {{step1.bg}}; color: {{step1.fg}}; font-size: 13px; font-weight: 600;"><span style="width: 20px; height: 20px; border-radius: 50%; background: {{step1.dot}}; color: #FFFFFF; font-size: 11.5px; display: flex; align-items: center; justify-content: center;">1</span>Identify</li>
+<li style="display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: 9px; background: {{step2.bg}}; color: {{step2.fg}}; font-size: 13px; font-weight: 600;"><span style="width: 20px; height: 20px; border-radius: 50%; background: {{step2.dot}}; color: #FFFFFF; font-size: 11.5px; display: flex; align-items: center; justify-content: center;">2</span>Review plan</li>
+<li style="display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: 9px; color: #667085; font-size: 13px; font-weight: 600;"><span style="width: 20px; height: 20px; border-radius: 50%; background: #D0D5DD; color: #FFFFFF; font-size: 11.5px; display: flex; align-items: center; justify-content: center;">3</span>Collect</li>
+</ol>
+</div>
+
+<!-- STAGE: input -->
+<sc-if value="{{isInput}}" hint-placeholder-val="{{ false }}">
+<section aria-labelledby="find-title" style="background: #FFFFFF; border: 1px solid #E4E7EC; border-radius: 18px; padding: 40px 32px; display: flex; flex-direction: column; align-items: center; gap: 20px; text-align: center;">
+<span style="width: 52px; height: 52px; border-radius: 14px; background: {{accent}}; display: flex; align-items: center; justify-content: center;"><svg width="26" height="26" viewBox="0 0 24 24" fill="#FFFFFF" aria-hidden="true"><path d="M12 3c.4 3.9 2.1 5.6 6 6-3.9.4-5.6 2.1-6 6-.4-3.9-2.1-5.6-6-6 3.9-.4 5.6-2.1 6-6z"></path><path d="M19 15c.2 1.6.9 2.3 2.5 2.5-1.6.2-2.3.9-2.5 2.5-.2-1.6-.9-2.3-2.5-2.5 1.6-.2 2.3-.9 2.5-2.5z"></path></svg></span>
+<div>
+<h2 id="find-title" style="margin: 0; font-size: 22px; line-height: 28px; font-weight: 600; color: #101828;">Which drug should we track?</h2>
+<p style="margin: 6px 0 0; color: #475467;">Use a generic, brand or code name. We look it up in openFDA, EMA and ClinicalTrials.gov.</p>
+</div>
+<form onSubmit="{{find}}" style="width: 100%; max-width: 620px; display: flex; gap: 8px; padding: 6px; border: 1px solid #D0D5DD; border-radius: 14px; background: #FFFFFF; box-shadow: 0 4px 16px rgba(16,24,40,0.06);">
+<label for="drug" class="sr-only">Drug name</label>
+<input id="drug" type="text" value="{{fDrug.value}}" onChange="{{fDrug.change}}" placeholder="e.g. dupilumab, Dupixent or REGN668" style="flex: 1; min-width: 0; height: 44px; padding: 0 12px; border: 0; background: transparent; font-size: 16px; color: #101828;">
+<button type="submit" style="height: 44px; padding: 0 18px; border: 0; border-radius: 10px; background: {{accent}}; color: #FFFFFF; font-size: 14px; font-weight: 600;">Find drug</button>
+</form>
+<p style="margin: 0; font-size: 13px; color: #667085;">Prefer chatting? <a href="AssetAI.dc.html" style="font-weight: 600; color: {{accent}};">Type “Add dupilumab” in Asset AI</a></p>
+<ol style="list-style: none; margin: 8px 0 0; padding: 0; width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; text-align: left;">
+<li style="padding: 14px 16px; border: 1px solid #EEF0F3; border-radius: 12px; background: #FCFCFD;"><div style="font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #667085;">1 · Identify</div><div style="margin-top: 4px; font-size: 13.5px; color: #344054;">Facts from 3 public sources merged into one identity</div></li>
+<li style="padding: 14px 16px; border: 1px solid #EEF0F3; border-radius: 12px; background: #FCFCFD;"><div style="font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #667085;">2 · Verify</div><div style="margin-top: 4px; font-size: 13.5px; color: #344054;">Company website and press-release page checked</div></li>
+<li style="padding: 14px 16px; border: 1px solid #EEF0F3; border-radius: 12px; background: #FCFCFD;"><div style="font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #667085;">3 · Plan</div><div style="margin-top: 4px; font-size: 13.5px; color: #344054;">15 collection steps you review before anything runs</div></li>
+<li style="padding: 14px 16px; border: 1px solid #EEF0F3; border-radius: 12px; background: #FCFCFD;"><div style="font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #667085;">4 · Collect</div><div style="margin-top: 4px; font-size: 13.5px; color: #344054;">Watch each agent step fill the journey live</div></li>
+</ol>
+</section>
+</sc-if>
+
+<!-- STAGE: resolving + review -->
+<sc-if value="{{isWorking}}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start;">
+
+<!-- Agent trace -->
+<section aria-labelledby="trace-title" style="flex: 1 1 420px; min-width: 0; background: #FFFFFF; border: 1px solid #E4E7EC; border-radius: 16px; box-shadow: 0 1px 2px rgba(16,24,40,0.04);">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border-bottom: 1px solid #EEF0F3;">
+<div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+<span style="width: 32px; height: 32px; flex: none; border-radius: 9px; background: {{accent}}; display: flex; align-items: center; justify-content: center; animation: {{headPulse}};"><svg width="17" height="17" viewBox="0 0 24 24" fill="#FFFFFF" aria-hidden="true"><path d="M12 3c.4 3.9 2.1 5.6 6 6-3.9.4-5.6 2.1-6 6-.4-3.9-2.1-5.6-6-6 3.9-.4 5.6-2.1 6-6z"></path></svg></span>
+<div style="min-width: 0;">
+<h2 id="trace-title" style="margin: 0; font-size: 15px; line-height: 22px; font-weight: 600; color: #101828;">{{traceTitle}}</h2>
+<p style="margin: 0; font-size: 12.5px; color: #475467;" aria-live="polite">{{traceSub}}</p>
+</div>
+</div>
+<span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 12.5px; color: #475467; white-space: nowrap;">{{elapsed}}</span>
+</div>
+
+<ol style="list-style: none; margin: 0; padding: 8px 20px 18px;">
+
+<!-- Phase 1 -->
+<li style="display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px; padding-top: 14px;">
+<div style="display: flex; flex-direction: column; align-items: center;">
+<sc-if value="{{p1.done}}" hint-placeholder-val="{{ true }}"><span style="width: 24px; height: 24px; border-radius: 50%; background: {{accent}}; display: flex; align-items: center; justify-content: center;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span></sc-if>
+<sc-if value="{{p1.running}}" hint-placeholder-val="{{ false }}"><span style="width: 24px; height: 24px; border-radius: 50%; background: #FFFFFF; border: 2px solid {{accent}}; box-sizing: border-box; animation: pe-pulse 1.6s infinite;"></span></sc-if>
+<span style="flex: 1; width: 2px; min-height: 18px; margin-top: 4px; background: {{p1.line}};"></span>
+</div>
+<div style="padding-bottom: 14px;">
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px;"><h3 style="margin: 0; font-size: 14px; font-weight: 600; color: #101828;">Gather facts <span style="font-weight: 400; color: #475467;">· 3 sources in parallel</span></h3><span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 12px; color: #667085;">{{p1.time}}</span></div>
+<ul style="list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px;">
+<li style="display: grid; grid-template-columns: 112px minmax(0, 1fr) 20px; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid #EEF0F3; border-radius: 10px; background: #FCFCFD;">
+<span style="font-size: 13px; font-weight: 600; color: #101828;">openFDA</span>
+<span style="font-size: 12.5px; color: #475467; min-width: 0;">{{srcFda.text}}</span>
+<sc-if value="{{srcFda.done}}" hint-placeholder-val="{{ true }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#08916F" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-label="Done"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></sc-if>
+<sc-if value="{{srcFda.running}}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="{{accent}}" stroke-width="2.6" stroke-linecap="round" aria-label="Running" style="animation: pe-spin 0.9s linear infinite;"><path d="M21 12a9 9 0 1 1-6.2-8.56"></path></svg></sc-if>
+</li>
+<li style="display: grid; grid-template-columns: 112px minmax(0, 1fr) 20px; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid #EEF0F3; border-radius: 10px; background: #FCFCFD;">
+<span style="font-size: 13px; font-weight: 600; color: #101828;">EMA</span>
+<span style="font-size: 12.5px; color: #475467; min-width: 0;">{{srcEma.text}}</span>
+<sc-if value="{{srcEma.done}}" hint-placeholder-val="{{ true }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#08916F" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-label="Done"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></sc-if>
+<sc-if value="{{srcEma.running}}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="{{accent}}" stroke-width="2.6" stroke-linecap="round" aria-label="Running" style="animation: pe-spin 0.9s linear infinite;"><path d="M21 12a9 9 0 1 1-6.2-8.56"></path></svg></sc-if>
+</li>
+<li style="display: grid; grid-template-columns: 112px minmax(0, 1fr) 20px; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid #EEF0F3; border-radius: 10px; background: #FCFCFD;">
+<span style="font-size: 13px; font-weight: 600; color: #101828;">ClinicalTrials.gov</span>
+<span style="font-size: 12.5px; color: #475467; min-width: 0;">{{srcCt.text}}</span>
+<sc-if value="{{srcCt.done}}" hint-placeholder-val="{{ true }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#08916F" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-label="Done"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></sc-if>
+<sc-if value="{{srcCt.running}}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="{{accent}}" stroke-width="2.6" stroke-linecap="round" aria-label="Running" style="animation: pe-spin 0.9s linear infinite;"><path d="M21 12a9 9 0 1 1-6.2-8.56"></path></svg></sc-if>
+</li>
+</ul>
+</div>
+</li>
+
+<!-- Phase 2 -->
+<li style="display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px;">
+<div style="display: flex; flex-direction: column; align-items: center;">
+<sc-if value="{{p2.done}}" hint-placeholder-val="{{ true }}"><span style="width: 24px; height: 24px; border-radius: 50%; background: {{accent}}; display: flex; align-items: center; justify-content: center;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span></sc-if>
+<sc-if value="{{p2.running}}" hint-placeholder-val="{{ false }}"><span style="width: 24px; height: 24px; border-radius: 50%; background: #FFFFFF; border: 2px solid {{accent}}; box-sizing: border-box; animation: pe-pulse 1.6s infinite;"></span></sc-if>
+<sc-if value="{{p2.pending}}" hint-placeholder-val="{{ false }}"><span style="width: 24px; height: 24px; border-radius: 50%; border: 2px dashed #D0D5DD; box-sizing: border-box;"></span></sc-if>
+<span style="flex: 1; width: 2px; min-height: 18px; margin-top: 4px; background: {{p2.line}};"></span>
+</div>
+<div style="padding-bottom: 14px; opacity: {{p2.opacity}};">
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px;"><h3 style="margin: 0; font-size: 14px; font-weight: 600; color: #101828;">Merge identity <span style="font-weight: 400; color: #475467;">· reasoning model</span></h3><span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 12px; color: #667085;">{{p2.time}}</span></div>
+<p style="margin: 6px 0 0; font-size: 13px; color: #475467;">{{p2.text}}</p>
+</div>
+</li>
+
+<!-- Phase 3 -->
+<li style="display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px;">
+<div style="display: flex; flex-direction: column; align-items: center;">
+<sc-if value="{{p3.done}}" hint-placeholder-val="{{ true }}"><span style="width: 24px; height: 24px; border-radius: 50%; background: {{accent}}; display: flex; align-items: center; justify-content: center;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span></sc-if>
+<sc-if value="{{p3.running}}" hint-placeholder-val="{{ false }}"><span style="width: 24px; height: 24px; border-radius: 50%; background: #FFFFFF; border: 2px solid {{accent}}; box-sizing: border-box; animation: pe-pulse 1.6s infinite;"></span></sc-if>
+<sc-if value="{{p3.pending}}" hint-placeholder-val="{{ false }}"><span style="width: 24px; height: 24px; border-radius: 50%; border: 2px dashed #D0D5DD; box-sizing: border-box;"></span></sc-if>
+<span style="flex: 1; width: 2px; min-height: 18px; margin-top: 4px; background: {{p3.line}};"></span>
+</div>
+<div style="padding-bottom: 14px; opacity: {{p3.opacity}};">
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px;"><h3 style="margin: 0; font-size: 14px; font-weight: 600; color: #101828;">Verify company</h3><span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 12px; color: #667085;">{{p3.time}}</span></div>
+<ul style="list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px;">
+<li style="display: flex; align-items: center; gap: 8px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: {{web.dot}};"></span><span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 12.5px; color: #101828;">regeneron.com</span><span style="color: #475467;">{{web.text}}</span></li>
+<li style="display: flex; align-items: center; gap: 8px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: {{ir.dot}};"></span><span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 12.5px; color: #101828;">investor.regeneron.com</span><span style="color: #475467;">{{ir.text}}</span></li>
+</ul>
+</div>
+</li>
+
+<!-- Phase 4 -->
+<li style="display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px;">
+<div style="display: flex; flex-direction: column; align-items: center;">
+<sc-if value="{{p4.done}}" hint-placeholder-val="{{ true }}"><span style="width: 24px; height: 24px; border-radius: 50%; background: {{accent}}; display: flex; align-items: center; justify-content: center;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span></sc-if>
+<sc-if value="{{p4.running}}" hint-placeholder-val="{{ false }}"><span style="width: 24px; height: 24px; border-radius: 50%; background: #FFFFFF; border: 2px solid {{accent}}; box-sizing: border-box; animation: pe-pulse 1.6s infinite;"></span></sc-if>
+<sc-if value="{{p4.pending}}" hint-placeholder-val="{{ false }}"><span style="width: 24px; height: 24px; border-radius: 50%; border: 2px dashed #D0D5DD; box-sizing: border-box;"></span></sc-if>
+</div>
+<div style="opacity: {{p4.opacity}};">
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px;"><h3 style="margin: 0; font-size: 14px; font-weight: 600; color: #101828;">Plan the crawl</h3><span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 12px; color: #667085;">{{p4.time}}</span></div>
+<p style="margin: 6px 0 0; font-size: 13px; color: #475467;">{{p4.text}}</p>
+</div>
+</li>
+</ol>
+
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 20px; border-top: 1px solid #EEF0F3; background: #FCFCFD; border-radius: 0 0 16px 16px;">
+<span style="font-size: 12.5px; color: #475467;">Only public sources. Nothing is saved until you confirm.</span>
+<div style="display: flex; gap: 8px;">
+<button type="button" onClick="{{replay}}" style="height: 34px; padding: 0 12px; border: 1px solid #D0D5DD; background: #FFFFFF; border-radius: 9px; color: #344054; font-size: 13px; font-weight: 500;">Replay</button>
+<button type="button" onClick="{{startOver}}" style="height: 34px; padding: 0 12px; border: 1px solid #D0D5DD; background: #FFFFFF; border-radius: 9px; color: #344054; font-size: 13px; font-weight: 500;">Different drug</button>
+</div>
+</div>
+</section>
+
+<!-- Identity card assembling -->
+<section aria-labelledby="identity-title" style="flex: 1 1 480px; min-width: 0; background: #FFFFFF; border: 1px solid {{cardBorder}}; border-radius: 16px; box-shadow: {{cardShadow}}; display: flex; flex-direction: column;">
+<div style="display: flex; align-items: flex-start; gap: 14px; padding: 20px 20px 16px;">
+<span style="width: 48px; height: 48px; flex: none; border-radius: 13px; background: {{accentTint}}; color: {{accent}}; display: flex; align-items: center; justify-content: center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21v-8"></path><path d="M12 13 6.5 6.5"></path><path d="m12 13 5.5-6.5"></path><path d="M9.2 14.6 4 8.8"></path><path d="m14.8 14.6 5.2-5.8"></path></svg></span>
+<div style="flex: 1; min-width: 0;">
+<p style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #667085;">Identity card</p>
+<sc-if value="{{core}}" hint-placeholder-val="{{ true }}">
+<div style="animation: pe-rise 0.5s ease both;">
+<h2 id="identity-title" style="margin: 2px 0 0; font-size: 22px; line-height: 28px; font-weight: 650; letter-spacing: -0.01em; color: #101828;">Dupilumab</h2>
+<p style="margin: 2px 0 0; font-size: 13px; color: #475467;">Also known as Dupixent · REGN668 · SAR231893</p>
+</div>
+</sc-if>
+<sc-if value="{{noCore}}" hint-placeholder-val="{{ false }}">
+<h2 class="sr-only">Identity card, being assembled</h2>
+<div aria-hidden="true" style="margin-top: 8px; width: 180px; height: 20px; border-radius: 6px; background: linear-gradient(90deg, #F2F4F7 0, #E4E7EC 50%, #F2F4F7 100%); background-size: 480px 100%; animation: pe-shimmer 1.4s linear infinite;"></div>
+<div aria-hidden="true" style="margin-top: 8px; width: 260px; height: 12px; border-radius: 6px; background: linear-gradient(90deg, #F2F4F7 0, #E4E7EC 50%, #F2F4F7 100%); background-size: 480px 100%; animation: pe-shimmer 1.4s linear infinite;"></div>
+</sc-if>
+</div>
+<sc-if value="{{review}}" hint-placeholder-val="{{ true }}">
+<button type="button" onClick="{{toggleEdit}}" aria-pressed="{{editPressed}}" style="height: 34px; padding: 0 12px; border: 1px solid #D0D5DD; background: #FFFFFF; border-radius: 9px; color: #344054; font-size: 13px; font-weight: 500;">{{editLabel}}</button>
+</sc-if>
+</div>
+
+<sc-if value="{{viewMode}}" hint-placeholder-val="{{ true }}">
+<dl style="margin: 0; padding: 4px 20px 16px; display: grid; grid-template-columns: 128px minmax(0, 1fr); gap: 12px 16px; font-size: 13.5px;">
+<dt style="color: #475467;">Company</dt>
+<dd style="margin: 0;">
+<sc-if value="{{company}}" hint-placeholder-val="{{ true }}"><div style="animation: pe-rise 0.5s ease both;"><span style="font-weight: 600; color: #101828;">Regeneron Pharmaceuticals</span><span style="display: inline-flex; align-items: center; gap: 4px; margin-left: 8px; font-size: 12.5px; color: #067647;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4.5 6v5.5c0 4.5 3.2 8.2 7.5 9.5 4.3-1.3 7.5-5 7.5-9.5V6z"></path><path d="m9 12 2.2 2.2L15.5 10"></path></svg>regeneron.com verified</span></div></sc-if>
+<sc-if value="{{noCompany}}" hint-placeholder-val="{{ false }}"><div aria-hidden="true" style="width: 220px; height: 14px; margin-top: 3px; border-radius: 6px; background: linear-gradient(90deg, #F2F4F7 0, #E4E7EC 50%, #F2F4F7 100%); background-size: 480px 100%; animation: pe-shimmer 1.4s linear infinite;"></div><span class="sr-only">Verifying…</span></sc-if>
+</dd>
+<dt style="color: #475467;">Press releases</dt>
+<dd style="margin: 0;">
+<sc-if value="{{company}}" hint-placeholder-val="{{ true }}"><span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 12.5px; color: #101828; animation: pe-rise 0.5s ease both;">investor.regeneron.com/news-releases</span><span style="margin-left: 8px; font-size: 12.5px; color: #067647;">verified</span></sc-if>
+<sc-if value="{{noCompany}}" hint-placeholder-val="{{ false }}"><div aria-hidden="true" style="width: 260px; height: 14px; margin-top: 3px; border-radius: 6px; background: linear-gradient(90deg, #F2F4F7 0, #E4E7EC 50%, #F2F4F7 100%); background-size: 480px 100%; animation: pe-shimmer 1.4s linear infinite;"></div></sc-if>
+</dd>
+<dt style="color: #475467;">Approved for</dt>
+<dd style="margin: 0;">
+<sc-if value="{{core}}" hint-placeholder-val="{{ true }}">
+<ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; animation: pe-rise 0.5s ease both;">
+<li style="height: 24px; display: flex; align-items: center; padding: 0 9px; border-radius: 7px; border: 1px solid #E4E7EC; font-size: 12.5px; font-weight: 500; color: #344054;">Atopic dermatitis</li>
+<li style="height: 24px; display: flex; align-items: center; padding: 0 9px; border-radius: 7px; border: 1px solid #E4E7EC; font-size: 12.5px; font-weight: 500; color: #344054;">Asthma</li>
+<li style="height: 24px; display: flex; align-items: center; padding: 0 9px; border-radius: 7px; border: 1px solid #E4E7EC; font-size: 12.5px; font-weight: 500; color: #344054;">CRSwNP</li>
+<li style="height: 24px; display: flex; align-items: center; padding: 0 9px; border-radius: 7px; border: 1px solid #E4E7EC; font-size: 12.5px; font-weight: 500; color: #344054;">Eosinophilic esophagitis</li>
+<li style="height: 24px; display: flex; align-items: center; padding: 0 9px; border-radius: 7px; border: 1px solid #E4E7EC; font-size: 12.5px; font-weight: 500; color: #344054;">Prurigo nodularis</li>
+<li style="height: 24px; display: flex; align-items: center; padding: 0 9px; border-radius: 7px; border: 1px solid #E4E7EC; font-size: 12.5px; font-weight: 500; color: #344054;">COPD</li>
+<li style="height: 24px; display: flex; align-items: center; padding: 0 9px; border-radius: 7px; border: 1px solid #E4E7EC; font-size: 12.5px; font-weight: 500; color: #344054;">CSU</li>
+<li style="height: 24px; display: flex; align-items: center; padding: 0 9px; border-radius: 7px; border: 1px solid #E4E7EC; font-size: 12.5px; font-weight: 500; color: #344054;">Bullous pemphigoid</li>
+</ul>
+</sc-if>
+<sc-if value="{{noCore}}" hint-placeholder-val="{{ false }}"><div aria-hidden="true" style="width: 300px; height: 24px; border-radius: 7px; background: linear-gradient(90deg, #F2F4F7 0, #E4E7EC 50%, #F2F4F7 100%); background-size: 480px 100%; animation: pe-shimmer 1.4s linear infinite;"></div></sc-if>
+</dd>
+<dt style="color: #475467;">Investigational</dt>
+<dd style="margin: 0;">
+<sc-if value="{{core}}" hint-placeholder-val="{{ true }}">
+<ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; animation: pe-rise 0.5s ease both;">
+<li style="height: 24px; display: flex; align-items: center; padding: 0 9px; border-radius: 7px; border: 1px dashed #98A2B3; font-size: 12.5px; color: #475467;">Chronic pruritus of unknown origin</li>
+<li style="height: 24px; display: flex; align-items: center; padding: 0 9px; border-radius: 7px; border: 1px dashed #98A2B3; font-size: 12.5px; color: #475467;">Ulcerative colitis</li>
+</ul>
+</sc-if>
+<sc-if value="{{noCore}}" hint-placeholder-val="{{ false }}"><div aria-hidden="true" style="width: 220px; height: 24px; border-radius: 7px; background: linear-gradient(90deg, #F2F4F7 0, #E4E7EC 50%, #F2F4F7 100%); background-size: 480px 100%; animation: pe-shimmer 1.4s linear infinite;"></div></sc-if>
+</dd>
+<dt style="color: #475467;">Mechanism</dt>
+<dd style="margin: 0; color: #101828;"><sc-if value="{{core}}" hint-placeholder-val="{{ true }}"><span style="animation: pe-rise 0.5s ease both;">IL-4Rα antagonist (blocks IL-4 and IL-13)</span></sc-if><sc-if value="{{noCore}}" hint-placeholder-val="{{ false }}"><div aria-hidden="true" style="width: 200px; height: 14px; margin-top: 3px; border-radius: 6px; background: linear-gradient(90deg, #F2F4F7 0, #E4E7EC 50%, #F2F4F7 100%); background-size: 480px 100%; animation: pe-shimmer 1.4s linear infinite;"></div></sc-if></dd>
+<dt style="color: #475467;">Modality</dt>
+<dd style="margin: 0; color: #101828;"><sc-if value="{{core}}" hint-placeholder-val="{{ true }}"><span style="animation: pe-rise 0.5s ease both;">Antibody</span></sc-if><sc-if value="{{noCore}}" hint-placeholder-val="{{ false }}"><div aria-hidden="true" style="width: 90px; height: 14px; margin-top: 3px; border-radius: 6px; background: linear-gradient(90deg, #F2F4F7 0, #E4E7EC 50%, #F2F4F7 100%); background-size: 480px 100%; animation: pe-shimmer 1.4s linear infinite;"></div></sc-if></dd>
+<dt style="color: #475467;">Found in</dt>
+<dd style="margin: 0; display: flex; flex-wrap: wrap; gap: 6px;">
+<span style="height: 24px; display: inline-flex; align-items: center; gap: 6px; padding: 0 9px; border-radius: 7px; background: #F2F4F7; font-size: 12.5px; color: #344054;">FDA <b style="font-variant-numeric: tabular-nums;">{{found.fda}}</b></span>
+<span style="height: 24px; display: inline-flex; align-items: center; gap: 6px; padding: 0 9px; border-radius: 7px; background: #F2F4F7; font-size: 12.5px; color: #344054;">EMA <b style="font-variant-numeric: tabular-nums;">{{found.ema}}</b></span>
+<span style="height: 24px; display: inline-flex; align-items: center; gap: 6px; padding: 0 9px; border-radius: 7px; background: #F2F4F7; font-size: 12.5px; color: #344054;">Trials <b style="font-variant-numeric: tabular-nums;">{{found.trials}}</b></span>
+</dd>
+</dl>
+</sc-if>
+
+<sc-if value="{{editing}}" hint-placeholder-val="{{ false }}">
+<form onSubmit="{{prevent}}" style="margin: 0; padding: 4px 20px 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
+<div style="display: flex; flex-direction: column; gap: 4px;"><label for="f-name" style="font-size: 12.5px; font-weight: 500; color: #344054;">Name</label><input id="f-name" type="text" value="{{fName.value}}" onChange="{{fName.change}}" style="height: 38px; padding: 0 10px; border: 1px solid #D0D5DD; border-radius: 9px; font-size: 14px; color: #101828;"></div>
+<div style="display: flex; flex-direction: column; gap: 4px;"><label for="f-company" style="font-size: 12.5px; font-weight: 500; color: #344054;">Company</label><input id="f-company" type="text" value="{{fCompany.value}}" onChange="{{fCompany.change}}" style="height: 38px; padding: 0 10px; border: 1px solid #D0D5DD; border-radius: 9px; font-size: 14px; color: #101828;"></div>
+<div style="display: flex; flex-direction: column; gap: 4px;"><label for="f-aliases" style="font-size: 12.5px; font-weight: 500; color: #344054;">Aliases (comma separated)</label><input id="f-aliases" type="text" value="{{fAliases.value}}" onChange="{{fAliases.change}}" style="height: 38px; padding: 0 10px; border: 1px solid #D0D5DD; border-radius: 9px; font-size: 14px; color: #101828;"></div>
+<div style="display: flex; flex-direction: column; gap: 4px;"><label for="f-web" style="font-size: 12.5px; font-weight: 500; color: #344054;">Website</label><input id="f-web" type="url" value="{{fWeb.value}}" onChange="{{fWeb.change}}" style="height: 38px; padding: 0 10px; border: 1px solid #D0D5DD; border-radius: 9px; font-size: 14px; color: #101828;"></div>
+<div style="display: flex; flex-direction: column; gap: 4px;"><label for="f-ir" style="font-size: 12.5px; font-weight: 500; color: #344054;">Press-release page</label><input id="f-ir" type="url" value="{{fIr.value}}" onChange="{{fIr.change}}" style="height: 38px; padding: 0 10px; border: 1px solid #D0D5DD; border-radius: 9px; font-size: 14px; color: #101828;"></div>
+<div style="display: flex; flex-direction: column; gap: 4px;"><label for="f-mod" style="font-size: 12.5px; font-weight: 500; color: #344054;">Modality</label><input id="f-mod" type="text" value="{{fMod.value}}" onChange="{{fMod.change}}" style="height: 38px; padding: 0 10px; border: 1px solid #D0D5DD; border-radius: 9px; font-size: 14px; color: #101828;"></div>
+</form>
+</sc-if>
+
+<!-- Plan -->
+<div style="margin-top: auto; border-top: 1px solid #EEF0F3; padding: 16px 20px 18px; background: #FCFCFD; border-radius: 0 0 16px 16px; display: flex; flex-direction: column; gap: 14px;">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px;">
+<h3 style="margin: 0; font-size: 14px; font-weight: 600; color: #101828;">Collection plan</h3>
+<span style="font-size: 12.5px; color: #475467;">{{planMeta}}</span>
+</div>
+<sc-if value="{{plan}}" hint-placeholder-val="{{ true }}">
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; animation: pe-rise 0.5s ease both;">
+<div style="padding: 10px 12px; border: 1px solid #E4E7EC; border-radius: 12px; background: #FFFFFF;"><div style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #475467;"><span style="width: 8px; height: 8px; border-radius: 2px; background: {{accent}};"></span>Evidence</div><ul style="list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #344054;"><li>Regulatory · FDA, EMA</li><li>Clinical trials</li><li>Publications · PubMed</li><li>Conference abstracts</li></ul></div>
+<div style="padding: 10px 12px; border: 1px solid #E4E7EC; border-radius: 12px; background: #FFFFFF;"><div style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #475467;"><span style="width: 8px; height: 8px; border-radius: 2px; background: #E0620F;"></span>Company &amp; news</div><ul style="list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #344054;"><li>Company website</li><li>Newsroom · regeneron, sanofi</li><li>Newswires &amp; Bing News</li><li>Industry news</li></ul></div>
+<div style="padding: 10px 12px; border: 1px solid #E4E7EC; border-radius: 12px; background: #FFFFFF;"><div style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #475467;"><span style="width: 8px; height: 8px; border-radius: 2px; background: #7A5AF8;"></span>AI understanding</div><ul style="list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #344054;"><li>Journey events · rules</li><li>AI triage</li><li>AI event extraction</li><li>Search index for Asset AI</li></ul></div>
+<div style="padding: 10px 12px; border: 1px solid #E4E7EC; border-radius: 12px; background: #FFFFFF;"><div style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #475467;"><span style="width: 8px; height: 8px; border-radius: 2px; background: #08916F;"></span>Landscape</div><ul style="list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #344054;"><li>Competitors · top 5</li><li>Patents · ~10 min</li><li>Finalize</li></ul></div>
+</div>
+<p style="margin: 0; display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; color: #475467;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#667085" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; margin-top: 1px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg>No AdisInsight id: patents are searched by name and company.</p>
+</sc-if>
+<sc-if value="{{noPlan}}" hint-placeholder-val="{{ false }}">
+<div aria-hidden="true" style="height: 116px; border-radius: 12px; background: linear-gradient(90deg, #F2F4F7 0, #EAECF0 50%, #F2F4F7 100%); background-size: 480px 100%; animation: pe-shimmer 1.4s linear infinite;"></div>
+</sc-if>
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;">
+<span style="font-size: 12.5px; color: #475467;">Usually 20–60 min. The asset page fills in as each step finishes.</span>
+<sc-if value="{{review}}" hint-placeholder-val="{{ true }}">
+<a href="Pipeline.dc.html" style="height: 42px; display: inline-flex; align-items: center; gap: 8px; padding: 0 18px; border-radius: 10px; background: {{accent}}; color: #FFFFFF; font-size: 14px; font-weight: 600; text-decoration: none; animation: pe-pulse 2s 2;">Confirm &amp; start crawl<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></a>
+</sc-if>
+<sc-if value="{{notReview}}" hint-placeholder-val="{{ false }}">
+<button type="button" disabled style="height: 42px; padding: 0 18px; border: 0; border-radius: 10px; background: #EAECF0; color: #667085; font-size: 14px; font-weight: 600;">Confirm &amp; start crawl</button>
+</sc-if>
+</div>
+</div>
+</section>
+
+</div>
+</sc-if>
+
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#2347D9","options":["#2347D9","#5B3FD1","#0E6EB8","#1F2937"]},"startAt":{"editor":"enum","options":["input","resolving","review"],"default":"resolving"},"$preview":{"width":1440,"height":1180}}'>
+class Component extends DCLogic {
+  mix(hex, amt) {
+    var n = parseInt(hex.slice(1), 16);
+    var ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    return '#' + ch.map(function (c) {
+      var v = Math.round(c + (255 - c) * amt);
+      return (v < 16 ? '0' : '') + v.toString(16);
+    }).join('');
+  }
+  componentDidMount() {
+    var start = this.props.startAt ?? 'resolving';
+    if (start === 'resolving') { this.run(); }
+  }
+  componentWillUnmount() { clearInterval(this.timer); }
+  run() {
+    var self = this;
+    clearInterval(this.timer);
+    this.setState({ stage: 'resolving', t: 0, editing: false });
+    this.timer = setInterval(function () {
+      var t = ((self.state && self.state.t) || 0) + 1;
+      if (t >= 13) { clearInterval(self.timer); }
+      self.setState({ t: t });
+    }, 600);
+  }
+  renderVals() {
+    var self = this;
+    var END = 13;
+    var s = this.state || {};
+    var raw = this.props.accent ?? '#2347D9';
+    var accent = /^#[0-9a-fA-F]{6}$/.test(raw) ? raw : '#2347D9';
+    var startAt = this.props.startAt ?? 'resolving';
+    var stage = s.stage || (startAt === 'input' ? 'input' : 'resolving');
+    var t = s.t !== undefined ? s.t : (startAt === 'review' ? END : 0);
+    var working = stage === 'resolving';
+    var review = working && t >= END;
+    var tint = this.mix(accent, 0.91);
+    function phase(a, b, time) {
+      var st = t < a ? 'pending' : (t < b ? 'running' : 'done');
+      return {
+        pending: st === 'pending', running: st === 'running', done: st === 'done',
+        line: st === 'done' ? accent : '#E4E7EC',
+        opacity: st === 'pending' ? '0.55' : '1',
+        time: st === 'done' ? time : (st === 'running' ? 'running' : '')
+      };
+    }
+    function src(doneAt, text) {
+      var done = t >= doneAt;
+      return { done: done, running: !done, text: done ? text : 'Querying…' };
+    }
+    var p2 = phase(5, 7, '3.1 s');
+    p2.text = p2.done ? 'One identity from FDA, EMA and trial facts: 8 approved indications, 2 investigational, modality Antibody.' : (p2.running ? 'Merging names, company, indications and mechanism…' : 'Waits for the source facts.');
+    var p4 = phase(10, 13, '2.2 s');
+    p4.text = p4.done ? '15 steps planned. Newsroom spiders matched: regeneron, sanofi.' : (p4.running ? 'Choosing sources, caps and keywords…' : 'Runs after the company is verified.');
+    var web = t >= 9 ? { dot: '#17B26A', text: 'company name found on the site' } : (t >= 7 ? { dot: accent, text: 'checking…' } : { dot: '#D0D5DD', text: '' });
+    var ir = t >= 10 ? { dot: '#17B26A', text: 'press-release listing with dated items' } : (t >= 7 ? { dot: accent, text: 'probing news paths…' } : { dot: '#D0D5DD', text: '' });
+    var secs = (t * 0.6).toFixed(1);
+    var form = s.form || { drug: 'Dupilumab', name: 'Dupilumab', company: 'Regeneron Pharmaceuticals', aliases: 'Dupixent, REGN668, SAR231893', web: 'https://www.regeneron.com', ir: 'https://investor.regeneron.com/news-releases', mod: 'Antibody' };
+    function field(key) {
+      return {
+        value: form[key],
+        change: function (e) { var next = Object.assign({}, form); next[key] = e.target.value; self.setState({ form: next }); }
+      };
+    }
+    function stepStyle(active, done) {
+      return { bg: active ? tint : 'transparent', fg: active ? accent : (done ? '#344054' : '#667085'), dot: active ? accent : (done ? '#17B26A' : '#D0D5DD') };
+    }
+    return {
+      accent: accent,
+      accentTint: tint,
+      isInput: stage === 'input',
+      isWorking: working,
+      review: review,
+      notReview: !review,
+      step1: stepStyle(!review, review),
+      step2: stepStyle(review, false),
+      traceTitle: review ? 'Dupilumab identified' : 'Identifying Dupilumab…',
+      traceSub: review ? 'All checks passed in 14.6 s. Review the card, then confirm.' : 'Asset AI is reading public sources',
+      headPulse: review ? 'none' : 'pe-pulse 1.6s infinite',
+      elapsed: review ? '14.6 s' : secs + ' s',
+      p1: phase(0, 5, '6.4 s'),
+      p2: p2,
+      p3: phase(7, 10, '4.8 s'),
+      p4: p4,
+      srcFda: src(3, 'Dupixent · sponsor Regeneron · class IL-4Rα antagonist'),
+      srcEma: src(2, 'Dupixent EPAR · holder Sanofi Winthrop Industrie'),
+      srcCt: src(4, 'Trials found · lead sponsors Regeneron, Sanofi'),
+      web: web,
+      ir: ir,
+      core: t >= 7,
+      noCore: t < 7,
+      company: t >= 10,
+      noCompany: t < 10,
+      plan: t >= END,
+      noPlan: t < END,
+      planMeta: t >= END ? '15 steps · 4 groups' : 'Planning…',
+      found: { fda: t >= 3 ? '1' : '–', ema: t >= 2 ? '1' : '–', trials: t >= 4 ? '100' : '–' },
+      cardBorder: review ? this.mix(accent, 0.6) : '#E4E7EC',
+      cardShadow: review ? '0 8px 28px rgba(35,71,217,0.12)' : '0 1px 2px rgba(16,24,40,0.04)',
+      fDrug: field('drug'), fName: field('name'), fCompany: field('company'), fAliases: field('aliases'), fWeb: field('web'), fIr: field('ir'), fMod: field('mod'),
+      editing: review && !!s.editing,
+      viewMode: !(review && s.editing),
+      editPressed: s.editing ? 'true' : 'false',
+      editLabel: s.editing ? 'Done' : 'Edit',
+      toggleEdit: function () { self.setState({ editing: !s.editing }); },
+      find: function (e) { if (e && e.preventDefault) { e.preventDefault(); } self.run(); },
+      replay: function () { self.run(); },
+      startOver: function () { clearInterval(self.timer); self.setState({ stage: 'input', t: 0, editing: false }); },
+      prevent: function (e) { if (e && e.preventDefault) { e.preventDefault(); } }
+    };
+  }
+}
+</script>
+</body>
+</html>

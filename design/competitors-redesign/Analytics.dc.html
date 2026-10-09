@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Insights · Dupilumab — PharmaEdge</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F5F7}
+a{color:#2347D9;text-decoration:none}a:hover{color:#1A36A8}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+button{font:inherit;cursor:pointer}
+a:focus-visible,button:focus-visible{outline:2px solid #2347D9;outline-offset:2px}
+nav[aria-label="Asset sections"] a:focus-visible{outline-offset:-2px;border-radius:8px}
+@keyframes pe-grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes pe-growx{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes pe-rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes pe-fade{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; background: #F4F5F7; color: #344054; font-family: 'Geist', ui-sans-serif, system-ui, sans-serif; font-size: 14px; line-height: 1.45;">
+
+<nav aria-label="Primary" style="flex: 0 0 64px; box-sizing: border-box; background: #FFFFFF; border-right: 1px solid #E4E7EC; padding: 14px 10px; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+<a href="#" aria-label="PharmaEdge home" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px;"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" rx="8" fill="{{accent}}"></rect><path d="M10 21.5V8.5h5.75a4.25 4.25 0 0 1 0 8.5H10" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="20.5" cy="20.5" r="2.1" fill="#FFFFFF"></circle></svg></a>
+<a href="#" aria-label="Home" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #475467;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5 9.5V21h14V9.5"></path><path d="M9.5 21v-6h5v6"></path></svg></a>
+<a href="AddAsset.dc.html" aria-label="Asset Search" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #475467;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></a>
+<a href="AssetAI.dc.html" aria-label="Asset AI" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #475467;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c.4 3.9 2.1 5.6 6 6-3.9.4-5.6 2.1-6 6-.4-3.9-2.1-5.6-6-6 3.9-.4 5.6-2.1 6-6z"></path></svg></a>
+<span aria-hidden="true" style="width: 28px; height: 1px; background: #E4E7EC; margin: 6px 0;"></span>
+<a href="Timeline.dc.html" aria-label="Asset Journey" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #475467;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="19" r="2.5"></circle><circle cx="18" cy="5" r="2.5"></circle><path d="M8.5 19H16a3.5 3.5 0 0 0 0-7H8a3.5 3.5 0 0 1 0-7h7.5"></path></svg></a>
+<a href="#" aria-label="Insights" aria-current="page" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: {{accentTint}}; color: {{accent}};"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"></path><path d="M7 16v-5M12 16V6M17 16v-8"></path></svg></a>
+<a href="Pipeline.dc.html" aria-label="Crawl jobs" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #475467;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="6" r="2"></circle><circle cx="5" cy="18" r="2"></circle><circle cx="19" cy="12" r="2"></circle><path d="M7 6h3a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H7M13 12h4"></path></svg></a>
+</nav>
+
+<div style="flex: 1 1 0; min-width: 0;">
+<main style="box-sizing: border-box; width: 100%; max-width: 1400px; margin: 0 auto; padding: 22px 28px 48px; display: flex; flex-direction: column; gap: 18px;">
+
+<!-- Header -->
+<div style="display: flex; flex-direction: column; gap: 14px;">
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 24px;">
+<div style="display: flex; align-items: center; gap: 14px; min-width: 0;">
+<span style="width: 52px; height: 52px; flex: none; border-radius: 14px; background: {{accent}}; display: flex; align-items: center; justify-content: center;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21v-8"></path><path d="M12 13 6.5 6.5"></path><path d="m12 13 5.5-6.5"></path><path d="M9.2 14.6 4 8.8"></path><path d="m14.8 14.6 5.2-5.8"></path></svg></span>
+<div style="min-width: 0;">
+<h1 style="margin: 0; font-size: 26px; line-height: 32px; font-weight: 650; letter-spacing: -0.02em; color: #101828;">Dupilumab</h1>
+<p style="margin: 2px 0 0; font-size: 13.5px; color: #475467;"><span style="color: #101828; font-weight: 500;">Regeneron Pharmaceuticals</span> · Last crawl 08 Oct 2026 · 2,025 records</p>
+</div>
+</div>
+<a href="AssetAI.dc.html" style="height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 14px; border-radius: 10px; background: {{accent}}; color: #FFFFFF; font-size: 14px; font-weight: 600;"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3c.4 3.9 2.1 5.6 6 6-3.9.4-5.6 2.1-6 6-.4-3.9-2.1-5.6-6-6 3.9-.4 5.6-2.1 6-6z"></path></svg>Ask Asset AI</a>
+</div>
+<nav aria-label="Asset sections" style="border-bottom: 1px solid #E4E7EC; overflow-x: auto;">
+<ul style="display: flex; gap: 2px; list-style: none; margin: 0; padding: 0; min-width: max-content;">
+<li><a href="Timeline.dc.html" style="display: inline-flex; align-items: center; height: 42px; padding: 0 12px; color: #475467; font-weight: 500; border-bottom: 2px solid transparent;">Overview</a></li>
+<li><a href="#" aria-current="page" style="display: inline-flex; align-items: center; height: 42px; padding: 0 12px; color: {{accent}}; font-weight: 600; border-bottom: 2px solid {{accent}};">Evidence</a></li>
+<li><a href="#" style="display: inline-flex; align-items: center; height: 42px; padding: 0 12px; color: #475467; font-weight: 500; border-bottom: 2px solid transparent;">Clinical</a></li>
+<li><a href="#" style="display: inline-flex; align-items: center; height: 42px; padding: 0 12px; color: #475467; font-weight: 500; border-bottom: 2px solid transparent;">Regulatory</a></li>
+<li><a href="#" style="display: inline-flex; align-items: center; height: 42px; padding: 0 12px; color: #475467; font-weight: 500; border-bottom: 2px solid transparent;">Publications</a></li>
+<li><a href="#" style="display: inline-flex; align-items: center; height: 42px; padding: 0 12px; color: #475467; font-weight: 500; border-bottom: 2px solid transparent;">Conferences</a></li>
+<li><a href="#" style="display: inline-flex; align-items: center; height: 42px; padding: 0 12px; color: #475467; font-weight: 500; border-bottom: 2px solid transparent;">Documents</a></li>
+<li><a href="#" style="display: inline-flex; align-items: center; height: 42px; padding: 0 12px; color: #475467; font-weight: 500; border-bottom: 2px solid transparent;">Company IR</a></li>
+<li><a href="#" style="display: inline-flex; align-items: center; height: 42px; padding: 0 12px; color: #475467; font-weight: 500; border-bottom: 2px solid transparent;">Patents</a></li>
+<li><a href="Main.dc.html" style="display: inline-flex; align-items: center; height: 42px; padding: 0 12px; color: #475467; font-weight: 500; border-bottom: 2px solid transparent;">Competitors</a></li>
+</ul>
+</nav>
+</div>
+
+<!-- KPIs -->
+<section aria-label="Key figures" style="display: flex; flex-wrap: wrap; gap: 1px; background: #E4E7EC; border: 1px solid #E4E7EC; border-radius: 14px; overflow: hidden;">
+<div style="flex: 1 1 170px; background: #FFFFFF; padding: 16px 18px; display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 13px; font-weight: 500; color: #475467;">Records collected</span><span style="font-size: 28px; line-height: 32px; font-weight: 650; letter-spacing: -0.02em; color: #101828; font-variant-numeric: tabular-nums;">2,025</span><span style="font-size: 12.5px; color: #667085;">+71 in the last 90 days</span></div>
+<div style="flex: 1 1 170px; background: #FFFFFF; padding: 16px 18px; display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 13px; font-weight: 500; color: #475467;">Kept by AI screening</span><span style="font-size: 28px; line-height: 32px; font-weight: 650; letter-spacing: -0.02em; color: #101828; font-variant-numeric: tabular-nums;">26%</span><span style="font-size: 12.5px; color: #667085;">402 of 1,525 screened</span></div>
+<div style="flex: 1 1 170px; background: #FFFFFF; padding: 16px 18px; display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 13px; font-weight: 500; color: #475467;">Journey events</span><span style="font-size: 28px; line-height: 32px; font-weight: 650; letter-spacing: -0.02em; color: #101828; font-variant-numeric: tabular-nums;">380</span><span style="font-size: 12.5px; color: #667085;">186 from rules · 194 from AI</span></div>
+<div style="flex: 1 1 170px; background: #FFFFFF; padding: 16px 18px; display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 13px; font-weight: 500; color: #475467;">Active trials</span><span style="font-size: 28px; line-height: 32px; font-weight: 650; letter-spacing: -0.02em; color: #101828; font-variant-numeric: tabular-nums;">69</span><span style="font-size: 12.5px; color: #667085;">31 in Phase 3</span></div>
+<div style="flex: 1 1 170px; background: #FFFFFF; padding: 16px 18px; display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 13px; font-weight: 500; color: #475467;">Approved indications</span><span style="font-size: 28px; line-height: 32px; font-weight: 650; letter-spacing: -0.02em; color: #101828; font-variant-numeric: tabular-nums;">8</span><span style="font-size: 12.5px; color: #667085;">US label · first in 2017</span></div>
+</section>
+
+<!-- Evidence by source -->
+<section aria-labelledby="src-title" style="background: #FFFFFF; border: 1px solid #E4E7EC; border-radius: 16px; box-shadow: 0 1px 2px rgba(16,24,40,0.04);">
+<div style="display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 10px 20px; padding: 18px 20px 12px;">
+<div><h2 id="src-title" style="margin: 0; font-size: 16px; line-height: 24px; font-weight: 600; color: #101828;">Evidence by source</h2><p style="margin: 2px 0 0; font-size: 13px; color: #475467;">Records per year, 2014–2026. Select a source to see its detail.</p></div>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 0; border-top: 1px solid #EEF0F3;">
+<ul style="flex: 1 1 520px; min-width: 0; list-style: none; margin: 0; padding: 16px 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;">
+<sc-for list="{{sources}}" as="sr" hint-placeholder-count="8">
+<li><button type="button" onClick="{{sr.pick}}" aria-pressed="{{sr.pressed}}" style="width: 100%; box-sizing: border-box; text-align: left; padding: 12px; border-radius: 12px; border: 1px solid {{sr.bd}}; background: {{sr.bg}}; display: flex; flex-direction: column; gap: 6px;">
+<span style="font-size: 12.5px; font-weight: 500; color: #475467;">{{sr.label}}</span>
+<span style="display: flex; align-items: baseline; gap: 6px;"><span style="font-size: 20px; line-height: 24px; font-weight: 650; color: #101828; font-variant-numeric: tabular-nums;">{{sr.total}}</span><span style="font-size: 12px; color: #475467;">{{sr.recent}}</span></span>
+<span aria-hidden="true" style="display: flex; align-items: flex-end; gap: 2px; height: 28px;"><sc-for list="{{sr.spark}}" as="sp" hint-placeholder-count="13"><span style="flex: 1; height: {{sp.h}}%; min-height: 2px; border-radius: 2px 2px 0 0; background: {{sp.bg}}; transform-origin: bottom; animation: pe-grow 0.6s ease both;"></span></sc-for></span>
+</button></li>
+</sc-for>
+</ul>
+<div style="flex: 1 1 420px; min-width: 0; border-left: 1px solid #EEF0F3; padding: 16px 20px 18px; display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px;"><h3 style="margin: 0; font-size: 14.5px; font-weight: 600; color: #101828;">{{detail.label}} per year</h3><span style="font-size: 12.5px; color: #475467;">{{detail.note}}</span></div>
+<div style="display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 8px;">
+<div aria-hidden="true" style="position: relative; height: 180px; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11.5px; color: #667085;"><span style="position: absolute; right: 0; top: -7px;">{{detail.max}}</span><span style="position: absolute; right: 0; top: 83px;">{{detail.mid}}</span><span style="position: absolute; right: 0; bottom: -7px;">0</span></div>
+<div style="position: relative; height: 180px; border-bottom: 1px solid #D0D5DD;">
+<span aria-hidden="true" style="position: absolute; left: 0; right: 0; top: 0; height: 1px; background: #F2F4F7;"></span>
+<span aria-hidden="true" style="position: absolute; left: 0; right: 0; top: 90px; height: 1px; background: #F2F4F7;"></span>
+<div style="position: absolute; inset: 0; display: flex; align-items: flex-end; gap: 6px; padding: 0 4px;">
+<sc-for list="{{detail.bars}}" as="db" hint-placeholder-count="13"><span title="{{db.tip}}" style="flex: 1; max-width: 24px; margin: 0 auto; height: {{db.h}}%; min-height: 2px; border-radius: 4px 4px 0 0; background: {{db.bg}}; transform-origin: bottom; animation: pe-grow 0.5s ease both; animation-delay: {{db.delay}};"></span></sc-for>
+</div>
+</div>
+</div>
+<div aria-hidden="true" style="display: flex; justify-content: space-between; padding-left: 52px; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11.5px; color: #667085;"><span>2014</span><span>2017</span><span>2020</span><span>2023</span><span>2026</span></div>
+<p class="sr-only">{{detail.label}} records per year: {{detail.tableText}}</p>
+<p style="margin: 0; font-size: 12.5px; color: #475467;">{{detail.caveat}}</p>
+</div>
+</div>
+</section>
+
+<!-- Funnel + categories -->
+<div style="display: flex; flex-wrap: wrap; gap: 18px; align-items: stretch;">
+
+<section aria-labelledby="funnel-title" style="flex: 1 1 440px; min-width: 0; background: #FFFFFF; border: 1px solid #E4E7EC; border-radius: 16px; box-shadow: 0 1px 2px rgba(16,24,40,0.04); padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 14px;">
+<div><h2 id="funnel-title" style="margin: 0; font-size: 16px; line-height: 24px; font-weight: 600; color: #101828;">From records to journey</h2><p style="margin: 2px 0 0; font-size: 13px; color: #475467;">How the agents narrowed the evidence</p></div>
+<ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px;">
+<sc-for list="{{funnel}}" as="fu" hint-placeholder-count="5">
+<li style="display: grid; grid-template-columns: minmax(0, 1fr) 64px; align-items: center; gap: 12px;">
+<div style="min-width: 0;">
+<div style="display: flex; justify-content: space-between; gap: 8px; font-size: 13px;"><span style="font-weight: 500; color: #101828;">{{fu.label}}</span><span style="color: #475467;">{{fu.note}}</span></div>
+<div style="margin-top: 5px; height: 14px; border-radius: 4px; background: #F2F4F7;"><div style="width: {{fu.w}}%; height: 14px; border-radius: 4px; background: {{fu.bg}}; transform-origin: left; animation: pe-growx 0.7s ease both; animation-delay: {{fu.delay}};"></div></div>
+</div>
+<span style="text-align: right; font-size: 16px; font-weight: 650; color: #101828; font-variant-numeric: tabular-nums;">{{fu.value}}</span>
+</li>
+</sc-for>
+</ol>
+<p style="margin: 0; padding: 10px 12px; border-radius: 10px; background: #F9FAFB; font-size: 12.5px; color: #475467;">Plus <b style="color: #101828;">186 rule events</b> from structured sources (FDA, EMA, trials, patents) → <b style="color: #101828;">380 journey events</b>.</p>
+</section>
+
+<section aria-labelledby="cat-title" style="flex: 1.25 1 480px; min-width: 0; background: #FFFFFF; border: 1px solid #E4E7EC; border-radius: 16px; box-shadow: 0 1px 2px rgba(16,24,40,0.04); padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px 16px;">
+<div><h2 id="cat-title" style="margin: 0; font-size: 16px; line-height: 24px; font-weight: 600; color: #101828;">AI screening by category</h2><p style="margin: 2px 0 0; font-size: 13px; color: #475467;">1,525 decisions on news, releases, papers and abstracts</p></div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: #475467;">
+<span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 10px; height: 10px; border-radius: 3px; background: #08916F;"></span>Ingest 402</span>
+<span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 10px; height: 10px; border-radius: 3px; background: #DC6803;"></span>Headline 611</span>
+<span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 10px; height: 10px; border-radius: 3px; background: #D0D5DD;"></span>Skip 512</span>
+</div>
+</div>
+<ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px;">
+<sc-for list="{{cats}}" as="ct" hint-placeholder-count="11">
+<li title="{{ct.tip}}" style="display: grid; grid-template-columns: 130px minmax(0, 1fr) 40px; align-items: center; gap: 10px; font-size: 12.5px;">
+<span style="color: #344054; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ct.label}}</span>
+<span style="display: flex; height: 12px; gap: 2px;"><span style="width: {{ct.wi}}%; background: #08916F; border-radius: 3px 0 0 3px; transform-origin: left; animation: pe-growx 0.6s ease both;"></span><span style="width: {{ct.wh}}%; background: #DC6803; transform-origin: left; animation: pe-growx 0.6s ease both;"></span><span style="width: {{ct.ws}}%; background: #D0D5DD; border-radius: 0 3px 3px 0; transform-origin: left; animation: pe-growx 0.6s ease both;"></span></span>
+<span style="text-align: right; font-weight: 600; color: #101828; font-variant-numeric: tabular-nums;">{{ct.total}}</span>
+</li>
+</sc-for>
+</ul>
+</section>
+</div>
+
+<!-- Heatmap + trials -->
+<div style="display: flex; flex-wrap: wrap; gap: 18px; align-items: stretch;">
+
+<section aria-labelledby="heat-title" style="flex: 1.4 1 560px; min-width: 0; background: #FFFFFF; border: 1px solid #E4E7EC; border-radius: 16px; box-shadow: 0 1px 2px rgba(16,24,40,0.04); padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px 16px;">
+<div><h2 id="heat-title" style="margin: 0; font-size: 16px; line-height: 24px; font-weight: 600; color: #101828;">Journey activity</h2><p style="margin: 2px 0 0; font-size: 13px; color: #475467;">Events per category and year. Select a cell to open those events.</p></div>
+<div aria-hidden="true" style="display: flex; align-items: center; gap: 4px; font-size: 12px; color: #475467;">0<sc-for list="{{heatLegend}}" as="hl" hint-placeholder-count="5"><span style="width: 16px; height: 12px; border-radius: 3px; background: {{hl.bg}};"></span></sc-for>15+</div>
+</div>
+<div style="overflow-x: auto;">
+<div style="min-width: 560px;">
+<sc-for list="{{heat}}" as="hr" hint-placeholder-count="5">
+<div style="display: grid; grid-template-columns: 96px repeat(14, minmax(0, 1fr)); gap: 3px; margin-bottom: 3px;">
+<span style="font-size: 12.5px; font-weight: 500; color: #344054; display: flex; align-items: center; gap: 6px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: {{hr.color}};"></span>{{hr.label}}</span>
+<sc-for list="{{hr.cells}}" as="hc" hint-placeholder-count="14"><button type="button" onClick="{{hc.pick}}" aria-label="{{hc.aria}}" title="{{hc.aria}}" style="height: 30px; border: 0; border-radius: 5px; background: {{hc.bg}}; color: {{hc.fg}}; font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; box-shadow: {{hc.ring}}; animation: pe-fade 0.5s ease both; animation-delay: {{hc.delay}};">{{hc.text}}</button></sc-for>
+</div>
+</sc-for>
+<div aria-hidden="true" style="display: grid; grid-template-columns: 96px repeat(14, minmax(0, 1fr)); gap: 3px; margin-top: 4px; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: #667085; text-align: center;">
+<span></span><span>Earlier</span><span>’14</span><span>’15</span><span>’16</span><span>’17</span><span>’18</span><span>’19</span><span>’20</span><span>’21</span><span>’22</span><span>’23</span><span>’24</span><span>’25</span><span>’26</span>
+</div>
+</div>
+</div>
+<p style="margin: 0; font-size: 13px; color: #344054;" aria-live="polite">{{heatPick}}</p>
+</section>
+
+<section aria-labelledby="trial-title" style="flex: 1 1 380px; min-width: 0; background: #FFFFFF; border: 1px solid #E4E7EC; border-radius: 16px; box-shadow: 0 1px 2px rgba(16,24,40,0.04); padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 12px;">
+<div><h2 id="trial-title" style="margin: 0; font-size: 16px; line-height: 24px; font-weight: 600; color: #101828;">Trial portfolio</h2><p style="margin: 2px 0 0; font-size: 13px; color: #475467;">312 trials by phase and status</p></div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: #475467;">
+<span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 10px; height: 10px; border-radius: 3px; background: #2347D9;"></span>Active</span>
+<span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 10px; height: 10px; border-radius: 3px; background: #08916F;"></span>Completed</span>
+<span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 10px; height: 10px; border-radius: 3px; background: #DC6803;"></span>Stopped</span>
+</div>
+<ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px;">
+<sc-for list="{{trials}}" as="tr" hint-placeholder-count="5">
+<li title="{{tr.tip}}">
+<div style="display: flex; justify-content: space-between; font-size: 13px;"><span style="font-weight: 500; color: #101828;">{{tr.label}}</span><span style="color: #475467;">{{tr.note}}</span></div>
+<div style="display: flex; gap: 2px; height: 14px; margin-top: 5px;"><span style="width: {{tr.wa}}%; background: #2347D9; border-radius: 4px 0 0 4px; transform-origin: left; animation: pe-growx 0.6s ease both;"></span><span style="width: {{tr.wc}}%; background: #08916F; transform-origin: left; animation: pe-growx 0.6s ease both;"></span><span style="width: {{tr.ws}}%; background: #DC6803; border-radius: 0 4px 4px 0; transform-origin: left; animation: pe-growx 0.6s ease both;"></span></div>
+</li>
+</sc-for>
+</ul>
+</section>
+</div>
+
+<!-- FAERS + takeaways -->
+<div style="display: flex; flex-wrap: wrap; gap: 18px; align-items: stretch;">
+
+<section aria-labelledby="faers-title" style="flex: 1 1 440px; min-width: 0; background: #FFFFFF; border: 1px solid #E4E7EC; border-radius: 16px; box-shadow: 0 1px 2px rgba(16,24,40,0.04); padding: 18px 20px 18px; display: flex; flex-direction: column; gap: 12px;">
+<div><h2 id="faers-title" style="margin: 0; font-size: 16px; line-height: 24px; font-weight: 600; color: #101828;">FAERS reports per year</h2><p style="margin: 2px 0 0; font-size: 13px; color: #475467;">Volume reflects usage and reporting, not a safety verdict.</p></div>
+<div style="display: grid; grid-template-columns: 46px minmax(0, 1fr); gap: 8px;">
+<div aria-hidden="true" style="position: relative; height: 150px; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11.5px; color: #667085;"><span style="position: absolute; right: 0; top: -7px;">20k</span><span style="position: absolute; right: 0; top: 68px;">10k</span><span style="position: absolute; right: 0; bottom: -7px;">0</span></div>
+<div style="position: relative; height: 150px; border-bottom: 1px solid #D0D5DD;">
+<span aria-hidden="true" style="position: absolute; left: 0; right: 0; top: 0; height: 1px; background: #F2F4F7;"></span>
+<span aria-hidden="true" style="position: absolute; left: 0; right: 0; top: 75px; height: 1px; background: #F2F4F7;"></span>
+<div style="position: absolute; inset: 0; display: flex; align-items: flex-end; gap: 8px; padding: 0 6px;">
+<sc-for list="{{faers}}" as="fa" hint-placeholder-count="10"><span title="{{fa.tip}}" style="flex: 1; max-width: 24px; margin: 0 auto; height: {{fa.h}}%; border-radius: 4px 4px 0 0; background: {{fa.bg}}; transform-origin: bottom; animation: pe-grow 0.6s ease both; animation-delay: {{fa.delay}};"></span></sc-for>
+</div>
+</div>
+</div>
+<div aria-hidden="true" style="display: flex; justify-content: space-between; padding: 0 6px 0 60px; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11.5px; color: #667085;"><span>2017</span><span>2019</span><span>2021</span><span>2023</span><span>2026 YTD</span></div>
+</section>
+
+<section aria-labelledby="take-title" style="flex: 1.2 1 440px; min-width: 0; background: #101828; color: #FFFFFF; border-radius: 16px; padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; align-items: center; gap: 10px;"><span style="width: 30px; height: 30px; border-radius: 8px; background: {{accent}}; display: flex; align-items: center; justify-content: center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="#FFFFFF" aria-hidden="true"><path d="M12 3c.4 3.9 2.1 5.6 6 6-3.9.4-5.6 2.1-6 6-.4-3.9-2.1-5.6-6-6 3.9-.4 5.6-2.1 6-6z"></path></svg></span><div><h2 id="take-title" style="margin: 0; font-size: 16px; line-height: 22px; font-weight: 600;">What stands out</h2><p style="margin: 0; font-size: 12.5px; color: #D0D5DD;">Asset AI, from the figures on this page</p></div></div>
+<ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px;">
+<li style="display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; font-size: 13.5px; line-height: 1.5; color: #EAECF0; animation: pe-rise 0.5s ease both; animation-delay: 0.1s;"><span style="font-family: 'Geist Mono', ui-monospace, monospace; color: #98A2B3;">01</span><span>Regulatory activity peaked in <b style="color: #FFFFFF;">2022</b>: three FDA label expansions (eosinophilic esophagitis, atopic dermatitis from 6 months, prurigo nodularis).</span></li>
+<li style="display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; font-size: 13.5px; line-height: 1.5; color: #EAECF0; animation: pe-rise 0.5s ease both; animation-delay: 0.2s;"><span style="font-family: 'Geist Mono', ui-monospace, monospace; color: #98A2B3;">02</span><span>Publications are half of all evidence, and PubMed’s <b style="color: #FFFFFF;">1,000-result cap</b> was reached, so papers before 2014 are under-counted.</span></li>
+<li style="display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; font-size: 13.5px; line-height: 1.5; color: #EAECF0; animation: pe-rise 0.5s ease both; animation-delay: 0.3s;"><span style="font-family: 'Geist Mono', ui-monospace, monospace; color: #98A2B3;">03</span><span>AI kept <b style="color: #FFFFFF;">26%</b> of screened items. Market reports and unrelated mentions were 68% of everything skipped.</span></li>
+<li style="display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; font-size: 13.5px; line-height: 1.5; color: #EAECF0; animation: pe-rise 0.5s ease both; animation-delay: 0.4s;"><span style="font-family: 'Geist Mono', ui-monospace, monospace; color: #98A2B3;">04</span><span>Phase 3 is the most active phase, with <b style="color: #FFFFFF;">31 trials</b> still running.</span></li>
+</ol>
+<a href="AssetAI.dc.html" style="margin-top: auto; align-self: flex-start; height: 36px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border-radius: 9px; background: #FFFFFF; color: #101828; font-size: 13px; font-weight: 600;">Ask a follow-up<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></a>
+</section>
+</div>
+
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#2347D9","options":["#2347D9","#5B3FD1","#0E6EB8","#1F2937"]},"$preview":{"width":1440,"height":1900}}'>
+class Component extends DCLogic {
+  mix(hex, amt) {
+    var n = parseInt(hex.slice(1), 16);
+    var ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    return '#' + ch.map(function (c) {
+      var v = Math.round(c + (255 - c) * amt);
+      return (v < 16 ? '0' : '') + v.toString(16);
+    }).join('');
+  }
+  renderVals() {
+    var self = this;
+    var s = this.state || {};
+    var raw = this.props.accent ?? '#2347D9';
+    var A = /^#[0-9a-fA-F]{6}$/.test(raw) ? raw : '#2347D9';
+    var tint = this.mix(A, 0.91);
+    var YEARS = [2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026];
+    var SRC = [
+      { id: 'trials', label: 'Clinical trials', recent: 6, data: [12, 15, 18, 20, 24, 26, 28, 27, 30, 32, 29, 30, 21], note: 'By trial start year' },
+      { id: 'regulatory', label: 'Regulatory', recent: 2, data: [0, 0, 1, 6, 8, 7, 6, 8, 10, 9, 11, 8, 3], note: 'FDA and EMA records' },
+      { id: 'publications', label: 'Publications', recent: 31, data: [4, 10, 22, 48, 70, 88, 104, 112, 120, 124, 118, 112, 68], note: 'PubMed, newest first', caveat: 'Collection stopped at the 1,000-result cap, so earlier years are under-counted.' },
+      { id: 'abstracts', label: 'Conference abstracts', recent: 3, data: [0, 0, 1, 3, 4, 6, 7, 6, 8, 9, 8, 8, 4], note: 'ERS, ATS, CHEST' },
+      { id: 'press', label: 'Press releases', recent: 9, data: [3, 5, 9, 18, 20, 19, 17, 18, 22, 21, 24, 22, 14], note: 'Regeneron and Sanofi newsrooms' },
+      { id: 'documents', label: 'Documents', recent: 1, data: [0, 0, 0, 2, 2, 2, 2, 3, 3, 3, 4, 4, 4], note: 'Labels, reports, company pages' },
+      { id: 'news', label: 'News', recent: 17, data: [1, 2, 4, 10, 12, 13, 12, 14, 20, 22, 28, 30, 21], note: 'Wires, Bing News, industry press' },
+      { id: 'patents', label: 'Patents', recent: 2, data: [8, 9, 11, 12, 11, 10, 11, 10, 12, 11, 12, 12, 13], note: 'By publication year' }
+    ];
+    var selId = s.src || 'publications';
+    function sum(a) { return a.reduce(function (x, y) { return x + y; }, 0); }
+    function fmtN(n) { return n.toLocaleString('en-US'); }
+    var sources = SRC.map(function (sr) {
+      var mx = Math.max.apply(null, sr.data) || 1;
+      var on = sr.id === selId;
+      return {
+        label: sr.label, total: fmtN(sum(sr.data)), recent: '+' + sr.recent + ' in 90 days',
+        pressed: on ? 'true' : 'false', bd: on ? A : '#E4E7EC', bg: on ? tint : '#FFFFFF',
+        spark: sr.data.map(function (v) { return { h: Math.round(v / mx * 100), bg: on ? A : self.mix(A, 0.55) }; }),
+        pick: function () { self.setState({ src: sr.id }); }
+      };
+    });
+    var cur = SRC.filter(function (x) { return x.id === selId; })[0];
+    var mxc = Math.max.apply(null, cur.data);
+    var nice = mxc <= 10 ? 10 : (mxc <= 20 ? 20 : (mxc <= 40 ? 40 : (mxc <= 140 ? Math.ceil(mxc / 20) * 20 : Math.ceil(mxc / 50) * 50)));
+    var detail = {
+      label: cur.label, note: cur.note + ' · ' + fmtN(sum(cur.data)) + ' total',
+      max: String(nice), mid: String(nice / 2),
+      bars: cur.data.map(function (v, i) { return { h: (v / nice * 100).toFixed(1), bg: i === 12 ? self.mix(A, 0.45) : A, tip: YEARS[i] + ': ' + v + (i === 12 ? ' (year to date)' : ''), delay: (i * 0.03).toFixed(2) + 's' }; }),
+      tableText: cur.data.map(function (v, i) { return YEARS[i] + ': ' + v; }).join(', '),
+      caveat: cur.caveat || '2026 is year to date (lighter bar).'
+    };
+
+    var FUN = [
+      ['Records collected', 2025, 'all sources', A],
+      ['Screened by AI', 1525, 'text sources only', A],
+      ['Kept (ingest)', 402, '26% of screened', '#08916F'],
+      ['Events extracted', 268, '0–3 per document', '#08916F'],
+      ['Unique after merge', 194, '74 duplicates merged', '#08916F']
+    ];
+    var funnel = FUN.map(function (f, i) { return { label: f[0], value: fmtN(f[1]), note: f[2], w: (f[1] / 2025 * 100).toFixed(1), bg: f[3], delay: (i * 0.12).toFixed(2) + 's' }; });
+
+    var CATS = [
+      ['Publication', 120, 210, 60], ['Market report', 0, 4, 214], ['Unrelated', 0, 16, 136], ['Trial readout', 96, 40, 6],
+      ['Financials', 8, 110, 22], ['Conference', 30, 64, 12], ['Competitor signal', 15, 48, 30], ['Approval', 64, 22, 3],
+      ['Regulatory', 41, 38, 9], ['Deal, launch, litigation', 10, 47, 16], ['Safety', 18, 12, 4]
+    ];
+    var maxCat = 390;
+    var cats = CATS.map(function (c) {
+      var tot = c[1] + c[2] + c[3];
+      return { label: c[0], total: String(tot), wi: (c[1] / maxCat * 100).toFixed(1), wh: (c[2] / maxCat * 100).toFixed(1), ws: (c[3] / maxCat * 100).toFixed(1), tip: c[0] + ': ingest ' + c[1] + ', headline ' + c[2] + ', skip ' + c[3] };
+    });
+
+    var HEAT = [
+      ['Regulatory', '#2347D9', [0, 0, 0, 1, 8, 9, 10, 8, 9, 12, 10, 13, 11, 5]],
+      ['Clinical', '#08916F', [4, 6, 8, 10, 12, 14, 15, 14, 13, 16, 17, 15, 14, 10]],
+      ['Company', '#E0620F', [3, 1, 2, 3, 6, 6, 5, 6, 6, 7, 8, 9, 10, 6]],
+      ['Patents', '#7A5AF8', [6, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1]],
+      ['Safety', '#C11574', [0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0]]
+    ];
+    var COLS = ['before 2014', '2014', '2015', '2016', '2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024', '2025', '2026'];
+    var ramp = ['#F2F4F7', this.mix(A, 0.85), this.mix(A, 0.68), this.mix(A, 0.45), this.mix(A, 0.22), A];
+    function level(v) { return v === 0 ? 0 : (v <= 3 ? 1 : (v <= 7 ? 2 : (v <= 11 ? 3 : (v <= 14 ? 4 : 5)))); }
+    var pick = s.cell || null;
+    var heat = HEAT.map(function (h, r) {
+      return {
+        label: h[0], color: h[1],
+        cells: h[2].map(function (v, c) {
+          var lv = level(v);
+          var key = r + ':' + c;
+          return {
+            text: v ? String(v) : '', bg: ramp[lv], fg: lv >= 3 ? '#FFFFFF' : '#344054',
+            ring: pick === key ? '0 0 0 2px #101828' : 'none',
+            delay: ((r * 14 + c) * 0.012).toFixed(3) + 's',
+            aria: h[0] + ', ' + COLS[c] + ': ' + v + ' events',
+            pick: function () { self.setState({ cell: key }); }
+          };
+        })
+      };
+    });
+    var heatPick = 'Select a cell to see how many events it holds and jump to them in the journey.';
+    if (pick) {
+      var pr = +pick.split(':')[0], pc = +pick.split(':')[1];
+      var pv = HEAT[pr][2][pc];
+      heatPick = HEAT[pr][0] + ' · ' + COLS[pc] + ': ' + pv + ' event' + (pv === 1 ? '' : 's') + '. Open them in the journey timeline to read the sources.';
+    }
+
+    var TR = [['Phase 1', 6, 38, 4], ['Phase 2', 14, 50, 7], ['Phase 3', 31, 79, 8], ['Phase 4', 18, 31, 3], ['Other / not applicable', 0, 20, 3]];
+    var trials = TR.map(function (t) {
+      var tot = t[1] + t[2] + t[3];
+      return { label: t[0], note: tot + ' trials · ' + t[1] + ' active', wa: (t[1] / 118 * 100).toFixed(1), wc: (t[2] / 118 * 100).toFixed(1), ws: (t[3] / 118 * 100).toFixed(1), tip: t[0] + ': ' + t[1] + ' active, ' + t[2] + ' completed, ' + t[3] + ' stopped' };
+    });
+
+    var FA = [1240, 3980, 6450, 8120, 10300, 12870, 14950, 16400, 17900, 12100];
+    var faers = FA.map(function (v, i) { return { h: (v / 20000 * 100).toFixed(1), bg: i === 9 ? self.mix(A, 0.45) : A, tip: (2017 + i) + ': ' + fmtN(v) + ' reports' + (i === 9 ? ' (year to date)' : ''), delay: (i * 0.05).toFixed(2) + 's' }; });
+
+    return {
+      accent: A,
+      accentTint: tint,
+      sources: sources,
+      detail: detail,
+      funnel: funnel,
+      cats: cats,
+      heat: heat,
+      heatLegend: ramp.slice(1).map(function (c) { return { bg: c }; }),
+      heatPick: heatPick,
+      trials: trials,
+      faers: faers
+    };
+  }
+}
+</script>
+</body>
+</html>

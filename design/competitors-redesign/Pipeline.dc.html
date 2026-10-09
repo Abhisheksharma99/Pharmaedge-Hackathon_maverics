@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Live ingestion — Dupilumab — PharmaEdge</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F5F7}
+a{color:#2347D9;text-decoration:none}a:hover{color:#1A36A8}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+button{font:inherit;cursor:pointer}
+a:focus-visible,button:focus-visible{outline:2px solid #2347D9;outline-offset:2px}
+@keyframes pe-spin{to{transform:rotate(360deg)}}
+@keyframes pe-pulse{0%{box-shadow:0 0 0 0 rgba(35,71,217,.32)}70%{box-shadow:0 0 0 9px rgba(35,71,217,0)}100%{box-shadow:0 0 0 0 rgba(35,71,217,0)}}
+@keyframes pe-rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes pe-pop{0%{opacity:0;transform:scale(.85)}60%{opacity:1;transform:scale(1.03)}100%{transform:scale(1)}}
+@keyframes pe-shimmer{0%{background-position:-160px 0}100%{background-position:160px 0}}
+@keyframes pe-flowx{to{background-position:12px 0}}
+@keyframes pe-flowy{to{background-position:0 12px}}
+@keyframes pe-glow{0%,100%{box-shadow:0 0 0 0 rgba(35,71,217,.28),0 12px 32px rgba(35,71,217,.18)}50%{box-shadow:0 0 0 8px rgba(35,71,217,0),0 12px 32px rgba(35,71,217,.28)}}
+@keyframes pe-grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; background: #F4F5F7; color: #344054; font-family: 'Geist', ui-sans-serif, system-ui, sans-serif; font-size: 14px; line-height: 1.45;">
+
+<nav aria-label="Primary" style="flex: 0 0 64px; box-sizing: border-box; background: #FFFFFF; border-right: 1px solid #E4E7EC; padding: 14px 10px; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+<a href="#" aria-label="PharmaEdge home" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px;"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" rx="8" fill="{{accent}}"></rect><path d="M10 21.5V8.5h5.75a4.25 4.25 0 0 1 0 8.5H10" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="20.5" cy="20.5" r="2.1" fill="#FFFFFF"></circle></svg></a>
+<a href="#" aria-label="Home" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #475467;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5 9.5V21h14V9.5"></path><path d="M9.5 21v-6h5v6"></path></svg></a>
+<a href="AddAsset.dc.html" aria-label="Asset Search" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #475467;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></a>
+<a href="AssetAI.dc.html" aria-label="Asset AI" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #475467;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c.4 3.9 2.1 5.6 6 6-3.9.4-5.6 2.1-6 6-.4-3.9-2.1-5.6-6-6 3.9-.4 5.6-2.1 6-6z"></path></svg></a>
+<span aria-hidden="true" style="width: 28px; height: 1px; background: #E4E7EC; margin: 6px 0;"></span>
+<a href="Timeline.dc.html" aria-label="Asset Journey" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #475467;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="19" r="2.5"></circle><circle cx="18" cy="5" r="2.5"></circle><path d="M8.5 19H16a3.5 3.5 0 0 0 0-7H8a3.5 3.5 0 0 1 0-7h7.5"></path></svg></a>
+<a href="Analytics.dc.html" aria-label="Insights" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #475467;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"></path><path d="M7 16v-5M12 16V6M17 16v-8"></path></svg></a>
+<a href="#" aria-label="Crawl jobs" aria-current="page" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: {{accentTint}}; color: {{accent}};"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="6" r="2"></circle><circle cx="5" cy="18" r="2"></circle><circle cx="19" cy="12" r="2"></circle><path d="M7 6h3a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H7M13 12h4"></path></svg></a>
+</nav>
+
+<div style="flex: 1 1 0; min-width: 0; display: flex; flex-direction: column;">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; padding: 12px 28px; background: #FFFFFF; border-bottom: 1px solid #E4E7EC;">
+<nav aria-label="Breadcrumb"><ol style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px; list-style: none; margin: 0; padding: 0; font-size: 13px; color: #475467;"><li><a href="#" style="color: #475467;">Crawl jobs</a></li><li aria-hidden="true" style="color: #98A2B3;">/</li><li aria-current="page" style="color: #101828; font-weight: 500;">Dupilumab · onboard</li></ol></nav>
+<div style="margin-left: auto; display: flex; align-items: center; gap: 10px;">
+<span aria-hidden="true" style="width: 34px; height: 34px; border-radius: 50%; background: #344054; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600;">AR</span>
+<span style="font-size: 14px; font-weight: 500; color: #101828;">Anand Rai</span>
+</div>
+</header>
+
+<main style="flex: 1 1 auto; box-sizing: border-box; width: 100%; max-width: 1400px; margin: 0 auto; padding: 24px 28px 48px; display: flex; flex-direction: column; gap: 18px;">
+
+<!-- Job hero -->
+<section aria-label="Job status" style="background: #FFFFFF; border: 1px solid #E4E7EC; border-radius: 16px; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 1px 2px rgba(16,24,40,0.04);">
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 24px;">
+<div style="display: flex; align-items: center; gap: 14px; min-width: 0;">
+<span style="width: 48px; height: 48px; flex: none; border-radius: 13px; background: {{accent}}; display: flex; align-items: center; justify-content: center;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21v-8"></path><path d="M12 13 6.5 6.5"></path><path d="m12 13 5.5-6.5"></path><path d="M9.2 14.6 4 8.8"></path><path d="m14.8 14.6 5.2-5.8"></path></svg></span>
+<div style="min-width: 0;">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px;">
+<h1 style="margin: 0; font-size: 22px; line-height: 28px; font-weight: 650; letter-spacing: -0.02em; color: #101828;">Building Dupilumab’s journey</h1>
+<span style="height: 24px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border-radius: 999px; background: {{job.pillBg}}; color: {{job.pillFg}}; font-size: 12.5px; font-weight: 600;"><span style="width: 7px; height: 7px; border-radius: 50%; background: {{job.dot}}; animation: {{job.dotAnim}};"></span>{{job.status}}</span>
+</div>
+<p style="margin: 2px 0 0; font-size: 13.5px; color: #475467;" aria-live="polite">{{job.line}}</p>
+</div>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+<div role="group" aria-label="Replay speed" style="display: inline-flex; padding: 3px; gap: 2px; background: #EAECF0; border-radius: 10px;">
+<button type="button" onClick="{{sp1.pick}}" aria-pressed="{{sp1.pressed}}" style="height: 30px; padding: 0 10px; border: 0; border-radius: 8px; background: {{sp1.bg}}; color: {{sp1.fg}}; font-size: 12.5px; font-weight: 600;">1×</button>
+<button type="button" onClick="{{sp2.pick}}" aria-pressed="{{sp2.pressed}}" style="height: 30px; padding: 0 10px; border: 0; border-radius: 8px; background: {{sp2.bg}}; color: {{sp2.fg}}; font-size: 12.5px; font-weight: 600;">2×</button>
+<button type="button" onClick="{{sp4.pick}}" aria-pressed="{{sp4.pressed}}" style="height: 30px; padding: 0 10px; border: 0; border-radius: 8px; background: {{sp4.bg}}; color: {{sp4.fg}}; font-size: 12.5px; font-weight: 600;">4×</button>
+</div>
+<button type="button" onClick="{{togglePause}}" style="height: 36px; padding: 0 12px; border: 1px solid #D0D5DD; background: #FFFFFF; border-radius: 10px; color: #344054; font-size: 13px; font-weight: 500;">{{pauseLabel}}</button>
+<button type="button" onClick="{{replay}}" style="height: 36px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border: 1px solid #D0D5DD; background: #FFFFFF; border-radius: 10px; color: #344054; font-size: 13px; font-weight: 500;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5"></path></svg>Replay</button>
+<button type="button" style="height: 36px; padding: 0 12px; border: 1px solid #FDA29B; background: #FFFFFF; border-radius: 10px; color: #B42318; font-size: 13px; font-weight: 500;">Cancel job</button>
+</div>
+</div>
+<div>
+<div style="display: flex; gap: 3px;" aria-hidden="true">
+<sc-for list="{{nodes}}" as="n" hint-placeholder-count="15"><span style="flex: 1; height: 6px; border-radius: 3px; background: {{n.seg}};"></span></sc-for>
+</div>
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-top: 8px; font-size: 12.5px; color: #475467;">
+<span><b style="color: #101828; font-variant-numeric: tabular-nums;">{{job.doneCount}}</b> of 15 steps · elapsed <span style="font-family: 'Geist Mono', ui-monospace, monospace;">{{job.elapsed}}</span></span>
+<span>Requested by Anand Rai · onboard</span>
+</div>
+</div>
+</section>
+
+<!-- Agent tree -->
+<section aria-labelledby="tree-title" style="background: #FFFFFF; border: 1px solid #E4E7EC; border-radius: 16px; box-shadow: 0 1px 2px rgba(16,24,40,0.04); overflow: hidden;">
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 20px; padding: 16px 20px; border-bottom: 1px solid #EEF0F3;">
+<div>
+<h2 id="tree-title" style="margin: 0; font-size: 16px; line-height: 24px; font-weight: 600; color: #101828;">Agent tree</h2>
+<p style="margin: 2px 0 0; font-size: 13px; color: #475467;">Each node is a step of the crawl. Select one to see what it collected.</p>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; font-size: 12.5px; color: #475467;">
+<span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 12px; height: 12px; box-sizing: border-box; border-radius: 50%; border: 2px dashed #D0D5DD;"></span>Queued</span>
+<span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 12px; height: 12px; box-sizing: border-box; border-radius: 50%; border: 2px solid {{accent}};"></span>Running</span>
+<span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 12px; height: 12px; border-radius: 50%; background: {{accent}};"></span>Done</span>
+<span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 12px; height: 12px; border-radius: 50%; background: #DC6803;"></span>Done with warnings</span>
+</div>
+</div>
+<div style="overflow-x: auto; background-color: #FCFCFD; background-image: radial-gradient(#E4E7EC 1px, transparent 1px); background-size: 18px 18px;">
+<div style="position: relative; width: 1270px; height: 604px; margin: 22px auto 26px; padding: 0 20px;">
+<div style="position: absolute; left: 20px; top: 0; right: 20px; bottom: 0;">
+
+<span style="position: absolute; left: 230px; top: 4px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #667085;">Collect · 8 sources</span>
+<span style="position: absolute; left: 530px; top: 144px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #667085;">Understand · AI</span>
+<span style="position: absolute; left: 830px; top: 94px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #667085;">Expand</span>
+<span style="position: absolute; left: 1110px; top: 249px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #667085;">Finish</span>
+
+<sc-for list="{{wires}}" as="w" hint-placeholder-count="30"><span aria-hidden="true" style="position: absolute; left: {{w.x}}px; top: {{w.y}}px; width: {{w.w}}px; height: {{w.h}}px; border-radius: 1px; background: {{w.bg}}; animation: {{w.anim}};"></span></sc-for>
+
+<!-- Root -->
+<div style="position: absolute; left: 0; top: 269px; width: 170px; height: 90px; box-sizing: border-box; padding: 12px 14px; border-radius: 14px; background: #101828; color: #FFFFFF; display: flex; flex-direction: column; justify-content: center; gap: 4px; box-shadow: 0 10px 24px rgba(16,24,40,0.18);">
+<span style="font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #98A2B3;">Asset</span>
+<span style="font-size: 17px; font-weight: 650; letter-spacing: -0.01em;">Dupilumab</span>
+<span style="font-size: 12px; color: #D0D5DD;">Regeneron · onboard</span>
+</div>
+
+<!-- Step nodes -->
+<sc-for list="{{nodes}}" as="n" hint-placeholder-count="15">
+<button type="button" onClick="{{n.pick}}" aria-pressed="{{n.pressed}}" aria-label="{{n.aria}}" style="position: absolute; left: {{n.x}}px; top: {{n.y}}px; width: {{n.w}}px; height: 58px; box-sizing: border-box; padding: 8px 10px 8px 10px; border-radius: 12px; border: {{n.border}}; background: #FFFFFF; box-shadow: {{n.shadow}}; animation: {{n.anim}}; display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; column-gap: 8px; text-align: left; overflow: hidden;">
+<span style="grid-row: 1 / span 2; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;">
+<sc-if value="{{n.isDone}}" hint-placeholder-val="{{ false }}"><span style="width: 20px; height: 20px; border-radius: 50%; background: {{accent}}; display: flex; align-items: center; justify-content: center;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span></sc-if>
+<sc-if value="{{n.isWarn}}" hint-placeholder-val="{{ false }}"><span style="width: 20px; height: 20px; border-radius: 50%; background: #DC6803; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">!</span></sc-if>
+<sc-if value="{{n.isRunning}}" hint-placeholder-val="{{ false }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{accent}}" stroke-width="2.6" stroke-linecap="round" aria-hidden="true" style="animation: pe-spin 0.9s linear infinite;"><circle cx="12" cy="12" r="9" stroke="#E4E7EC"></circle><path d="M21 12a9 9 0 0 0-9-9"></path></svg></sc-if>
+<sc-if value="{{n.isPending}}" hint-placeholder-val="{{ true }}"><span style="width: 18px; height: 18px; box-sizing: border-box; border-radius: 50%; border: 2px dashed #D0D5DD;"></span></sc-if>
+</span>
+<span style="min-width: 0; font-size: 13px; font-weight: 600; color: {{n.labelColor}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{n.label}}</span>
+<span style="grid-row: 1; grid-column: 3; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11.5px; color: #667085; white-space: nowrap;">{{n.time}}</span>
+<span style="grid-column: 2 / span 2; min-width: 0; font-size: 12px; color: {{n.subColor}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{n.sub}}</span>
+<sc-if value="{{n.isRunning}}" hint-placeholder-val="{{ false }}"><span aria-hidden="true" style="position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: linear-gradient(90deg, transparent 0, {{accent}} 50%, transparent 100%); background-size: 320px 100%; animation: pe-shimmer 1.2s linear infinite;"></span></sc-if>
+</button>
+</sc-for>
+
+<!-- Competitor child jobs -->
+<sc-if value="{{spawned}}" hint-placeholder-val="{{ false }}">
+<sc-for list="{{kids}}" as="k" hint-placeholder-count="5">
+<div style="position: absolute; left: 860px; top: {{k.y}}px; width: 200px; height: 26px; box-sizing: border-box; padding: 0 8px; border-radius: 8px; border: 1px solid {{k.border}}; background: #FFFFFF; display: flex; align-items: center; gap: 8px; animation: pe-pop 0.45s ease both; animation-delay: {{k.delay}};">
+<span style="width: 7px; height: 7px; flex: none; border-radius: 50%; background: {{k.dot}}; animation: {{k.dotAnim}};"></span>
+<span style="flex: 1; min-width: 0; font-size: 12px; font-weight: 500; color: #101828; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{k.name}}</span>
+<span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11.5px; color: #475467;">{{k.progress}}</span>
+</div>
+</sc-for>
+</sc-if>
+
+<!-- Journey card -->
+<div style="position: absolute; left: 1110px; top: 360px; width: 150px; height: 128px; box-sizing: border-box; padding: 12px; border-radius: 14px; border: 1px solid {{reveal.border}}; background: {{reveal.bg}}; color: {{reveal.fg}}; display: flex; flex-direction: column; gap: 4px; animation: {{reveal.anim}};">
+<span style="font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.8;">Journey</span>
+<span style="font-size: 26px; line-height: 30px; font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: -0.02em;">{{eventsLabel}}</span>
+<span style="font-size: 12px; opacity: 0.85;">events so far</span>
+<sc-if value="{{ready}}" hint-placeholder-val="{{ false }}"><a href="Timeline.dc.html" style="margin-top: auto; height: 30px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 8px; background: #FFFFFF; color: {{accent}}; font-size: 12.5px; font-weight: 700; text-decoration: none;">Reveal<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></a></sc-if>
+</div>
+
+</div>
+</div>
+</div>
+</section>
+
+<!-- Ready banner -->
+<sc-if value="{{ready}}" hint-placeholder-val="{{ false }}">
+<section aria-label="Journey ready" style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px 24px; padding: 20px 24px; border-radius: 16px; background: #101828; color: #FFFFFF; animation: pe-rise 0.6s ease both;">
+<div style="display: flex; align-items: center; gap: 16px; min-width: 0;">
+<span style="width: 44px; height: 44px; flex: none; border-radius: 12px; background: {{accent}}; display: flex; align-items: center; justify-content: center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="#FFFFFF" aria-hidden="true"><path d="M12 3c.4 3.9 2.1 5.6 6 6-3.9.4-5.6 2.1-6 6-.4-3.9-2.1-5.6-6-6 3.9-.4 5.6-2.1 6-6z"></path><path d="M19 15c.2 1.6.9 2.3 2.5 2.5-1.6.2-2.3.9-2.5 2.5-.2-1.6-.9-2.3-2.5-2.5 1.6-.2 2.3-.9 2.5-2.5z"></path></svg></span>
+<div style="min-width: 0;">
+<h2 style="margin: 0; font-size: 18px; line-height: 24px; font-weight: 650;">Dupilumab’s journey is ready</h2>
+<p style="margin: 2px 0 0; font-size: 13.5px; color: #D0D5DD;">380 events from 2,025 records · 4 suggested questions · {{kidsLine}}</p>
+</div>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px;">
+<a href="AssetAI.dc.html" style="height: 42px; display: inline-flex; align-items: center; padding: 0 16px; border-radius: 10px; border: 1px solid #475467; color: #FFFFFF; font-size: 14px; font-weight: 500; text-decoration: none;">Ask Asset AI</a>
+<a href="Timeline.dc.html" style="height: 42px; display: inline-flex; align-items: center; gap: 8px; padding: 0 18px; border-radius: 10px; background: #FFFFFF; color: #101828; font-size: 14px; font-weight: 700; text-decoration: none;">Reveal the journey<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></a>
+</div>
+</section>
+</sc-if>
+
+<!-- Lower row -->
+<div style="display: flex; flex-wrap: wrap; gap: 18px; align-items: stretch;">
+
+<!-- Inspector -->
+<section aria-labelledby="insp-title" style="flex: 1 1 320px; min-width: 0; background: #FFFFFF; border: 1px solid #E4E7EC; border-radius: 16px; box-shadow: 0 1px 2px rgba(16,24,40,0.04); display: flex; flex-direction: column;">
+<div style="padding: 16px 18px 12px; border-bottom: 1px solid #EEF0F3;">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+<p style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #667085;">{{sel.agent}}</p>
+<sc-if value="{{following}}" hint-placeholder-val="{{ true }}"><span style="font-size: 12px; color: {{accent}}; font-weight: 600;">Following live</span></sc-if>
+<sc-if value="{{notFollowing}}" hint-placeholder-val="{{ false }}"><button type="button" onClick="{{follow}}" style="height: 28px; padding: 0 10px; border: 1px solid #D0D5DD; background: #FFFFFF; border-radius: 8px; color: #344054; font-size: 12px; font-weight: 500;">Follow live</button></sc-if>
+</div>
+<h2 id="insp-title" style="margin: 4px 0 0; font-size: 16px; line-height: 22px; font-weight: 600; color: #101828;">{{sel.label}}</h2>
+<p style="margin: 2px 0 0; font-size: 13px; color: #475467;">{{sel.note}}</p>
+</div>
+<dl style="margin: 0; padding: 12px 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; font-size: 13px; border-bottom: 1px solid #EEF0F3;">
+<div><dt style="font-size: 12px; color: #667085;">Status</dt><dd style="margin: 2px 0 0; font-weight: 600; color: {{sel.statusColor}};">{{sel.status}}</dd></div>
+<div><dt style="font-size: 12px; color: #667085;">Duration</dt><dd style="margin: 2px 0 0; font-family: 'Geist Mono', ui-monospace, monospace; color: #101828;">{{sel.time}}</dd></div>
+</dl>
+<div style="padding: 12px 18px 16px; display: flex; flex-direction: column; gap: 8px;">
+<p style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #667085;">Counts</p>
+<sc-if value="{{sel.hasCounts}}" hint-placeholder-val="{{ true }}">
+<ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column;">
+<sc-for list="{{sel.counts}}" as="c" hint-placeholder-count="4"><li style="display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-top: 1px solid #F2F4F7; font-size: 13px;"><span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 12.5px; color: #475467;">{{c.k}}</span><span style="font-weight: 600; color: #101828; font-variant-numeric: tabular-nums;">{{c.v}}</span></li></sc-for>
+</ul>
+</sc-if>
+<sc-if value="{{sel.noCounts}}" hint-placeholder-val="{{ false }}"><p style="margin: 0; font-size: 13px; color: #475467;">{{sel.emptyText}}</p></sc-if>
+<sc-if value="{{sel.hasWarn}}" hint-placeholder-val="{{ false }}"><p style="margin: 4px 0 0; padding: 8px 10px; border-radius: 8px; background: #FFFAEB; border: 1px solid #FEDF89; font-size: 12.5px; color: #93370D;">{{sel.warn}}</p></sc-if>
+</div>
+</section>
+
+<!-- Live activity -->
+<section aria-labelledby="feed-title" style="flex: 1.35 1 400px; min-width: 0; background: #FFFFFF; border: 1px solid #E4E7EC; border-radius: 16px; box-shadow: 0 1px 2px rgba(16,24,40,0.04); display: flex; flex-direction: column;">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 16px 18px 12px; border-bottom: 1px solid #EEF0F3;">
+<div>
+<h2 id="feed-title" style="margin: 0; font-size: 16px; line-height: 22px; font-weight: 600; color: #101828;">Live activity</h2>
+<p style="margin: 2px 0 0; font-size: 13px; color: #475467;">Step results, AI screening decisions and new journey events</p>
+</div>
+<span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: {{live.fg}};"><span style="width: 7px; height: 7px; border-radius: 50%; background: {{live.dot}}; animation: {{live.anim}};"></span>{{live.label}}</span>
+</div>
+<ol aria-live="polite" style="list-style: none; margin: 0; padding: 4px 18px 12px; display: flex; flex-direction: column;">
+<sc-for list="{{feed}}" as="f" hint-placeholder-count="8">
+<li style="display: grid; grid-template-columns: 46px minmax(0, 1fr); gap: 10px; padding: 9px 0; border-bottom: 1px solid #F2F4F7; animation: pe-rise 0.35s ease both;">
+<span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11.5px; color: #667085; padding-top: 2px;">{{f.time}}</span>
+<div style="min-width: 0;">
+<div style="display: flex; align-items: flex-start; gap: 8px;">
+<sc-if value="{{f.hasPill}}" hint-placeholder-val="{{ true }}"><span style="flex: none; height: 20px; display: inline-flex; align-items: center; gap: 5px; padding: 0 7px; box-sizing: border-box; border-radius: 6px; border: 1px solid {{f.pillBd}}; background: {{f.pillBg}}; color: {{f.pillFg}}; font-size: 11.5px; font-weight: 600;"><span style="width: 6px; height: 6px; border-radius: 50%; background: {{f.dot}};"></span>{{f.pill}}</span></sc-if>
+<span style="min-width: 0; font-size: 13px; font-weight: 500; color: #101828;">{{f.title}}</span>
+</div>
+<p style="margin: 2px 0 0; font-size: 12.5px; color: #475467;">{{f.detail}}</p>
+</div>
+</li>
+</sc-for>
+</ol>
+</section>
+
+<!-- Journey forming + records -->
+<section aria-labelledby="forming-title" style="flex: 1 1 340px; min-width: 0; background: #FFFFFF; border: 1px solid #E4E7EC; border-radius: 16px; box-shadow: 0 1px 2px rgba(16,24,40,0.04); display: flex; flex-direction: column;">
+<div style="padding: 16px 18px 12px; border-bottom: 1px solid #EEF0F3;">
+<h2 id="forming-title" style="margin: 0; font-size: 16px; line-height: 22px; font-weight: 600; color: #101828;">Journey taking shape</h2>
+<p style="margin: 2px 0 0; font-size: 13px; color: #475467;">Journey events per year, as agents extract them</p>
+</div>
+<div style="padding: 16px 18px 6px;">
+<div style="display: flex; align-items: baseline; gap: 8px;"><span style="font-size: 28px; line-height: 32px; font-weight: 650; letter-spacing: -0.02em; color: #101828; font-variant-numeric: tabular-nums;">{{eventsLabel}}</span><span style="font-size: 13px; color: #475467;">{{eventsNote}}</span></div>
+<div aria-hidden="true" style="margin-top: 12px; height: 128px; display: flex; align-items: flex-end; gap: 3px; border-bottom: 1px solid #E4E7EC;">
+<sc-for list="{{bars}}" as="b" hint-placeholder-count="20"><span title="{{b.tip}}" style="flex: 1; height: {{b.h}}px; border-radius: 3px 3px 0 0; background: {{b.bg}}; transition: height 0.5s ease;"></span></sc-for>
+</div>
+<div aria-hidden="true" style="display: flex; justify-content: space-between; margin-top: 6px; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11.5px; color: #667085;"><span>2007</span><span>2012</span><span>2017</span><span>2022</span><span>2026</span></div>
+</div>
+<div style="padding: 12px 18px 16px; margin-top: auto;">
+<p style="margin: 0 0 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #667085;">Records collected</p>
+<ul style="list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px;">
+<sc-for list="{{records}}" as="r" hint-placeholder-count="8"><li style="display: flex; justify-content: space-between; gap: 8px; padding: 7px 10px; border-radius: 8px; background: {{r.bg}}; font-size: 12.5px; transition: background 0.4s;"><span style="color: #475467;">{{r.label}}</span><span style="font-weight: 600; color: #101828; font-variant-numeric: tabular-nums;">{{r.value}}</span></li></sc-for>
+</ul>
+</div>
+</section>
+
+</div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#2347D9","options":["#2347D9","#5B3FD1","#0E6EB8","#1F2937"]},"startAt":{"editor":"enum","options":["live","complete"],"default":"live"},"$preview":{"width":1440,"height":1720}}'>
+class Component extends DCLogic {
+  mix(hex, amt) {
+    var n = parseInt(hex.slice(1), 16);
+    var ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    return '#' + ch.map(function (c) {
+      var v = Math.round(c + (255 - c) * amt);
+      return (v < 16 ? '0' : '') + v.toString(16);
+    }).join('');
+  }
+  componentDidMount() {
+    if ((this.props.startAt ?? 'live') === 'live') { this.run(0); }
+  }
+  componentWillUnmount() { clearInterval(this.timer); }
+  run(from, sp) {
+    var self = this;
+    clearInterval(this.timer);
+    var speed = sp || (this.state && this.state.speed) || 1;
+    this.setState({ t: from, paused: false, speed: speed });
+    this.timer = setInterval(function () {
+      var st = self.state || {};
+      if (st.paused) { return; }
+      var t = (st.t || 0) + 1;
+      if (t >= 44) { clearInterval(self.timer); }
+      self.setState({ t: t });
+    }, Math.round(520 / speed));
+  }
+  setSpeed(v) {
+    var st = this.state || {};
+    var t = st.t !== undefined ? st.t : 0;
+    if (t < 44) { this.run(t, v); } else { this.setState({ speed: v }); }
+  }
+  renderVals() {
+    var self = this;
+    var s = this.state || {};
+    var raw = this.props.accent ?? '#2347D9';
+    var A = /^#[0-9a-fA-F]{6}$/.test(raw) ? raw : '#2347D9';
+    var tint = this.mix(A, 0.91);
+    var soft = this.mix(A, 0.55);
+    var END = 44;
+    var t = s.t !== undefined ? s.t : ((this.props.startAt ?? 'live') === 'complete' ? END : 0);
+    var speed = s.speed || 1;
+
+    var STEPS = [
+      { k: 'regulatory', label: 'Regulatory · FDA, EMA', agent: 'Collector · openFDA + EMA', col: 1, i: 0, a: 0, b: 3, dur: 58, sub: '46 FDA · 31 EMA records', note: 'Drugs@FDA submissions, recalls and FAERS monthly counts; five EMA reports filtered locally.', counts: [['fda_new', '46'], ['fda_updated', '0'], ['ema_new', '31'], ['ema_updated', '0']] },
+      { k: 'clinical', label: 'Clinical trials', agent: 'Collector · ClinicalTrials.gov', col: 1, i: 1, a: 3, b: 5, dur: 21, sub: '312 trials', note: 'ClinicalTrials.gov v2 API for every name and alias.', counts: [['trials_new', '312'], ['trials_updated', '0']] },
+      { k: 'publications', label: 'Publications · PubMed', agent: 'Collector · PubMed', col: 1, i: 2, a: 5, b: 8, dur: 102, sub: '1,000 papers · cap reached', note: 'Title and abstract search, newest first; up to 1,000 results for a primary asset.', counts: [['publications_new', '1,000']] },
+      { k: 'conferences', label: 'Conference abstracts', agent: 'Collector · ERS, ATS, CHEST corpus', col: 1, i: 3, a: 8, b: 9, dur: 4, sub: '64 abstracts matched', note: 'Matches names against the pre-crawled conference corpus. No live crawl.', counts: [['abstracts', '64'], ['abstracts_new', '64']] },
+      { k: 'company_site', label: 'Company website', agent: 'Collector · generic site crawler', col: 1, i: 4, a: 9, b: 11, dur: 130, sub: '29 pages and documents', note: 'Sitemap product pages, linked PDFs and documents on regeneron.com.', counts: [['company_page', '18'], ['prescribing_info', '2'], ['annual_report', '3'], ['company_document', '6'], ['new', '29']] },
+      { k: 'company_news', label: 'Company press releases', agent: 'Collector · newsroom spiders', col: 1, i: 5, a: 11, b: 15, dur: 2292, sub: '212 press releases', note: 'Scrapy spiders matched by domain: regeneron, sanofi. Full history on the first crawl.', counts: [['spiders', 'regeneron, sanofi'], ['press_releases_new', '212'], ['spider_errors', '0']] },
+      { k: 'news', label: 'Newswires & Bing News', agent: 'Collector + triage agent', col: 1, i: 6, a: 15, b: 19, dur: 365, sub: '477 screened · 148 kept', note: 'PR Newswire, BioSpace, GlobeNewswire and Bing News. Every hit is triaged before anything is fetched.', counts: [['articles_new', '148'], ['triaged_ingest', '148'], ['triaged_headline', '96'], ['triaged_skip', '233'], ['llm_calls', '16']] },
+      { k: 'industry_news', label: 'Industry news', agent: 'Collector · 10 news spiders', col: 1, i: 7, a: 19, b: 22, dur: 631, sub: '41 new · 2 spider errors', warn: 'fierce and reuters failed: these sites need a residential proxy. Newswires already cover most of their stories.', note: 'Fierce, Reuters, EMA, BioSpace, Google News and more; keeps items that name the asset.', counts: [['spiders', '10'], ['articles_seen', '2,410'], ['mentioning_asset', '57'], ['articles_new', '41'], ['spider_errors', '2']] },
+      { k: 'journey', label: 'Journey events · rules', agent: 'Rules engine', col: 2, i: 0, a: 22, b: 23, dur: 3, sub: '186 rule events', note: 'FDA and EMA approvals, label expansions, trial starts, completions and expected readouts.', counts: [['events', '186'], ['new', '186'], ['removed', '0']] },
+      { k: 'ai_triage', label: 'AI triage', agent: 'Triage agent · small model', col: 2, i: 1, a: 23, b: 26, dur: 168, sub: '1,525 judged · 402 kept', note: 'Decides ingest, headline or skip for every article, release, paper and abstract, with a one-line reason.', counts: [['ingest', '402'], ['headline', '611'], ['skip', '512'], ['llm_calls', '51'], ['cache_hits', '0']] },
+      { k: 'ai_events', label: 'AI event extraction', agent: 'Extraction agent · reasoning model', col: 2, i: 2, a: 26, b: 30, dur: 260, sub: '268 events · 74 merged', note: 'Reads each kept document and extracts dated events and forward-looking milestones, then merges duplicates.', counts: [['documents', '402'], ['events', '268'], ['merged', '74'], ['failed', '0']] },
+      { k: 'index', label: 'Search index for Asset AI', agent: 'Indexer · embeddings', col: 2, i: 3, a: 30, b: 32, dur: 72, sub: '3,904 chunks embedded', note: 'Chunks and embeds kept records so Asset AI can cite them.', counts: [['records', '431'], ['chunks', '3,904'], ['failed', '0']] },
+      { k: 'competitors', label: 'Competitors · top 5', agent: 'Scout agent · reasoning model', col: 3, i: 0, a: 32, b: 34, dur: 54, sub: 'Top 5 of 38 candidates', note: 'Candidates sharing indication or mechanism, ranked by the reasoning model; each gets a lighter crawl.', counts: [['candidates', '38'], ['competitors', '5'], ['new_assets', '5'], ['jobs_started', '5']] },
+      { k: 'patents', label: 'Patents', agent: 'Patent agent · PubChem + Google Patents', col: 3, i: 1, a: 34, b: 40, dur: 587, sub: '142 patents · 9 to review', warn: 'Page budget reached (600 pages). 9 near-match patents are stored as uncertain for review.', note: 'Assignee names, PubChem patent links, then patent families on Google Patents.', counts: [['patents', '142'], ['patents_new', '142'], ['pages_fetched', '600'], ['uncertain', '9'], ['budget_exhausted', 'yes']] },
+      { k: 'finalize', label: 'Finalize', agent: 'Finalizer', col: 4, i: 0, a: 40, b: 41, dur: 6, sub: '380 events · ready', note: 'Rebuilds rule events, writes suggested questions and marks the asset ready.', counts: [['events', '380'], ['suggested_questions', '4']] }
+    ];
+    var POS = { 1: function (i) { return [230, 40 + i * 70, 230]; }, 2: function (i) { return [530, 180 + i * 70, 230]; }, 3: function (i) { return i === 0 ? [830, 130, 230] : [830, 390, 230]; }, 4: function () { return [1110, 285, 150]; } };
+
+    function status(st) { return t < st.a ? 'pending' : (t < st.b ? 'running' : 'done'); }
+    function fmt(sec) {
+      sec = Math.round(sec);
+      if (sec >= 3600) { return Math.floor(sec / 3600) + 'h ' + Math.floor((sec % 3600) / 60) + 'm'; }
+      var m = Math.floor(sec / 60), r = sec % 60;
+      return m + ':' + (r < 10 ? '0' : '') + r;
+    }
+    function elapsedAt(tt) {
+      var e = 0;
+      STEPS.forEach(function (st) {
+        if (tt >= st.b) { e += st.dur; }
+        else if (tt > st.a) { e += st.dur * (tt - st.a) / (st.b - st.a); }
+      });
+      return e;
+    }
+    var byKey = {};
+    var current = null;
+    var doneCount = 0;
+    STEPS.forEach(function (st) { st.status = status(st); byKey[st.k] = st; if (st.status === 'running') { current = st; } if (st.status === 'done') { doneCount++; } });
+    var finished = t >= 41;
+    var selKey = s.sel || (current ? current.k : (finished ? 'finalize' : 'regulatory'));
+
+    var nodes = STEPS.map(function (st) {
+      var p = POS[st.col](st.i);
+      var stt = st.status;
+      var warn = stt === 'done' && !!st.warn;
+      var selected = selKey === st.k;
+      var running = stt === 'running';
+      var runFor = running ? fmt(st.dur * (t - st.a) / (st.b - st.a)) : '';
+      var border = stt === 'pending' ? '1px dashed #D0D5DD' : (running ? '1.5px solid ' + A : (warn ? '1px solid #FEC84B' : '1px solid #E4E7EC'));
+      var ring = selected ? ', 0 0 0 3px ' + self.mix(A, 0.8) : '';
+      return {
+        x: p[0], y: p[1], w: p[2],
+        label: st.label,
+        sub: stt === 'pending' ? 'Queued' : (running ? 'Running · counts appear when done' : st.sub),
+        time: stt === 'done' ? fmt(st.dur) : runFor,
+        isDone: stt === 'done' && !warn, isWarn: warn, isRunning: running, isPending: stt === 'pending',
+        labelColor: stt === 'pending' ? '#667085' : '#101828',
+        subColor: warn ? '#B54708' : (stt === 'pending' ? '#98A2B3' : '#475467'),
+        border: border,
+        shadow: (stt === 'pending' ? 'none' : '0 1px 2px rgba(16,24,40,0.06)') + ring,
+        anim: running && !selected ? 'pe-pulse 1.6s infinite' : 'none',
+        seg: stt === 'done' ? (warn ? '#F79009' : A) : (running ? soft : '#EAECF0'),
+        pressed: selected ? 'true' : 'false',
+        aria: st.label + ', ' + (warn ? 'done with warnings' : stt),
+        pick: function () { self.setState({ sel: st.k }); }
+      };
+    });
+
+    // wires
+    function wire(x, y, w, h, st) {
+      var vertical = h > w;
+      var bg = st === 'done' ? soft : (st === 'running' ? 'repeating-linear-gradient(' + (vertical ? '180deg' : '90deg') + ', ' + A + ' 0 6px, transparent 6px 12px)' : '#D0D5DD');
+      return { x: x, y: y, w: w, h: h, bg: bg, anim: st === 'running' ? (vertical ? 'pe-flowy 0.6s linear infinite' : 'pe-flowx 0.6s linear infinite') : 'none' };
+    }
+    function grp(keys) {
+      var sts = keys.map(function (k) { return byKey[k].status; });
+      if (sts.every(function (x) { return x === 'done'; })) { return 'done'; }
+      if (sts.some(function (x) { return x !== 'pending'; })) { return 'running'; }
+      return 'pending';
+    }
+    var collect = ['regulatory', 'clinical', 'publications', 'conferences', 'company_site', 'company_news', 'news', 'industry_news'];
+    var wires = [];
+    wires.push(wire(170, 313, 30, 2, grp(collect)));
+    wires.push(wire(199, 69, 2, 491, grp(collect)));
+    collect.forEach(function (k, i) {
+      var y = 40 + i * 70 + 28;
+      wires.push(wire(200, y, 30, 2, byKey[k].status));
+      wires.push(wire(460, y, 35, 2, byKey[k].status === 'done' ? 'done' : 'pending'));
+    });
+    var js = byKey.journey.status;
+    wires.push(wire(494, 69, 2, 491, js === 'pending' ? (grp(collect) === 'done' ? 'running' : 'pending') : 'done'));
+    wires.push(wire(495, 208, 35, 2, js));
+    ['ai_triage', 'ai_events', 'index'].forEach(function (k, i) { wires.push(wire(644, 180 + i * 70 + 58, 2, 12, byKey[k].status)); });
+    var cs = byKey.competitors.status, ps = byKey.patents.status, fs = byKey.finalize.status;
+    wires.push(wire(760, 418, 35, 2, cs));
+    wires.push(wire(794, 158, 2, 262, cs));
+    wires.push(wire(795, 158, 35, 2, cs));
+    wires.push(wire(795, 418, 35, 2, ps));
+
+    var KIDS = [['Tezepelumab', 38], ['Benralizumab', 39], ['Mepolizumab', 41], ['Omalizumab', 42], ['Tralokinumab', 44]];
+    var spawned = cs === 'done';
+    var kidsDone = 0;
+    var kids = KIDS.map(function (kd, j) {
+      var start = 34, end = kd[1];
+      var done = t >= end;
+      if (done) { kidsDone++; }
+      var k = done ? 11 : Math.max(0, Math.min(10, Math.floor(11 * (t - start) / (end - start))));
+      return { y: 198 + j * 32, name: kd[0], progress: k + '/11', dot: done ? '#17B26A' : A, dotAnim: done ? 'none' : 'pe-pulse 1.4s infinite', border: done ? '#E4E7EC' : self.mix(A, 0.7), delay: (j * 0.08) + 's', status: done ? 'done' : 'running' };
+    });
+    var kidState = !spawned ? 'pending' : (kidsDone === 5 ? 'done' : 'running');
+    wires.push(wire(844, 188, 2, 151, kidState));
+    kids.forEach(function (kd) { wires.push(wire(845, kd.y + 12, 15, 2, spawned ? kd.status : 'pending')); });
+    wires.push(wire(1060, 158, 25, 2, fs));
+    wires.push(wire(1060, 418, 25, 2, fs));
+    wires.push(wire(1084, 158, 2, 262, fs));
+    wires.push(wire(1085, 313, 25, 2, fs));
+    wires.push(wire(1184, 343, 2, 17, fs === 'done' ? 'done' : 'pending'));
+
+    // events + bars
+    var ev = 0;
+    if (t >= 23) { ev = 186; } else if (t > 22) { ev = Math.round(186 * (t - 22)); }
+    if (t >= 30) { ev = 380; } else if (t > 26) { ev = 186 + Math.round(194 * (t - 26) / 4); }
+    var W = [2, 1, 2, 3, 4, 5, 8, 12, 14, 20, 30, 28, 30, 26, 28, 36, 38, 42, 40, 11];
+    var frac = ev / 380;
+    var bars = W.map(function (w, i) {
+      var h = Math.round((w / 42) * 120 * frac);
+      return { h: Math.max(h, ev > 0 ? 2 : 0), bg: A, tip: (2007 + i) + ': ' + Math.round(w * frac) + ' events' };
+    });
+
+    function rec(label, keys, value) {
+      var done = keys.every(function (k) { return byKey[k].status === 'done'; });
+      var fresh = keys.some(function (k) { return t >= byKey[k].b && t < byKey[k].b + 2; });
+      return { label: label, value: done ? value : '–', bg: fresh ? tint : '#F9FAFB' };
+    }
+    var records = [
+      rec('Regulatory', ['regulatory'], '77'),
+      rec('Trials', ['clinical'], '312'),
+      rec('Publications', ['publications'], '1,000'),
+      rec('Abstracts', ['conferences'], '64'),
+      rec('Company', ['company_site', 'company_news'], '241'),
+      rec('News', ['news', 'industry_news'], '189'),
+      rec('Patents', ['patents'], '142'),
+      { label: 'Kept by AI', value: byKey.ai_triage.status === 'done' ? '402' : '–', bg: (t >= 26 && t < 28) ? tint : '#F9FAFB' }
+    ];
+
+    // feed
+    var CAT = { approval: ['Approval', '#2347D9'], trial: ['Trial readout', '#08916F'], company: ['Company', '#E0620F'] };
+    var FEED = [];
+    STEPS.forEach(function (st) {
+      FEED.push({ at: st.a, kind: 'start', title: st.label + ' started', detail: st.agent });
+      FEED.push({ at: st.b, kind: st.warn ? 'warn' : 'done', title: st.label + ' finished', detail: st.warn ? st.sub + '. ' + st.warn : st.sub });
+    });
+    FEED.push({ at: 16, kind: 'ingest', title: 'Press release: Dupixent NOTUS Phase 3 results in COPD', detail: 'trial_readout · Phase 3 readout for the asset' });
+    FEED.push({ at: 17, kind: 'skip', title: 'Atopic dermatitis drugs market forecast report', detail: 'market_report · Market-report spam, no asset news' });
+    FEED.push({ at: 18, kind: 'headline', title: 'Sanofi Q2 2024 results', detail: 'financials · Mentions Dupixent sales; keep the headline only' });
+    FEED.push({ at: 24, kind: 'ingest', title: 'FDA approves Dupixent for COPD with type 2 inflammation', detail: 'approval · Regulatory approval for the asset' });
+    FEED.push({ at: 25, kind: 'skip', title: 'Top 10 biotech stocks to watch', detail: 'unrelated · Passing mention only' });
+    FEED.push({ at: 27, kind: 'event', cat: 'approval', title: 'Sep 2024 · FDA approval in COPD', detail: 'New journey event · regulatory · High' });
+    FEED.push({ at: 28, kind: 'event', cat: 'trial', title: 'Nov 2023 · NOTUS Phase 3 met primary endpoint', detail: 'New journey event · clinical · High' });
+    FEED.push({ at: 29, kind: 'event', cat: 'approval', title: 'Apr 2025 · FDA approval in CSU', detail: 'Merged 3 sources into one event · regulatory · High' });
+    FEED.push({ at: 34, kind: 'spawn', title: 'Started 5 competitor crawls', detail: 'Tezepelumab, Benralizumab, Mepolizumab, Omalizumab, Tralokinumab' });
+    FEED.push({ at: 41, kind: 'ready', title: 'Journey ready · 380 events', detail: '4 suggested questions written for Asset AI' });
+    var PILL = {
+      start: null,
+      done: ['Done', '#ECFDF3', '#067647', '#ABEFC6', '#17B26A'],
+      warn: ['Warning', '#FFFAEB', '#93370D', '#FEDF89', '#F79009'],
+      ingest: ['Ingest', '#ECFDF3', '#067647', '#ABEFC6', '#17B26A'],
+      headline: ['Headline', '#FFFAEB', '#93370D', '#FEDF89', '#F79009'],
+      skip: ['Skip', '#F2F4F7', '#475467', '#E4E7EC', '#98A2B3'],
+      spawn: ['Spawned', tint, A, self.mix(A, 0.75), A],
+      ready: ['Ready', tint, A, self.mix(A, 0.75), A]
+    };
+    var feed = FEED.filter(function (f) { return f.at <= t && !(f.kind === 'start' && t >= byKey[STEPS.filter(function (st) { return st.a === f.at; })[0].k].b); })
+      .sort(function (a, b) { return b.at - a.at; })
+      .slice(0, 9)
+      .map(function (f) {
+        var p = f.kind === 'event' ? [CAT[f.cat][0], '#FFFFFF', '#344054', '#E4E7EC', CAT[f.cat][1]] : PILL[f.kind];
+        return { time: fmt(elapsedAt(f.at)), title: f.title, detail: f.detail, hasPill: !!p, pill: p ? p[0] : '', pillBg: p ? p[1] : '', pillFg: p ? p[2] : '', pillBd: p ? p[3] : '', dot: p ? p[4] : '' };
+      });
+
+    var sel = byKey[selKey];
+    var sst = sel.status;
+    var selWarn = sst === 'done' && !!sel.warn;
+
+    return {
+      accent: A,
+      accentTint: tint,
+      nodes: nodes,
+      wires: wires,
+      kids: kids,
+      spawned: spawned,
+      kidsLine: kidsDone === 5 ? 'all 5 competitors collected' : (5 - kidsDone) + ' of 5 competitors still collecting',
+      ready: finished,
+      reveal: finished ? { bg: A, fg: '#FFFFFF', border: A, anim: 'pe-glow 2.2s ease-in-out infinite' } : { bg: '#FFFFFF', fg: '#101828', border: '#E4E7EC', anim: 'none' },
+      eventsLabel: ev.toLocaleString('en-US'),
+      eventsNote: t >= 30 ? '268 extracted · 74 merged · 186 from rules' : (ev > 0 ? 'and counting' : 'waiting for the first events'),
+      bars: bars,
+      records: records,
+      feed: feed,
+      live: finished ? { label: 'Finished', dot: '#17B26A', fg: '#067647', anim: 'none' } : (s.paused ? { label: 'Paused', dot: '#98A2B3', fg: '#475467', anim: 'none' } : { label: 'Live', dot: A, fg: A, anim: 'pe-pulse 1.4s infinite' }),
+      job: {
+        status: finished ? 'Completed' : (s.paused ? 'Paused' : 'Running'),
+        pillBg: finished ? '#ECFDF3' : tint,
+        pillFg: finished ? '#067647' : A,
+        dot: finished ? '#17B26A' : A,
+        dotAnim: finished ? 'none' : 'pe-pulse 1.4s infinite',
+        line: finished ? 'All 15 steps finished. 2 steps reported warnings.' : (current ? 'Step ' + (doneCount + 1) + ' of 15 · ' + current.label : 'Starting…'),
+        doneCount: doneCount,
+        elapsed: fmt(elapsedAt(Math.min(t, 41)))
+      },
+      sp1: { pressed: speed === 1 ? 'true' : 'false', bg: speed === 1 ? '#FFFFFF' : 'transparent', fg: speed === 1 ? '#101828' : '#475467', pick: function () { self.setSpeed(1); } },
+      sp2: { pressed: speed === 2 ? 'true' : 'false', bg: speed === 2 ? '#FFFFFF' : 'transparent', fg: speed === 2 ? '#101828' : '#475467', pick: function () { self.setSpeed(2); } },
+      sp4: { pressed: speed === 4 ? 'true' : 'false', bg: speed === 4 ? '#FFFFFF' : 'transparent', fg: speed === 4 ? '#101828' : '#475467', pick: function () { self.setSpeed(4); } },
+      pauseLabel: s.paused ? 'Resume' : 'Pause',
+      togglePause: function () { self.setState({ paused: !s.paused }); },
+      replay: function () { self.setState({ sel: null }); self.run(0); },
+      following: !s.sel,
+      notFollowing: !!s.sel,
+      follow: function () { self.setState({ sel: null }); },
+      sel: {
+        label: sel.label,
+        agent: sel.agent,
+        note: sel.note,
+        status: sst === 'pending' ? 'Queued' : (sst === 'running' ? 'Running' : (selWarn ? 'Done with warnings' : 'Done')),
+        statusColor: sst === 'running' ? A : (selWarn ? '#B54708' : (sst === 'done' ? '#067647' : '#475467')),
+        time: sst === 'done' ? fmt(sel.dur) : (sst === 'running' ? fmt(sel.dur * (t - sel.a) / (sel.b - sel.a)) + ' so far' : '–'),
+        hasCounts: sst === 'done',
+        noCounts: sst !== 'done',
+        emptyText: sst === 'running' ? 'Counts are written when the step finishes.' : 'This step has not started yet.',
+        counts: sel.counts.map(function (c) { return { k: c[0], v: c[1] }; }),
+        hasWarn: selWarn,
+        warn: sel.warn || ''
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>
