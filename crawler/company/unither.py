@@ -16,7 +16,7 @@ treprostinil-relevant subset is one filter away. robots.txt allows all paths.
 import re
 import time
 from datetime import datetime
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional
 from urllib.parse import urljoin
 
 import trafilatura
@@ -98,6 +98,14 @@ def crawl_site_pages(names: List[str]) -> List[Dict[str, Any]]:
     return records
 
 
+def _paragraph_text(el) -> str:
+    """Text by paragraph. get_text("\n") would also break around inline links
+    (tickers, names), splitting sentences across lines."""
+    blocks = [b.get_text(" ", strip=True) for b in el.find_all(["p", "li", "h2", "h3", "h4", "tr"])]
+    text = "\n\n".join(b for b in blocks if b) or el.get_text(" ", strip=True)
+    return re.sub(r"\s+([),.;:])", r"\1", re.sub(r"([(])\s+", r"\1", text))
+
+
 def _release_links(page: int) -> Dict[str, Dict[str, str]]:
     """url -> {title, date} from one listing page. The listing card's date
     ("30 Sep 2026") is used because release URLs mix MM-DD and DD-MM order."""
@@ -117,15 +125,28 @@ def _release_links(page: int) -> Dict[str, Dict[str, str]]:
     return releases
 
 
-def crawl_press_releases(names: List[str], max_pages: int = 100) -> Iterable[Dict[str, Any]]:
-    """Every press release, newest first. Yields so callers can save as it goes."""
+def release_key(url: str) -> str:
+    return f"{SOURCE}:press_release:{url}"
+
+
+def crawl_press_releases(names: List[str], max_pages: int = 100,
+                         known: Optional[Callable[[str], bool]] = None) -> Iterable[Dict[str, Any]]:
+    """Press releases, newest first. Yields so callers can save as it goes.
+
+    `known(record_key)` makes it incremental: stored releases aren't re-fetched,
+    and paging stops at the first listing page with nothing new.
+    """
     seen = set()
     for page in range(1, max_pages + 1):
         links = {u: meta for u, meta in _release_links(page).items() if u not in seen}
         if not links:
             break
+        seen.update(links)
+        if known:
+            links = {u: m for u, m in links.items() if not known(release_key(u))}
+            if not links:
+                break
         for url, meta in links.items():
-            seen.add(url)
             html = _get(url)
             if not html:
                 continue
@@ -134,7 +155,7 @@ def crawl_press_releases(names: List[str], max_pages: int = 100) -> Iterable[Dic
             # whose titles and dates would otherwise leak into every release.
             body = soup.select_one(".content_desc")
             title_el = soup.select_one(".content_title")
-            content = body.get_text("\n", strip=True) if body else ""
+            content = _paragraph_text(body) if body else ""
             title = title_el.get_text(" ", strip=True) if title_el else meta["title"]
             pdf = next((urljoin(IR_SITE, a["href"]) for a in soup.select("a[href]")
                         if ".pdf" in a["href"].lower() and "press-releases" in a["href"]), None)

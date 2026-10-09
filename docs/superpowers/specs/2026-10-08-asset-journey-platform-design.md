@@ -45,7 +45,7 @@ panel) supplied by the user on 2026-10-08.
   │   └────── Valkey (API cache, refresh tokens, job queue)
   │                               │ jobs (arq)
   ▼                               ▼
- MongoDB Atlas  ◄──────────── Python crawl service (crawler/: FastAPI + arq worker)
+ MongoDB+mongot ◄──────────── Python crawl service (crawler/: FastAPI + arq worker)
  (asset_journey)                AI planning/triage/enrichment + crawlers
 ```
 
@@ -58,7 +58,8 @@ panel) supplied by the user on 2026-10-08.
   - `apps/api` — NestJS (Fastify adapter, official MongoDB driver)
   - `crawler/` — existing Python crawlers + new `api.py` (FastAPI) and `worker.py` (arq)
   - `docker-compose.yml` — `web` (nginx + SPA), `api`, `crawler-api`, `crawler-worker`,
-    `valkey`. MongoDB stays on Atlas.
+    `valkey`, `mongo` + `mongot` (self-hosted MongoDB Community with Search / Vector Search;
+    replaced the Atlas free cluster when it neared its 512 MB limit; see `infra/mongo/README.md`).
 - **Patterns reused from admin-console:** global guards with `@Public()`/`@Roles()`,
   ioredis cache service that degrades gracefully when Valkey is down, class-validator DTOs
   with a global ValidationPipe, Swagger outside production, feature-module layout,
@@ -70,7 +71,7 @@ panel) supplied by the user on 2026-10-08.
 
 ## 3. Data
 
-### 3.1 Database `asset_journey` (MongoDB Atlas)
+### 3.1 Database `asset_journey` (self-hosted MongoDB)
 
 | Collection | Key | Written by | Purpose |
 |---|---|---|---|
@@ -79,7 +80,7 @@ panel) supplied by the user on 2026-10-08.
 | `articles` | `url` | crawler | Raw news/wire evidence (legacy key; otherwise follows the contract) |
 | `journey_events` | `_id` | crawler | Consolidated events and milestones: asset, date, `type`, title, summary, phase, indication, significance (High/Medium/Low), `is_milestone`, expected_date, source record refs, confidence |
 | `crawl_ledger` | url hash / content hash | crawler | Every triage decision: decision (`ingest`/`headline`/`skip`), category, reason, model, asset, timestamp. Prevents re-crawl and re-judging; explains drops |
-| `record_chunks` | `_id` | crawler | Text chunks of ingested records with embeddings; Atlas Vector Search index; asset ids and source refs as filters |
+| `record_chunks` | `_id` | crawler | Text chunks of ingested records with embeddings; vector search index (mongot); asset ids and source refs as filters |
 | `jobs` | `id` | API (create), crawler (progress) | Onboarding/refresh/competitor jobs: steps [{name, status, counts, triage counts, error, started/finished}], plan, token usage, created_by |
 | `users` | `_id` | API | email, name, argon2id hash, role, active |
 | `chat_sessions`, `chat_messages` | `_id` | API | Asset AI history per user |
@@ -243,7 +244,7 @@ and market-report spam into `skip`), add Publications, Competitors and Index.
 - **Model calls:** Chat Completions API with tools (consistent across OpenAI and Azure
   OpenAI); provider, endpoint, key, model/deployment names and embedding model in env.
 - **Tools:** `search_assets`, `get_asset_overview`, `get_timeline`, `get_trials`,
-  `get_regulatory`, `get_milestones`, `compare_assets`, `search_evidence` (Atlas Vector
+  `get_regulatory`, `get_milestones`, `compare_assets`, `search_evidence` (Vector
   Search with asset/source/date filters), `resolve_asset`, `get_job_status`.
 - **Grounding:** every factual claim cites a returned record or event; the answer event
   carries the citation list (title, source, date, link into the asset page). No relevant
@@ -333,13 +334,15 @@ Each milestone ends working and demoable, and gets its own implementation plan:
 `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `CRAWLER_SERVICE_KEY`, `OPENAI_PROVIDER`
 (`openai`/`azure`), `OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_VERSION`,
 `LLM_TRIAGE_MODEL`, `LLM_REASONING_MODEL`, `LLM_EMBEDDING_MODEL`, `EMBEDDING_DIMENSIONS`,
+`LLM_CHAT_MODEL` (Asset AI; default `gpt-5.4-mini` with `LLM_CHAT_REASONING_EFFORT=none`, since gpt-5.4 models
+take function tools on Chat Completions only without reasoning), `LLM_FOLLOWUP_MODEL`,
 `OPENFDA_API_KEY` (optional), `NCBI_API_KEY` (optional), `RESIDENTIAL_PROXY` (optional),
 `GOOGLE_DECODE_INTERVAL`.
 
 ## 12. Risks
 
-- **Atlas tier limits:** Vector Search index count/size on the current cluster tier must
-  be verified in milestone 1; fallback is a smaller embedding dimension or an upgraded tier.
+- **Self-hosted MongoDB:** we own uptime, backups (nightly dump) and disk; mongot pauses
+  index replication near 90% disk. MongoDB 8+ needs a host kernel outside 6.19–7.0.13.
 - **LLM cost/latency:** bounded by triage-before-fetch, two model tiers, decision cache
   and per-job budgets; token usage is visible per job.
 - **Generic company crawler coverage:** some IR sites will not yield; wires and adapters

@@ -44,6 +44,37 @@ cd crawler
 - No Alerts feed yet? `--alerts-cookies cookies.json` (your Google login cookies) creates one.
 - Re-running is safe: articles dedupe on `url`, regulatory records on `record_key`.
 
+## Crawl service: every crawler under one endpoint
+
+The app collects data through the crawl service (`service/`: FastAPI `api.py` + arq `worker.py`), not this CLI.
+
+- **Adding an asset:** `POST /resolve {"query": "sotatercept"}` turns a typed name into an identity card in ~10–20 s (`onboarding/resolve.py`): openFDA, EMA and ClinicalTrials.gov facts in parallel (each best effort), merged by the reasoning model; the company website and press-release page are verified by fetching them; the onboard plan comes with a note per step. 404 `ASSET_NOT_RESOLVED` when the model doesn't know the drug. After the user confirms, NestJS creates the asset and starts an `onboard` job.
+- **Starting a job:** `POST /jobs {"asset_id", "type"}` (NestJS calls it for refresh and onboarding). One active job per asset (409 `JOB_ALREADY_RUNNING`).
+- **Job types:** `onboard` (new primary asset: fast sources first, then competitors, patents, finalize), `refresh` (every step, then competitors and finalize), `competitor` (light: regulatory, clinical, the 300 newest publications, conferences, newswires for the first 3 names, journey/AI steps, finalize). `finalize` rebuilds the rule events, writes suggested questions and marks the asset `ready`; an onboard / competitor job that ends without it leaves the asset `failed`.
+- **The plan:** a job runs the steps in `service/steps.py` in order. Each step writes records in the shared contract and is tagged with the asset id; a failed step doesn't stop the others.
+- **Running a subset:** pass `{"steps": [...]}` to run only some steps. `GET /sources` lists the plan of each job type.
+
+| Step | Crawler | Writes |
+|---|---|---|
+| regulatory | ours: `regulatory/fda.py`, `regulatory/ema.py` | `fda_records`, `ema_records` |
+| clinical | team `clinicalTrialgov/` client, our mapping (`regulatory/clinicaltrials.py`) | `trial_records` |
+| publications | team `pubmed/` (`regulatory/pubmed_source.py`) | `publication_records` |
+| conferences | team `conference/` corpus (ERS, ATS, CHEST), matched with its keyword rules (`integrations/conferences.py`) | `conference_records` |
+| patents | team `patent_intel/` (AdisInsight, PubChem, Google Patents) (`integrations/patents.py`) | `patent_records` |
+| company_site | ours: site adapter when there is one (`company/unither.py`), else the generic crawler (`company/generic.py`: sitemap / homepage pages named after the drug and product pages, the PDFs they link, and IR-page press releases when the company has no newsroom spider) | `company_records` |
+| company_news | team `company_pr/` newsroom spider picked by company domain (`integrations/newsroom.py`) | `company_records` (press releases) |
+| news | ours: PR Newswire, BioSpace, GlobeNewswire search, AI-screened before fetching | `articles` |
+| industry_news | team `company_pr/` news and agency spiders plus Google News, kept when they mention the asset | `articles` |
+| journey, ai_triage, ai_events, index | rules (approvals, trials, patent expiries), then AI triage, event extraction and the vector index | `journey_events`, `crawl_ledger`, `record_chunks` |
+| competitors | ours (`onboarding/competitors.py`): drugs in recent phase 2–4 trials for the asset's indications plus FDA same-class drugs, top 5 ranked by the reasoning model with per-indication coverage; each becomes a `competitor` asset with its own light job (scan reused for 30 days, competitor recrawled at most daily) | `assets` |
+| finalize | rule events rebuilt, suggested questions, status `ready` | `assets`, `journey_events` |
+
+**Rules for the team packages:**
+- They are used unchanged; adapters live in `integrations/`.
+- Scrapy spiders run in a child process (its reactor starts once per process). URLs already stored are passed in as a seen list, so a refresh fetches only new articles.
+- The conference crawler needs about 10–12 hours per conference for a full crawl, so its output is kept as a corpus collection (`CONFERENCE_CORPUS`, default `pharmaedge.conference_abstracts`).
+- The patent crawler takes about 10 minutes per asset (`PATENT_MAX_PAGES`). It keeps a page cache in `cache/patents`, which is the `crawler-cache` volume in Docker.
+
 ## Notes / known gaps
 
 - **RSS articles are not keyword-filtered.** Every item in a feed is stored and tagged

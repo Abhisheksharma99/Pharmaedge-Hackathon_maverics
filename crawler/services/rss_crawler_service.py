@@ -91,6 +91,10 @@ class RSSCrawlerService:
         self.proxy_manager = ProxyManager()
         self._session_token = ProxyManager.new_session_token()
 
+        # Optional AI triage of discovered entries before any article is fetched
+        # (spec §5.3): entries -> the subset worth fetching.
+        self.entry_filter = None
+
         # Set for the duration of a run so _log() can persist to the DB `logs`
         # table. Until this is set, _log() degrades to console-only.
         self._crawler_id: Optional[str] = None
@@ -463,6 +467,10 @@ class RSSCrawlerService:
                 stats["feeds_processed"] += 1
 
             stats["articles_discovered"] = len(all_articles)
+            if self.entry_filter:
+                kept = self.entry_filter(all_articles)
+                stats["articles_triaged_out"] = len(all_articles) - len(kept)
+                all_articles = kept
             self._log(
                 "info" if all_articles else "warning",
                 f"Discovered {len(all_articles)} articles from {len(rss_urls)} feed(s)",

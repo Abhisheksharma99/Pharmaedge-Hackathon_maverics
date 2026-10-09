@@ -1,0 +1,140 @@
+# Asset journey platform. MongoDB is self-hosted (mongo + mongot); first run infra/mongo/setup.sh,
+# see infra/mongo/README.md.
+#   Dev:  docker compose up -d valkey mongo mongot   (then npm run dev:api / npm run dev:web)
+#   Full: docker compose up -d --build               (app at http://localhost:8080)
+services:
+  # Single-node replica set; auth and TLS required. Published on loopback unless MONGO_PUBLISH is set
+  # (the server sets MONGO_PUBLISH=0.0.0.0 behind a firewall allowlist: infra/mongo/README.md).
+  mongo:
+    image: mongodb/mongodb-community-server:9.0.2-ubi9
+    entrypoint: ["/bin/sh", "/etc/mongo/start-mongod.sh"]
+    command: ["--config", "/etc/mongo/mongod.conf"]
+    env_file: infra/mongo/secrets/mongo.env
+    environment:
+      MONGODB_INITDB_REPL_SET_HOST: mongo:27017
+    volumes:
+      - mongo-data:/data/db
+      - ./infra/mongo/mongod.conf:/etc/mongo/mongod.conf:ro
+      - ./infra/mongo/start-mongod.sh:/etc/mongo/start-mongod.sh:ro
+      - ./infra/mongo/init:/docker-entrypoint-initdb.d:ro
+      - ./infra/mongo/secrets/ca.pem:/etc/mongo/ca.pem:ro
+    tmpfs:
+      - /run/mongo:uid=1000,gid=1000,mode=700
+    ports:
+      - "${MONGO_PUBLISH:-127.0.0.1}:27017:27017"
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --tls --tlsCAFile /etc/mongo/ca.pem --host localhost --eval 'db.hello().isWritablePrimary' | grep -q true"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+      start_period: 20s
+    restart: unless-stopped
+
+  # Search / vector search engine for mongo. Internal only.
+  mongot:
+    image: mongodb/mongodb-community-search:1.70.5
+    entrypoint: ["/bin/sh", "/etc/mongot/start-mongot.sh"]
+    env_file: infra/mongo/secrets/mongot.env
+    volumes:
+      - mongot-data:/data/mongot
+      - ./infra/mongo/mongot.conf:/etc/mongot/mongot.conf:ro
+      - ./infra/mongo/start-mongot.sh:/etc/mongot/start-mongot.sh:ro
+      - ./infra/mongo/secrets/ca.pem:/etc/mongot/ca.pem:ro
+    tmpfs:
+      - /run/mongot:mode=700
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    command: ["valkey-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:6380:6379"   # host 6380: 6379 is often taken by other projects
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    env_file:
+      - apps/api/.env
+      - infra/mongo/secrets/app.env   # MONGODB_URI for the self-hosted mongo (overrides the line above)
+    volumes:
+      - ./infra/mongo/secrets/ca.pem:/etc/mongo/ca.pem:ro
+    environment:
+      VALKEY_URL: redis://valkey:6379
+      NODE_ENV: production
+      # Local stack is plain http on :8080. Behind HTTPS, remove this (production defaults to secure cookies).
+      COOKIE_SECURE: "false"
+      CRAWLER_API_URL: http://crawler-api:8100
+    depends_on:
+      valkey:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Internal crawl service: never published to the host; only `api` calls it.
+  crawler-api:
+    build:
+      context: .
+      dockerfile: crawler/Dockerfile
+    env_file:
+      - crawler/.env
+      - infra/mongo/secrets/app.env   # MONGODB_URI for the self-hosted mongo (overrides the line above)
+    volumes:
+      - ./infra/mongo/secrets/ca.pem:/etc/mongo/ca.pem:ro
+    environment:
+      VALKEY_URL: redis://valkey:6379
+    depends_on:
+      valkey:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+    restart: unless-stopped
+
+  crawler-worker:
+    build:
+      context: .
+      dockerfile: crawler/Dockerfile
+    command: ["arq", "service.worker.WorkerSettings"]
+    env_file:
+      - crawler/.env
+      - infra/mongo/secrets/app.env   # MONGODB_URI for the self-hosted mongo (overrides the line above)
+    volumes:
+      - ./infra/mongo/secrets/ca.pem:/etc/mongo/ca.pem:ro
+      - crawler-cache:/app/cache       # patent crawler's page cache: later refreshes re-fetch only stale pages
+    environment:
+      VALKEY_URL: redis://valkey:6379
+    depends_on:
+      valkey:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "127.0.0.1:8080:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  mongo-data:
+  mongot-data:
+  crawler-cache:

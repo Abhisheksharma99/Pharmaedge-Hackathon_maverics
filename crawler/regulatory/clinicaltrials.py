@@ -1,5 +1,6 @@
 """
-ClinicalTrials.gov fetcher (API v2, https://clinicaltrials.gov/data-api/api).
+ClinicalTrials.gov studies for an asset, fetched with the team's crawler
+(clinicalTrialgov/: API v2 client with pacing, retries and phrase-quoted names).
 
 Every study whose intervention matches one of the asset's names: phase, status,
 start / completion dates, sponsor, conditions, enrollment, and whether results
@@ -8,9 +9,8 @@ are posted. The full study JSON is kept under `study` for anything not flattened
 
 from typing import Any, Dict, List
 
-import requests
-
-BASE_URL = "https://clinicaltrials.gov/api/v2/studies"
+import integrations  # noqa: F401  (puts the team packages on sys.path)
+from clinicalTrialgov.clinicaltrials import ClinicalTrialsClient, build_query, iter_pages, parse_payload
 
 
 def _date(struct: Dict[str, Any]) -> str:
@@ -19,25 +19,11 @@ def _date(struct: Dict[str, Any]) -> str:
     return f"{d}-01" if len(d) == 7 else d
 
 
-def _search(term: str) -> List[Dict[str, Any]]:
-    studies, token = [], None
-    while True:
-        params = {"query.intr": term, "pageSize": 100}
-        if token:
-            params["pageToken"] = token
-        resp = requests.get(BASE_URL, params=params, timeout=60)
-        resp.raise_for_status()
-        data = resp.json()
-        studies.extend(data.get("studies", []))
-        token = data.get("nextPageToken")
-        if not token:
-            return studies
-
-
 def fetch_all(names: List[str]) -> List[Dict[str, Any]]:
     records: Dict[str, Dict[str, Any]] = {}
-    for name in names:
-        for study in _search(name):
+    search_names, _ = parse_payload({"asset_name": names[0], "aliases": names[1:]})
+    for page in iter_pages(ClinicalTrialsClient(), build_query(search_names)):
+        for study in page.get("studies", []):
             p = study["protocolSection"]
             nct = p["identificationModule"]["nctId"]
             if nct in records:
