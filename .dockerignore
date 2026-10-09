@@ -1,0 +1,15 @@
+**/node_modules
+**/dist
+.git
+.venv
+data
+logs
+**/.env
+playwright-report
+test-results
+Patents_Data
+**/output
+**/cache
+**/__pycache__
+infra/mongo/secrets
+backups

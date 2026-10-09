@@ -29,3 +29,9 @@ playwright-report/
 test-results/
 output/
 cache/
+# Self-hosted MongoDB: generated passwords, keyfile, CA and certificates; local dumps
+infra/mongo/secrets/
+backups/
+
+# TypeScript incremental build info
+*.tsbuildinfo
