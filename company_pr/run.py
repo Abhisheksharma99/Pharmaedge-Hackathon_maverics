@@ -142,21 +142,39 @@ class ErrorCounter(logging.Handler):
 
 
 def write_results(out_dir, crawlers, error_counts):
-    rows, summary = [], []
+    """Write summary.json and the combined all_news.jsonl/csv (newest first).
+
+    Streams the per-spider files: only a small index (date, spider, file,
+    byte offset) is held in memory, so full-history runs with millions of
+    articles merge fine. The same release found by several spiders (e.g. two
+    wire searches) is written once.
+    """
+    summary, index, files, seen = [], [], [], set()
     for name, crawler in crawlers.items():
         stats = crawler.stats.get_stats() if crawler.stats else {}
         path = out_dir / "spiders" / f"{name}.jsonl"
-        items = []
+        count = 0
         if path.exists():
-            # split("\n"), not splitlines(): U+2028 etc. may appear inside JSON strings.
-            items = [json.loads(line) for line in path.read_text(encoding="utf-8").split("\n") if line.strip()]
-            if not items:
+            files.append(path)
+            offset = 0
+            # Binary lines split on b"\n" only (U+2028 may appear inside JSON strings).
+            with open(path, "rb") as f:
+                for line in f:
+                    if line.strip():
+                        count += 1
+                        r = json.loads(line)
+                        key = r.get("news_url_id") or r["news_url"]
+                        if key not in seen:
+                            seen.add(key)
+                            index.append((r.get("news_date") or "", name, len(files) - 1, offset, len(line)))
+                    offset += len(line)
+            if not count:  # no index entries point at it
+                files.pop()
                 path.unlink()
-        rows.extend(items)
         start, end = stats.get("start_time"), stats.get("finish_time")
         summary.append({
             "spider": name,
-            "items": len(items),
+            "items": count,
             "errors": error_counts.get(name, 0),
             "http_errors": sum(v for k, v in stats.items() if k.startswith("downloader/response_status_count/") and k[-3] in "45"),
             "dropped": {k.split("/")[-1]: v for k, v in stats.items() if k.startswith("pr/dropped/")},
@@ -165,17 +183,22 @@ def write_results(out_dir, crawlers, error_counts):
             "seconds": round((end - start).total_seconds(), 1) if start and end else None,
         })
 
-    # The same release can be found by several spiders (e.g. two wire searches).
-    rows = list({r["news_url"]: r for r in reversed(rows)}.values())
-    rows.sort(key=lambda r: (r.get("news_date") or "", r.get("spider")), reverse=True)
-    with open(out_dir / "all_news.jsonl", "w", encoding="utf-8") as f:
-        for r in rows:
-            f.write(json.dumps(r, ensure_ascii=False) + "\n")
-    with open(out_dir / "all_news.csv", "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=CSV_FIELDS, extrasaction="ignore")
-        w.writeheader()
-        for r in rows:
-            w.writerow({**r, "tags": "; ".join(r.get("tags") or [])})
+    index.sort(key=lambda e: (e[0], e[1]), reverse=True)
+    handles = [open(p, "rb") for p in files]
+    try:
+        with open(out_dir / "all_news.jsonl", "wb") as out_jsonl, \
+                open(out_dir / "all_news.csv", "w", newline="", encoding="utf-8") as out_csv:
+            w = csv.DictWriter(out_csv, fieldnames=CSV_FIELDS, extrasaction="ignore")
+            w.writeheader()
+            for _, _, file_no, offset, length in index:
+                handles[file_no].seek(offset)
+                line = handles[file_no].read(length)
+                out_jsonl.write(line.rstrip(b"\n") + b"\n")
+                r = json.loads(line)
+                w.writerow({**r, "tags": "; ".join(r.get("tags") or [])})
+    finally:
+        for h in handles:
+            h.close()
     (out_dir / "summary.json").write_text(json.dumps(summary, indent=2))
 
     width = max(len(s["spider"]) for s in summary) if summary else 10
@@ -184,7 +207,7 @@ def write_results(out_dir, crawlers, error_counts):
         flag = "" if s["items"] else "  <-- no items"
         print(f"{s['spider']:<{width}}  {s['items']:>5}  {s['errors']:>6}  {s['finish_reason']}{flag}")
     ok = sum(1 for s in summary if s["items"])
-    print(f"\n{len(rows)} articles from {ok}/{len(summary)} spiders -> {out_dir}")
+    print(f"\n{len(index)} articles from {ok}/{len(summary)} spiders -> {out_dir}")
     return 0
 
 

@@ -187,7 +187,7 @@ def parse_abstract(html: str, url: str, year: int, source: dict) -> dict:
     session = SESSION.search(" ".join(soup.get_text(" ").split()))  # from the footnotes
 
     return common.make_record(
-        id=f"ers-{year}-{number}",
+        id=record_id(source["meeting"], year, number),
         conference="ERS",
         meeting=source["meeting"],
         year=year,
@@ -208,6 +208,14 @@ def parse_abstract(html: str, url: str, year: int, source: dict) -> dict:
         },
         extra={"article_type": _one(meta, "citation_article_type")},
     )
+
+
+def record_id(meeting: str, year: int, number: str) -> str:
+    """"ers-2025-PA4194" for the Congress; other ERS meetings reuse small numbers, so
+    their ids name the meeting: "ers-sleep-and-breathing-conference-2025-32"."""
+    if meeting == DEFAULT_MEETING:
+        return f"ers-{year}-{number}"
+    return f"ers-{common.slug(meeting.replace('ERS/ESRS', '').replace('ERS', ''))}-{year}-{number}"
 
 
 def _meta(soup: BeautifulSoup) -> dict:

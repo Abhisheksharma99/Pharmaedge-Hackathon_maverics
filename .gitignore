@@ -1,5 +1,6 @@
 # Secrets
 .env
+.claude
 
 # Local runtime data (cache, JSON output)
 Patents_Data/
