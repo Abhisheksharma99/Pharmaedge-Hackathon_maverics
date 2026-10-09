@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pharmaedge/ema/chmp_meeting_highlights.schema.json",
+  "title": "CHMP meeting highlights",
+  "description": "One record per monthly CHMP meeting, parsed from EMA's 'Meeting highlights from the Committee for Medicinal Products for Human Use (CHMP)' news page. Stored as one document per meeting; 'outcomes' is the per-medicine table if the DB is relational (meeting_id = id).",
+  "type": "object",
+  "required": ["id", "source", "committee", "url", "title", "published_at", "meeting", "outcomes", "medicine_names"],
+  "properties": {
+    "id": {"type": "string", "description": "Primary key: the news page slug, e.g. 'meeting-highlights-committee-medicinal-products-human-use-chmp-20-23-july-2026'."},
+    "source": {"const": "EMA"},
+    "committee": {"const": "CHMP"},
+    "url": {"type": "string", "format": "uri"},
+    "title": {"type": "string"},
+    "summary": {"type": ["string", "null"], "description": "Standfirst under the title, e.g. 'Twelve new medicines recommended for approval; ...'."},
+    "published_at": {"type": ["string", "null"], "format": "date-time"},
+    "meeting": {
+      "type": "object",
+      "properties": {
+        "label": {"type": ["string", "null"], "description": "Dates as written in the title, e.g. '20-23 July 2026'."},
+        "start_date": {"type": ["string", "null"], "format": "date"},
+        "end_date": {"type": ["string", "null"], "format": "date"},
+        "year": {"type": ["integer", "null"]},
+        "month": {"type": ["integer", "null"], "minimum": 1, "maximum": 12}
+      }
+    },
+    "categories": {"type": "array", "items": {"type": "string"}, "description": "EMA category badges, e.g. ['Human']."},
+    "topics": {"type": "array", "items": {"type": "string"}, "description": "EMA topic badges, e.g. ['COVID-19', 'Medicines']."},
+    "highlights": {
+      "type": "array",
+      "description": "The narrative at the top of the page, split at its headings. The only content on 2006-2009 pages.",
+      "items": {"$ref": "#/$defs/textBlock"}
+    },
+    "statistics": {
+      "type": ["object", "null"],
+      "description": "The 'CHMP statistics: Text version' box (2024 onwards); null when the page only has the infographic.",
+      "properties": {
+        "text": {"type": ["string", "null"]},
+        "figures": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "label": {"type": ["string", "null"], "description": "e.g. 'positive opinions on new medicines'."},
+              "count": {"type": ["integer", "null"], "description": "Number at this meeting."},
+              "breakdown": {"type": ["string", "null"], "description": "e.g. '9 new non-orphan medicines, 2 orphan medicines, and 1 biosimilar medicine'."},
+              "year": {"type": ["integer", "null"]},
+              "year_total": {"type": ["integer", "null"], "description": "Cumulative total for the year so far."},
+              "text": {"type": ["string", "null"]}
+            }
+          }
+        }
+      }
+    },
+    "outcomes": {
+      "type": "array",
+      "description": "One entry per medicine in the page's structured cards/tables (2010 onwards). Empty for 2006-2009 pages, whose medicines are only in highlights[].medicines.",
+      "items": {"$ref": "#/$defs/outcome"}
+    },
+    "sections": {
+      "type": "array",
+      "description": "Text and links under h2 sections that are not medicine cards or documents (e.g. 'CHMP statistics', 2009 'Referrals').",
+      "items": {"$ref": "#/$defs/textBlock"}
+    },
+    "documents": {
+      "type": "array",
+      "description": "Document cards on the page: PRIME eligibility, scientific advice, invented names, summaries of opinion, the PDF version of old highlights.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": {"type": ["string", "null"]},
+          "section": {"type": ["string", "null"]},
+          "reference_number": {"type": ["string", "null"], "description": "e.g. 'EMA/155819/2026'."},
+          "status": {"type": ["string", "null"], "description": "e.g. 'Adopted'."},
+          "language": {"type": ["string", "null"]},
+          "file_type": {"type": ["string", "null"], "description": "PDF, XLSX, ..."},
+          "file_size": {"type": ["string", "null"], "description": "As shown, e.g. '170.16 KB'."},
+          "first_published": {"type": ["string", "null"], "format": "date"},
+          "last_updated": {"type": ["string", "null"], "format": "date"},
+          "url": {"type": ["string", "null"], "format": "uri"}
+        }
+      }
+    },
+    "related_content": {"type": "array", "items": {"$ref": "#/$defs/titledLink"}, "description": "'Related content' (or 2009 'Related press releases') links: news items, the meeting's event page, ..."},
+    "related_medicines": {
+      "type": "array",
+      "description": "The 'Related medicine information' list at the bottom of the page.",
+      "items": {"type": "object", "properties": {"name": {"type": "string"}, "url": {"type": "string", "format": "uri"}}}
+    },
+    "medicine_names": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Every medicine named on the page (outcomes, narrative, related medicines), de-duplicated. Index this for asset-name lookups."
+    },
+    "content_text": {"type": ["string", "null"], "description": "Whole page body as plain text, one line per paragraph; for full-text search."},
+    "crawled_at": {"type": ["string", "null"], "format": "date-time"},
+    "parser_version": {"type": "integer"}
+  },
+  "$defs": {
+    "titledLink": {
+      "type": "object",
+      "properties": {"title": {"type": ["string", "null"]}, "url": {"type": "string", "format": "uri"}}
+    },
+    "textBlock": {
+      "type": "object",
+      "properties": {
+        "heading": {"type": ["string", "null"]},
+        "text": {"type": ["string", "null"]},
+        "links": {"type": "array", "items": {"type": "object", "properties": {"text": {"type": ["string", "null"]}, "url": {"type": "string"}}}},
+        "medicines": {
+          "type": "array",
+          "description": "Medicines named in this text (bold names or 'Name (inn)'); heuristic.",
+          "items": {"type": "object", "properties": {"name": {"type": "string"}, "inn": {"type": ["string", "null"]}}}
+        }
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "required": ["medicine_name", "section", "opinion", "procedure"],
+      "properties": {
+        "medicine_name": {"type": ["string", "null"], "description": "Trade name, e.g. 'Enhertu'; for reviews, the review name (e.g. 'Janus kinase (JAK) inhibitors')."},
+        "section": {"type": ["string", "null"], "description": "Heading the medicine is listed under, verbatim."},
+        "opinion": {
+          "enum": ["positive", "negative", "withdrawn", "re_examination", "referral_started", "referral_concluded", "scientific_opinion", "other", null],
+          "description": "Normalized from 'section'."
+        },
+        "procedure": {"enum": ["new_medicine", "extension_of_indication", "variation", "referral", "other", null]},
+        "medicine_type": {"enum": ["generic", "biosimilar", "hybrid", "informed_consent", "advanced_therapy", null]},
+        "re_examination": {"type": "boolean", "description": "The section concerns a re-examination (start of, or opinion following one)."},
+        "inn": {"type": ["string", "null"], "description": "International non-proprietary name / active substance."},
+        "common_name": {"type": ["string", "null"], "description": "Used instead of an INN for some vaccines and biologicals."},
+        "company": {"type": ["string", "null"]},
+        "company_role": {"enum": ["applicant", "holder", null], "description": "Applicant for new medicines; marketing-authorisation holder for extensions/referrals."},
+        "therapeutic_indication": {"type": ["string", "null"]},
+        "orphan": {"type": ["boolean", "null"], "description": "true when the page marks it as an orphan medicine; null when not stated."},
+        "status": {"type": ["string", "null"], "description": "From the EMA link text, e.g. 'pending EC decision', 'Withdrawal', 'withdrawn application'."},
+        "ema_url": {"type": ["string", "null"], "format": "uri", "description": "The medicine's EPAR / variation / referral page (or its summary of opinion on 2010-2017 pages)."},
+        "ema_page_type": {"enum": ["epar", "variation", "referral", "withdrawn_application", "summary_of_opinion", "document", "other", null]},
+        "related_news": {"type": "array", "items": {"$ref": "#/$defs/titledLink"}},
+        "extra": {
+          "type": "object",
+          "description": "Any other label on the card, plus: orphan_note, procedure_number (e.g. 'II-29'), products (medicines a review covered), name_cell.",
+          "additionalProperties": true
+        }
+      }
+    }
+  }
+}
