@@ -5,7 +5,7 @@ import { MONGO_DB } from '../src/database/database.module.js';
 import { ADMIN, closeTestApp, cookiesOf, createTestApp, type TestContext } from './helpers/test-app.js';
 
 // Stub of the Python crawl service: records calls, replies per `mode`.
-let mode: 'ok' | 'conflict' | 'unknown-step' | 'down' = 'ok';
+let mode: 'ok' | 'conflict' | 'unknown-step' | 'down' | 'drops-once' = 'ok';
 const calls: { path: string; key: string | undefined; body: any }[] = [];
 let stub: Server;
 
@@ -24,6 +24,10 @@ beforeAll(async () => {
     const body = JSON.parse((await readBody(req)) || '{}');
     calls.push({ path: req.url!, key: req.headers['x-service-key'] as string, body });
     if (mode === 'down') return req.socket.destroy();
+    if (mode === 'drops-once') {
+      mode = 'ok';
+      return req.socket.destroy();
+    }
     res.setHeader('content-type', 'application/json');
     if (mode === 'conflict') {
       res.statusCode = 409;
@@ -105,6 +109,13 @@ describe('jobs', () => {
     const res = await req('POST', '/api/assets/trep/refresh');
     expect(res.statusCode).toBe(503);
     expect(res.json().code).toBe('CRAWLER_UNAVAILABLE');
+  });
+
+  it('retries once when the connection to the crawl service drops', async () => {
+    mode = 'drops-once';
+    const res = await req('POST', '/api/assets/trep/refresh');
+    expect(res.statusCode).toBe(201);
+    expect(calls).toHaveLength(2);
   });
 
   it('lists jobs newest first with the asset name, and filters', async () => {
