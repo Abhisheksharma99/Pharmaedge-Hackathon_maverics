@@ -6,11 +6,20 @@ deterministic company matching.
 
 run_drug is handed a collecting store instead of its own, so its included patents
 come back here and are written as `patent_records` in the shared contract.
+
+The crawler includes a patent only when an assignee matches a company name exactly
+(normalized). With an Adis id the names come from the profile; without one, the
+asset's company name ("Actelion (Janssen)") rarely equals the patents' assignees
+("Actelion Pharmaceuticals Ltd", originator "Nippon Shinyaku Co Ltd"), so the
+reasoning model names the assignees to match on.
 """
 
+import asyncio
 import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+from ai import llm
 
 from . import TEAM_ROOT  # noqa: F401  (puts the team packages on sys.path)
 from patent_intel import google_patents
@@ -20,6 +29,26 @@ from patent_intel.pipeline import run_drug
 CACHE_DIR = Path(os.getenv("PATENT_CACHE_DIR", "cache/patents"))
 MAX_PAGES = int(os.getenv("PATENT_MAX_PAGES", "600"))
 PROBE_PAGES = int(os.getenv("PATENT_PROBE_PAGES", "150"))
+
+
+ASSIGNEES_SYSTEM = """Name the companies that appear as ASSIGNEES on the patents of one drug: the originator and
+every company that owns or co-owns its patents now (after licensing or acquisitions), as legal entity names exactly
+as patent offices print them, e.g. "Nippon Shinyaku Co Ltd", "Actelion Pharmaceuticals Ltd", "Acceleron Pharma Inc",
+"Merck Sharp & Dohme LLC". At most 6, most important first. [] if you don't know."""
+ASSIGNEES_SCHEMA = {"type": "object", "properties": {"assignees": {"type": "array", "items": {"type": "string"}}},
+                    "required": ["assignees"], "additionalProperties": False}
+
+
+def patent_assignees(asset: Dict[str, Any], names: List[str]) -> List[str]:
+    """Companies to match patent assignees on: the model's assignee names, then the asset's company."""
+    drug = {"drug": asset["name"], "also_known_as": names[1:8], "company": (asset.get("company") or {}).get("name")}
+    try:
+        found = llm.structured(llm.REASONING_MODEL, ASSIGNEES_SYSTEM, str(drug), "patent_assignees",
+                               ASSIGNEES_SCHEMA, reasoning_effort="low")["assignees"]
+    except Exception:  # noqa: BLE001 - the company name alone still finds same-named assignees
+        found = []
+    company = drug["company"]
+    return list(dict.fromkeys(n.strip() for n in [*found, *([company] if company else [])] if n and n.strip()))
 
 
 class _Collector:
@@ -83,12 +112,13 @@ async def fetch(asset: Dict[str, Any], names: List[str]) -> Tuple[List[Dict[str,
     company = (asset.get("company") or {}).get("name")
     if not adis_id and not company:
         raise ValueError("the asset needs an AdisInsight id or a company name to search patents")
+    companies = None if adis_id else await asyncio.to_thread(patent_assignees, asset, names)
     store, http = _Collector(), Http(Cache(CACHE_DIR))
     try:
         # With an Adis id the crawler reads the developer and alternative names from the profile.
         run = await run_drug(http=http, store=store, adis_ref=adis_id,
                              drug_name=None if adis_id else asset["name"],
-                             companies=None if adis_id else [company],
+                             companies=companies,
                              terms=None if adis_id else names,
                              max_pages=MAX_PAGES, probe_budget=PROBE_PAGES)
     finally:

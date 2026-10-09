@@ -200,6 +200,21 @@ def _clean(ranked: List[Dict[str, Any]], asset: Dict[str, Any], references: List
     return out[:TOP]
 
 
+def _link_existing(db, ranked: List[Dict[str, Any]], primary_id: str) -> List[Dict[str, Any]]:
+    """A competitor already tracked under another of its names (its code name, its INN) keeps that asset's id, so
+    "BMS-986278" links to the tracked "admilparant" instead of becoming a second asset; the primary itself drops."""
+    known: Dict[str, str] = {}
+    for a in db.assets.find({}, {"name": 1, "aliases": 1}):
+        for n in [a["name"], *(a.get("aliases") or [])]:
+            known.setdefault(n.casefold(), a["_id"])
+    out: List[Dict[str, Any]] = []
+    for c in ranked:
+        cid = next((known[n.casefold()] for n in [c["name"], *c["aliases"]] if n.casefold() in known), c["id"])
+        if cid != primary_id and cid not in {o["id"] for o in out}:
+            out.append({**c, "id": cid})
+    return out
+
+
 def identify(db, asset: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], int]:
     """(ranked competitors with full identities, number of candidates the model considered). Reads only."""
     candidates, related = trial_candidates(db, asset), same_class(asset)
@@ -210,7 +225,7 @@ def identify(db, asset: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], int]:
                          "modality": tags.get("modality")},
                "reference_indications": references, "trial_candidates": candidates, "same_class": related}
     ranked = llm.structured(llm.REASONING_MODEL, SYSTEM, json.dumps(payload), "competitors", SCHEMA)["competitors"]
-    return _clean(ranked, asset, references), len(candidates) + len(related)
+    return _link_existing(db, _clean(ranked, asset, references), asset["_id"]), len(candidates) + len(related)
 
 
 # --- storage and jobs --------------------------------------------------------------------------------------

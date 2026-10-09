@@ -33,7 +33,8 @@ def test_unknown_or_empty_step_lists_are_rejected(steps):
 CONTRACT_PLANS = {
     "onboard": ["regulatory", "clinical", "publications", "conferences", "company_site", "company_news", "news",
                 "industry_news", "journey", "ai_triage", "ai_events", "index", "competitors", "patents", "finalize"],
-    "competitor": ["regulatory", "clinical", "publications", "conferences", "news", "journey", "ai_triage",
+    # Patents too: their expiries are the competitor's loss-of-exclusivity dates.
+    "competitor": ["regulatory", "clinical", "publications", "conferences", "news", "patents", "journey", "ai_triage",
                    "ai_events", "index", "finalize"],
 }
 
@@ -49,7 +50,7 @@ def test_new_job_types_follow_the_contract():
     assert refresh.index("index") < refresh.index("competitors") and refresh[-1] == "finalize"
 
 
-def test_competitor_jobs_cannot_run_company_or_patent_steps():
+def test_competitor_jobs_cannot_run_company_steps():
     with pytest.raises(HTTPException) as e:
-        plan_for("competitor", ["company_site", "patents"])
+        plan_for("competitor", ["company_site", "company_news"])
     assert e.value.detail["code"] == "UNKNOWN_STEP"

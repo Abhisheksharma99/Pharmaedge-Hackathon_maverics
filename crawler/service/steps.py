@@ -111,9 +111,9 @@ def publications(ctx: StepContext) -> StepResult:
 
 
 async def news(ctx: StepContext) -> StepResult:
-    """Newswire search (PR Newswire, BioSpace, GlobeNewswire) for each of the asset's names (the first 3 for
-    competitors). Discovered entries are AI-triaged before any article is fetched."""
-    from services.search_listing_crawler import (SearchListingCrawler, biospace_search_url,
+    """Newswire search (PR Newswire, BioSpace, GlobeNewswire) and the Bing News archive for each of the asset's
+    names (the first 3 for competitors). Discovered entries are AI-triaged before any article is fetched."""
+    from services.search_listing_crawler import (SearchListingCrawler, biospace_search_url, bing_news_feed_url,
                                                  globenewswire_feed_url, prnewswire_search_url)
     saved = duplicates = 0
     decisions: Dict[str, int] = {}
@@ -128,7 +128,8 @@ async def news(ctx: StepContext) -> StepResult:
             "name": f"Wires - {ctx.asset_id} - {term}",
             "asset": ctx.asset_id,
             "keyword": term,
-            "rss_feed_urls": [prnewswire_search_url(term), biospace_search_url(term), globenewswire_feed_url(term)],
+            "rss_feed_urls": [prnewswire_search_url(term), biospace_search_url(term), globenewswire_feed_url(term),
+                              bing_news_feed_url(term)],
         }, max_articles=25)
         saved += result.get("articles_saved", 0)
         duplicates += result.get("articles_duplicate", 0)
@@ -274,7 +275,7 @@ LABELS = {
     "patents": "Patents (AdisInsight, PubChem, Google Patents)",
     "company_site": "Company website (pages, documents)",
     "company_news": "Company press releases (newsroom)",
-    "news": "Newswires (PR Newswire, BioSpace, GlobeNewswire; AI-screened)",
+    "news": "Newswires and Bing News (PR Newswire, BioSpace, GlobeNewswire, Bing; AI-screened)",
     "industry_news": "Industry news (Fierce, Reuters, EMA, Google News, ...)",
     "journey": "Journey events (rules)",
     "ai_triage": "AI triage of stored records",
@@ -299,6 +300,6 @@ PLANS: Dict[str, List[Dict[str, str]]] = {
     "onboard": _plan("regulatory", "clinical", "publications", "conferences", "company_site", "company_news", "news",
                      "industry_news", "journey", "ai_triage", "ai_events", "index", "competitors", "patents",
                      "finalize"),
-    "competitor": _plan("regulatory", "clinical", "publications", "conferences", "news", "journey", "ai_triage",
-                        "ai_events", "index", "finalize"),
+    "competitor": _plan("regulatory", "clinical", "publications", "conferences", "news", "patents", "journey",
+                        "ai_triage", "ai_events", "index", "finalize"),
 }

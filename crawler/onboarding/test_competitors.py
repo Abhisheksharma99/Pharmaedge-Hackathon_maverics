@@ -137,3 +137,14 @@ def test_jobs_start_only_for_competitors_not_crawled_or_running(db):
     jobs = [j for j in db.jobs.docs if j["_id"] in queue.enqueued]
     assert {j["asset"] for j in jobs} == {"new", "stale"}
     assert all(j["type"] == "competitor" and j["requested_by"]["name"] == "Competitors of Treprostinil" for j in jobs)
+
+
+def test_competitors_tracked_under_another_name_link_to_that_asset(db):
+    db.assets.insert_one({"_id": "admilparant", "name": "Admilparant", "aliases": ["BMS-986278"]})
+    db.assets.insert_one({"_id": "env101", "name": "ENV101", "aliases": ["ENV-101"]})
+    ranked = [{"id": "bms-986278", "name": "BMS-986278", "aliases": []},            # tracked by its INN
+              {"id": "nintedanib", "name": "Nintedanib", "aliases": ["Ofev"]},      # new
+              {"id": "env-101", "name": "ENV-101", "aliases": []},                 # the primary itself
+              {"id": "admilparant", "name": "Admilparant", "aliases": []}]         # same asset again
+    linked = scan._link_existing(db, ranked, "env101")
+    assert [c["id"] for c in linked] == ["admilparant", "nintedanib"]

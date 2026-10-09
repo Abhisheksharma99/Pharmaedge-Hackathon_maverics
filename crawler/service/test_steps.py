@@ -96,11 +96,14 @@ def test_competitor_jobs_search_newswires_for_three_names(monkeypatch, job_type,
     class Crawler:
         async def run_rss_crawler(self, config, max_articles):
             terms.append(config["keyword"])
+            feeds.append(config["rss_feed_urls"])
             return {}
 
+    feeds = []
     monkeypatch.setattr(listing, "SearchListingCrawler", Crawler)
     asyncio.run(steps.news(ctx(job_type=job_type)))
     assert terms == ctx().names[:searched]
+    assert any("bing.com/news/search" in url and "format=rss" in url for url in feeds[0])
 
 
 @pytest.mark.parametrize("status, finalized, expected", [

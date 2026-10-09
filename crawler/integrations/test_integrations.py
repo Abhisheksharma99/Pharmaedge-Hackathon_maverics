@@ -75,7 +75,7 @@ def test_patent_record_prefers_adjusted_expiry_and_reads_grant():
 
 def test_patent_fetch_keeps_only_included_links(monkeypatch):
     async def fake_run_drug(*, http, store, **kwargs):
-        assert kwargs["adis_ref"] is None and kwargs["companies"] == ["United Therapeutics"]
+        assert kwargs["adis_ref"] is None and kwargs["companies"] == ["United Therapeutics Corp", "United Therapeutics"]
         await store.upsert("patents", [gp("US1B2", []), gp("US9B2", [])])
         await store.upsert("drug_patents", [
             {"patent_id": "GP:US1B2", "decision": "include", "match": {"score": 1.0}},
@@ -87,6 +87,7 @@ def test_patent_fetch_keeps_only_included_links(monkeypatch):
         def __init__(self, cache): pass
         async def aclose(self): pass
 
+    monkeypatch.setattr(patents.llm, "structured", lambda *a, **k: {"assignees": ["United Therapeutics Corp", " "]})
     monkeypatch.setattr(patents, "run_drug", fake_run_drug)
     monkeypatch.setattr(patents, "Http", FakeHttp)
     monkeypatch.setattr(patents, "Cache", lambda root: None)
@@ -95,3 +96,8 @@ def test_patent_fetch_keeps_only_included_links(monkeypatch):
     assert [r["record_key"] for r in records] == ["patent:US1B2"] and coverage["pages_fetched"] == 3
     with pytest.raises(ValueError):
         asyncio.run(patents.fetch({"_id": "x", "name": "X", "company": {}}, ["X"]))
+
+
+def test_patent_assignees_fall_back_to_the_company_when_the_model_fails(monkeypatch):
+    monkeypatch.setattr(patents.llm, "structured", lambda *a, **k: (_ for _ in ()).throw(ConnectionError("offline")))
+    assert patents.patent_assignees({"name": "X", "company": {"name": "Acme"}}, ["X"]) == ["Acme"]

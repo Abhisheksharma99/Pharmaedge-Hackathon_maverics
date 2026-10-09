@@ -37,6 +37,11 @@ def globenewswire_feed_url(keyword: str) -> str:
     return f"https://www.globenewswire.com/RssFeed/keyword/{quote_plus(keyword)}"
 
 
+def bing_news_feed_url(keyword: str) -> str:
+    """Bing News keyword RSS (plain RSS crawler). Relevance-ranked with no date filter, so it reaches back years."""
+    return f"https://www.bing.com/news/search?q={quote_plus(chr(34) + keyword + chr(34))}&format=rss"
+
+
 def _fetch(url: str) -> str:
     resp = requests.get(url, impersonate="chrome110", timeout=30)
     return resp.text if resp.status_code == 200 else ""
