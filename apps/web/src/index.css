@@ -21,6 +21,27 @@
     --color-violet: var(--violet);
     --color-violet-soft: var(--violet-soft);
     --color-text-secondary: var(--text-secondary);
+    --color-hair: var(--hair);
+    --color-faint: var(--faint);
+    --color-primary-soft: var(--primary-soft);
+    --color-competitor: var(--competitor);
+    --color-cat-regulatory: var(--cat-regulatory);
+    --color-cat-regulatory-soft: var(--cat-regulatory-soft);
+    --color-cat-clinical: var(--cat-clinical);
+    --color-cat-clinical-soft: var(--cat-clinical-soft);
+    --color-cat-safety: var(--cat-safety);
+    --color-cat-safety-soft: var(--cat-safety-soft);
+    --color-cat-company: var(--cat-company);
+    --color-cat-company-soft: var(--cat-company-soft);
+    --color-cat-ip: var(--cat-ip);
+    --color-cat-ip-soft: var(--cat-ip-soft);
+    --color-tag-important: var(--tag-important);
+    --color-tag-missed: var(--tag-missed);
+    --color-tag-question: var(--tag-question);
+    --color-tag-risk: var(--tag-risk);
+    --color-tag-opportunity: var(--tag-opportunity);
+    --color-star: var(--star);
+    --color-star-stroke: var(--star-stroke);
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -59,6 +80,40 @@
     --radius-2xl: calc(var(--radius) * 1.8);
     --radius-3xl: calc(var(--radius) * 2.2);
     --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* v3 shadows, easing and motion (docs/design/asset-journey-v3/README.md §4) */
+@theme {
+    --shadow-panel: 0 1px 2px rgba(16, 24, 40, 0.04);
+    --shadow-card-hover: 0 10px 24px rgba(16, 24, 40, 0.08);
+    --shadow-card-active: 0 16px 40px rgba(35, 71, 217, 0.1);
+    --shadow-popover: 0 12px 32px rgba(16, 24, 40, 0.14);
+    --shadow-sheet: -16px 0 40px rgba(16, 24, 40, 0.16);
+    --shadow-dialog: 0 24px 60px rgba(16, 24, 40, 0.25);
+    --shadow-focus: 0 0 0 3px rgba(35, 71, 217, 0.12);
+    --ease-out-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --ease-spring: cubic-bezier(0.2, 1.6, 0.4, 1);
+    --animate-grow: grow 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    --animate-grow-x: grow-x 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    --animate-fade-up: fade-up 0.45s both;
+    --animate-fade: fade 0.5s both;
+
+    @keyframes grow {
+        from { transform: scaleY(0); }
+        to { transform: none; }
+    }
+    @keyframes grow-x {
+        from { transform: scaleX(0); }
+        to { transform: none; }
+    }
+    @keyframes fade-up {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: none; }
+    }
+    @keyframes fade {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
 }
 
 :root {
@@ -107,6 +162,46 @@
     --violet: #6941c6;
     --violet-soft: #f4f3ff;
     --text-secondary: #475467;
+    /* v3 tokens (docs/design/asset-journey-v3/README.md §4) */
+    --hair: #eef0f3;
+    --faint: #98a2b3;
+    --primary-soft: #eef2fd;
+    --competitor: #9a3f06;
+    --cat-regulatory: #2347d9;
+    --cat-regulatory-soft: #eef2fd;
+    --cat-clinical: #0b7a6f;
+    --cat-clinical-soft: #e6f4f2;
+    --cat-safety: #b42318;
+    --cat-safety-soft: #fef3f2;
+    --cat-company: #e0620f;
+    --cat-company-soft: #fdeee4;
+    --cat-ip: #6941c6;
+    --cat-ip-soft: #f4f3ff;
+    --coll-fda: #2347d9;
+    --coll-ema: #5873e8;
+    --coll-trial: #0b7a6f;
+    --coll-publication: #475467;
+    --coll-conference: #7a5af8;
+    --coll-patent: #6941c6;
+    --coll-company: #e0620f;
+    --coll-articles: #98a2b3;
+    --branch-1: #2347d9;
+    --branch-2: #0b7a6f;
+    --branch-3: #6941c6;
+    --branch-4: #e0620f;
+    --branch-5: #0e7490;
+    --branch-6: #b54708;
+    --tag-important: #b42318;
+    --tag-missed: #6941c6;
+    --tag-question: #2347d9;
+    --tag-risk: #b54708;
+    --tag-opportunity: #0b7a6f;
+    --star: #fdb022;
+    --star-stroke: #dc8a0e;
+    --phase-1: #98a2b3;
+    --phase-2: #7a5af8;
+    --phase-3: #2347d9;
+    --phase-4: #0b7a6f;
 }
 
 .dark {
@@ -155,4 +250,13 @@
     /* the design runs at 13px body text */
     font-size: 13px;
     }
+  /* Reduced motion: no transforms, instant opacity (README §4 "Motion"). */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }

@@ -1,4 +1,5 @@
 import { FlaskConical, Landmark, Megaphone, ShieldAlert, Stamp, type LucideIcon } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import type { EventCategory, Significance } from '../api'
 
@@ -47,5 +48,30 @@ export function Chip({ children, className }: { children: React.ReactNode; class
     >
       {children}
     </span>
+  )
+}
+
+/** Primary / Competitor pill (Asset Search, cards); the tooltip says how deeply the asset is crawled. */
+export function KindBadge({ kind, competitorOf }: { kind: 'primary' | 'competitor'; competitorOf?: string[] }) {
+  const primary = kind === 'primary'
+  const tip = primary
+    ? 'Primary asset · full crawl'
+    : `Competitor of ${competitorOf?.length ? competitorOf.join(', ') : 'a tracked asset'} · light crawl`
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span
+          tabIndex={0}
+          className={cn(
+            'inline-flex h-[19px] items-center gap-1 rounded-full px-[7px] align-[1px] text-[10.5px] font-semibold tracking-[0.01em] whitespace-nowrap',
+            primary ? 'bg-primary-soft text-primary' : 'bg-orange-soft text-competitor',
+          )}
+        >
+          <i aria-hidden="true" className="size-[5px] rounded-full bg-current" />
+          {primary ? 'Primary' : 'Competitor'}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>{tip}</TooltipContent>
+    </Tooltip>
   )
 }
