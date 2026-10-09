@@ -80,6 +80,15 @@ def test_fda_calendar_rules_make_upcoming_dates_milestones():
     assert adcom["type"] == "advisory_committee" and adcom["is_milestone"] and adcom["sources"][0]["record_key"] == "c3"
 
 
+def test_fda_calendar_listings_of_one_pdufa_date_make_one_event():
+    partner = {**calendar("c9", "pdufa", "2020-04-27"), "company": "Correvio Pharma Corp", "sponsor_is_company": False,
+               "drugs": ["Treprostinil", "Trevyent"]}
+    [event] = fda_events(A, [partner, calendar("c8", "pdufa", "2020-04-27")], today="2026-01-01")
+    assert event["_id"] == "rule:pdufa_date:c8" and event["sponsor"] == "United Therapeutics Corporation"
+    assert [s["record_key"] for s in event["sources"]] == ["c8", "c9"]
+    assert event["title"] == "PDUFA goal date: Tyvaso DPI, Treprostinil, Trevyent"
+
+
 def chmp(key, opinion, procedure, when, name="Winrevair", status="pending EC decision", indication=None):
     return {"record_key": key, "record_type": "ema_chmp_opinion", "opinion": opinion, "procedure": procedure,
             "date": when, "name_of_medicine": name, "status": status, "therapeutic_indication": indication,

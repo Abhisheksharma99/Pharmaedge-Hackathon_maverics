@@ -284,9 +284,10 @@ def finalize(ctx: StepContext) -> StepResult:
 
 
 STEPS = {"regulatory": regulatory, "fda_calendar": fda_calendar, "ema_chmp": ema_chmp, "clinical": clinical,
-         "publications": publications, "conferences": conferences, "patents": patents, "company_site": company_site, "company_news": company_news, "news": news,
-         "industry_news": industry_news, "journey": journey, "ai_triage": ai_triage, "ai_events": ai_events,
-         "index": index, "competitors": competitors, "finalize": finalize}
+         "publications": publications, "conferences": conferences, "patents": patents, "company_site": company_site,
+         "company_news": company_news, "news": news, "industry_news": industry_news, "journey": journey,
+         "ai_triage": ai_triage, "ai_events": ai_events, "index": index, "competitors": competitors,
+         "finalize": finalize}
 
 LABELS = {
     "regulatory": "Regulatory (FDA, EMA)",

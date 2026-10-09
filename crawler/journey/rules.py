@@ -47,31 +47,38 @@ def _brand(record: Dict[str, Any]) -> str:
 CALENDAR_URL = re.compile(r"https?://\S+")
 
 
-def fda_calendar_event(asset: str, r: Dict[str, Any], today: str) -> Dict[str, Any]:
+def fda_calendar_event(asset: str, group: List[Dict[str, Any]], today: str) -> Dict[str, Any]:
     """FDA Tracker calendar: a PDUFA goal date ahead is the FDA decision milestone, one behind is history (the
-    decision itself comes from Drugs@FDA); advisory committee meetings likewise."""
-    drugs = ", ".join(r.get("drugs") or [])
+    decision itself comes from Drugs@FDA); advisory committee meetings likewise. `group` holds the calendar's
+    listings of one occurrence (the same date and type, e.g. a PDUFA date listed for the company and for its
+    partner): one event citing them all, worded from the asset company's own listing when there is one."""
+    group = sorted(group, key=lambda g: (not g.get("sponsor_is_company"), g["record_key"]))
+    r = group[0]
+    drugs = ", ".join(dict.fromkeys(d for g in group for d in g.get("drugs") or []))
     upcoming = r["date"] > today
     common = dict(category="regulatory", region="US", date=r["date"], significance="High", is_milestone=upcoming,
                   expected_date=r["date"] if upcoming else None, sponsor=r.get("company"),
                   sponsor_is_company=r.get("sponsor_is_company"),
                   summary=re.sub(r"\s+", " ", CALENDAR_URL.sub("", r.get("description") or "")).strip()[:400])
-    if r.get("event_type") == "pdufa":
-        if upcoming:
-            return _event(asset, r, "fda_records", "regulatory_decision_expected", **common,
-                          title=f"FDA decision expected (PDUFA date): {drugs}")
-        return _event(asset, r, "fda_records", "pdufa_date", **{**common, "significance": "Medium"},
-                      title=f"PDUFA goal date: {drugs}")
-    return _event(asset, r, "fda_records", "advisory_committee", **common,
-                  title=f"FDA advisory committee {'meeting scheduled' if upcoming else 'meeting'}: {drugs}")
+    if r.get("event_type") != "pdufa":
+        kind = "advisory_committee"
+        title = f"FDA advisory committee {'meeting scheduled' if upcoming else 'meeting'}: {drugs}"
+    elif upcoming:
+        kind, title = "regulatory_decision_expected", f"FDA decision expected (PDUFA date): {drugs}"
+    else:
+        kind, title, common["significance"] = "pdufa_date", f"PDUFA goal date: {drugs}", "Medium"
+    event = _event(asset, r, "fda_records", kind, **common, title=title)
+    event["sources"] = [{"collection": "fda_records", "record_key": g["record_key"]} for g in group]
+    return event
 
 
 def fda_events(asset: str, records: Iterable[Dict[str, Any]], today: Optional[str] = None) -> List[Dict[str, Any]]:
     today = today or date.today().isoformat()
-    events = []
+    events, calendar = [], {}
     for r in records:
-        if r.get("record_type") == "fda_calendar_event" and r.get("date"):
-            events.append(fda_calendar_event(asset, r, today))
+        if r.get("record_type") == "fda_calendar_event":
+            if r.get("date"):
+                calendar.setdefault((r["date"], r.get("event_type")), []).append(r)
             continue
         if r.get("record_type") == "fda_recall":
             events.append(_event(asset, r, "fda_records", "recall", category="safety", region="US", date=r.get("date", ""),
@@ -107,7 +114,7 @@ def fda_events(asset: str, records: Iterable[Dict[str, Any]], today: Optional[st
             events.append(_event(asset, r, "fda_records", "label_update", **common, significance="Low",
                                  title=f"Label update for {brand}", summary=f"{app_no} supplement {r.get('submission_number')}"))
         # Manufacturing (CMC) supplements are left off the journey: frequent and not strategic.
-    return events
+    return events + [fda_calendar_event(asset, group, today) for group in calendar.values()]
 
 
 EC_DECISION_DAYS = 67  # the European Commission decides within 67 days of a CHMP opinion

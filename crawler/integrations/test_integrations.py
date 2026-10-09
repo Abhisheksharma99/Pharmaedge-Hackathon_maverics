@@ -194,5 +194,27 @@ def test_fda_calendar_source_links_remember_failures(tmp_path, monkeypatch):
     for _ in range(2):
         with pytest.raises(ValueError, match="content-type"):
             asyncio.run(web.get_html("https://x.com/wrong-type", 60))
+    # Successes are left to the crawler's own cache (stubbed out here, so /ok is fetched twice).
     assert calls == ["https://x.com/dead", "https://x.com/busy", "https://x.com/busy", "https://x.com/ok",
                      "https://x.com/ok", "https://x.com/wrong-type"]
+
+
+def test_fda_calendar_skips_hosts_that_time_out(tmp_path, monkeypatch):
+    calls = []
+
+    async def fetch(self, url, ttl_s, ctype="html", headers=None, attempts=6):
+        calls.append(url)
+        return (0, "") if "tarpit" in url else (200, "page")
+
+    monkeypatch.setattr(fda_calendar.Http, "get_html", fetch)
+    web = fda_calendar.RemembersFailures(fda_calendar.Cache(tmp_path), public_web=True)
+
+    async def links():  # concurrently, as fdacal fetches them
+        return await asyncio.gather(*(web.get_html(f"https://tarpit.com/{n}", 60) for n in range(5)),
+                                    web.get_html("https://ok.com/1", 60))
+
+    assert asyncio.run(links()) == [(0, "")] * 5 + [(200, "page")]
+    # One tarpit link waited for the timeout; the ones queued behind it skipped the host.
+    assert len(calls) == 2 and "https://ok.com/1" in calls
+    fresh = fda_calendar.RemembersFailures(fda_calendar.Cache(tmp_path), public_web=True)  # the next run
+    assert asyncio.run(fresh.get_html("https://tarpit.com/9", 60)) == (0, "") and len(calls) == 2
