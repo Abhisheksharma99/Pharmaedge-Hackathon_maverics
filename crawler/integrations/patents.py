@@ -19,6 +19,10 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from urllib.parse import quote
+
+from curl_cffi import requests
+
 from ai import llm
 
 from . import TEAM_ROOT  # noqa: F401  (puts the team packages on sys.path)
@@ -49,6 +53,22 @@ def patent_assignees(asset: Dict[str, Any], names: List[str]) -> List[str]:
         found = []
     company = drug["company"]
     return list(dict.fromkeys(n.strip() for n in [*found, *([company] if company else [])] if n and n.strip()))
+
+
+SEARCH_URL = "https://patents.google.com/xhr/query?url={}&exp="
+
+
+def search_seeds(names: List[str], limit: int = 100) -> List[str]:
+    """Google Patents full-text search for the drug's names: publication numbers to start the crawl from. PubChem,
+    the crawler's own starting point, links patents to compounds only, so it has none for biologics (sotatercept).
+    Best effort: [] on any failure."""
+    terms = " OR ".join(f'"{n.strip()}"' for n in names[:6] if n.strip())
+    try:
+        data = requests.get(SEARCH_URL.format(quote(f"q=({terms})&num={limit}", safe="")),
+                            impersonate="chrome", timeout=30).json()
+        return [r["patent"]["publication_number"] for c in data["results"]["cluster"] for r in c["result"]]
+    except Exception:  # noqa: BLE001 - the crawl still starts from PubChem
+        return []
 
 
 class _Collector:
@@ -113,13 +133,14 @@ async def fetch(asset: Dict[str, Any], names: List[str]) -> Tuple[List[Dict[str,
     if not adis_id and not company:
         raise ValueError("the asset needs an AdisInsight id or a company name to search patents")
     companies = None if adis_id else await asyncio.to_thread(patent_assignees, asset, names)
+    seeds = [] if adis_id else await asyncio.to_thread(search_seeds, names)
     store, http = _Collector(), Http(Cache(CACHE_DIR))
     try:
         # With an Adis id the crawler reads the developer and alternative names from the profile.
         run = await run_drug(http=http, store=store, adis_ref=adis_id,
                              drug_name=None if adis_id else asset["name"],
                              companies=companies,
-                             terms=None if adis_id else names,
+                             terms=None if adis_id else names, seeds=seeds,
                              max_pages=MAX_PAGES, probe_budget=PROBE_PAGES)
     finally:
         await http.aclose()
