@@ -1,8 +1,10 @@
 import { CalendarClock, FlaskConical, Landmark, Megaphone, Route } from 'lucide-react'
-import { useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { LiveBuild } from '@/features/journey/live-build/live-build'
 import { formatDate, formatNumber, formatPhase, formatStatus } from '@/lib/format'
 import type { SourceRecord } from '../api'
 import { AdverseEventsChart } from '../components/adverse-events-chart'
@@ -68,9 +70,20 @@ const asFilter = (v: string) => (v === ALL ? undefined : v.split(','))
 
 export function OverviewTab() {
   const asset = useAssetContext()
+  const [params, setParams] = useSearchParams()
+  // "Explore the journey" leaves the live build even if the asset still reads as onboarding.
+  const [exploredId, setExploredId] = useState<string | null>(null)
+  // After "Explore the journey" its button is gone: hand focus to the Overview content.
+  const focusJourney = useRef(false)
+  const journeyRef = useCallback((node: HTMLDivElement | null) => {
+    if (node && focusJourney.current) {
+      focusJourney.current = false
+      node.focus()
+    }
+  }, [])
   const { kpis, counts } = asset
-  return (
-    <div className="flex flex-col gap-5">
+  const journey = (
+    <div ref={journeyRef} tabIndex={-1} className="flex flex-col gap-5 outline-none">
       <KpiStrip
         items={[
           {
@@ -94,6 +107,29 @@ export function OverviewTab() {
       </div>
     </div>
   )
+  // A failed or cancelled crawl flips the asset to 'failed': show its build (it says why) when there is a job, else the journey.
+  if (params.get('build') === '1' || ((asset.status === 'onboarding' || asset.status === 'failed') && exploredId !== asset.id)) {
+    return (
+      <LiveBuild
+        key={asset.id}
+        asset={asset}
+        fallback={asset.status === 'failed' && params.get('build') !== '1' ? journey : undefined}
+        onExplore={() => {
+          focusJourney.current = true
+          setExploredId(asset.id)
+          setParams(
+            (prev) => {
+              const next = new URLSearchParams(prev)
+              next.delete('build')
+              return next
+            },
+            { replace: true },
+          )
+        }}
+      />
+    )
+  }
+  return journey
 }
 
 export function ClinicalTab() {

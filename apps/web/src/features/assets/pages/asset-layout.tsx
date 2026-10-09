@@ -58,8 +58,8 @@ function RefreshButton({ assetId }: { assetId: string }) {
       disabled={refresh.isPending}
       onClick={() =>
         refresh.mutate(assetId, {
-          onSuccess: (job) =>
-            toast.success('Data refresh started', { action: { label: 'View progress', onClick: () => navigate(`/jobs/${job.id}`) } }),
+          onSuccess: () =>
+            toast.success('Data refresh started', { action: { label: 'View progress', onClick: () => navigate(`/assets/${encodeURIComponent(assetId)}/overview?build=1`) } }),
           onError: (err) =>
             err instanceof ApiError && err.code === 'JOB_ALREADY_RUNNING'
               ? toast.info('A refresh is already running', { action: { label: 'View jobs', onClick: () => navigate('/jobs') } })
@@ -175,7 +175,8 @@ export function AssetLayout() {
   const setAiOpen = useShellStore((s) => s.setAssetAiOpen)
   // Wide screens get a docked drawer; narrower ones an overlay sheet.
   const wide = useMediaQuery('(min-width: 1280px)')
-  const tabLabel = ASSET_TABS.find((t) => t.path === tab)?.label ?? ''
+  const onboarding = asset.data?.status === 'onboarding'
+  const tabLabel = onboarding && tab === 'overview' ? 'Building journey' : (ASSET_TABS.find((t) => t.path === tab)?.label ?? '')
   const competitorCount = asset.data?.competitors?.length ?? 0
 
   useEffect(() => {
@@ -226,6 +227,9 @@ export function AssetLayout() {
                   }
                 >
                   {t.label}
+                  {t.path === 'overview' && onboarding && (
+                    <span aria-hidden="true" data-live-dot className="ml-1.5 size-1.5 animate-blink-dot rounded-full bg-warning" />
+                  )}
                   {t.path === 'competitors' && competitorCount > 0 && (
                     <>
                       {' '}

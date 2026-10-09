@@ -1,17 +1,23 @@
 import { ArrowUpRight } from 'lucide-react'
 import { Link } from 'react-router'
 import { Skeleton } from '@/components/ui/skeleton'
-import { isActive, useJob } from '@/features/jobs/api'
+import { isActive, useJobProgress } from '@/features/jobs/api'
+import { StepBar } from '@/features/jobs/components/step-bar'
+import { recordsTotal, sourceProgress } from '@/features/jobs/job-counters'
 import { JobStatusBadge } from '@/features/jobs/jobs-pages'
+import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { Card } from '../../api'
 
 type JobCardData = Extract<Card, { type: 'job' }>
 
-/** Progress of the crawl started from the chat (polls while it runs). */
+/** Progress of the crawl started from the chat (polls while it runs): step bar, counters, link to the live build. */
 export function JobCard({ card }: { card: JobCardData }) {
-  const job = useJob(card.jobId)
+  const job = useJobProgress(card.jobId)
   const j = job.data
+  const overview = `/assets/${encodeURIComponent(card.assetId)}/overview`
+  const live = !j || isActive(j.status)
+  const sources = sourceProgress(j ?? { steps: [] })
   const finished = j ? j.steps.filter((s) => s.status !== 'pending' && s.status !== 'running').length : 0
   const total = j?.steps.length ?? 0
   const current = j?.steps.find((s) => s.status === 'running')
@@ -36,20 +42,22 @@ export function JobCard({ card }: { card: JobCardData }) {
       </div>
       {job.isPending && <Skeleton className="h-1.5 w-full" />}
       {job.isError && <p className="text-destructive">Progress is unavailable right now.</p>}
+      {j && <StepBar steps={j.steps} />}
       {j && (
-        <div
-          role="progressbar"
-          aria-label={`Crawl progress for ${card.assetName}`}
-          aria-valuemin={0}
-          aria-valuemax={total}
-          aria-valuenow={finished}
-          className="h-1.5 overflow-hidden rounded-full bg-muted"
-        >
-          <div
-            className={cn('h-full rounded-full bg-primary transition-[width]', j.status === 'failed' && 'bg-destructive')}
-            style={{ width: `${total ? (finished / total) * 100 : 0}%` }}
-          />
-        </div>
+        <p className="flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-muted-foreground">
+          <span>
+            <b className="font-semibold text-foreground tabular-nums">{formatNumber(recordsTotal(j))}</b> records
+          </span>
+          <span>
+            <b className="font-semibold text-foreground tabular-nums">{formatNumber(j.events_created)}</b> events
+          </span>
+          <span>
+            <b className="font-semibold text-foreground tabular-nums">
+              {sources.done}/{sources.total}
+            </b>{' '}
+            sources
+          </span>
+        </p>
       )}
       {problems.length > 0 && (
         <ul aria-label="Step errors" className="space-y-0.5 text-[12.5px]">
@@ -61,10 +69,10 @@ export function JobCard({ card }: { card: JobCardData }) {
         </ul>
       )}
       <Link
-        to={`/assets/${encodeURIComponent(card.assetId)}/overview`}
+        to={live ? `${overview}?build=1` : overview}
         className="inline-flex w-max items-center gap-1 text-[13px] font-semibold text-primary hover:underline"
       >
-        Open asset <ArrowUpRight className="size-3.5" />
+        {live ? 'Watch the live build' : 'Open the journey'} <ArrowUpRight className="size-3.5" />
       </Link>
     </div>
   )

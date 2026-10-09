@@ -22,7 +22,9 @@ export function useRefreshOnCrawlEnd() {
     seen.current = now
     if (!assets.length) return
     const refresh = () => {
-      for (const key of [['portfolio'], ['assets'], ['notifications'], ...assets.map((a) => ['asset', a])]) qc.invalidateQueries({ queryKey: key })
+      for (const key of [['portfolio'], ['assets'], ['notifications']]) qc.invalidateQueries({ queryKey: key })
+      // The announced event queries (['asset', a, 'event', id]) never change: leave them out.
+      for (const a of assets) qc.invalidateQueries({ queryKey: ['asset', a], predicate: (q) => q.queryKey[2] !== 'event' })
     }
     refresh()
     const timer = setTimeout(() => {
