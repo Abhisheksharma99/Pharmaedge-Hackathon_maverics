@@ -76,6 +76,7 @@ def test_patent_record_prefers_adjusted_expiry_and_reads_grant():
 def test_patent_fetch_keeps_only_included_links(monkeypatch):
     async def fake_run_drug(*, http, store, **kwargs):
         assert kwargs["adis_ref"] is None and kwargs["companies"] == ["United Therapeutics Corp", "United Therapeutics"]
+        assert kwargs["seeds"] == ["US1B2"]
         await store.upsert("patents", [gp("US1B2", []), gp("US9B2", [])])
         await store.upsert("drug_patents", [
             {"patent_id": "GP:US1B2", "decision": "include", "match": {"score": 1.0}},
@@ -88,6 +89,7 @@ def test_patent_fetch_keeps_only_included_links(monkeypatch):
         async def aclose(self): pass
 
     monkeypatch.setattr(patents.llm, "structured", lambda *a, **k: {"assignees": ["United Therapeutics Corp", " "]})
+    monkeypatch.setattr(patents, "search_seeds", lambda names: ["US1B2"])
     monkeypatch.setattr(patents, "run_drug", fake_run_drug)
     monkeypatch.setattr(patents, "Http", FakeHttp)
     monkeypatch.setattr(patents, "Cache", lambda root: None)
@@ -101,3 +103,18 @@ def test_patent_fetch_keeps_only_included_links(monkeypatch):
 def test_patent_assignees_fall_back_to_the_company_when_the_model_fails(monkeypatch):
     monkeypatch.setattr(patents.llm, "structured", lambda *a, **k: (_ for _ in ()).throw(ConnectionError("offline")))
     assert patents.patent_assignees({"name": "X", "company": {"name": "Acme"}}, ["X"]) == ["Acme"]
+
+
+def test_patent_search_seeds_are_publication_numbers_and_never_fail(monkeypatch):
+    seen = {}
+
+    class Resp:
+        def json(self):
+            return {"results": {"cluster": [{"result": [{"patent": {"publication_number": "US10016159B2"}},
+                                                        {"patent": {"publication_number": "WO2022192420A2"}}]}]}}
+
+    monkeypatch.setattr(patents.requests, "get", lambda url, **kw: seen.update(url=url) or Resp())
+    assert patents.search_seeds(["Sotatercept", "MK-7962"]) == ["US10016159B2", "WO2022192420A2"]
+    assert "%22Sotatercept%22%20OR%20%22MK-7962%22" in seen["url"]
+    monkeypatch.setattr(patents.requests, "get", lambda url, **kw: (_ for _ in ()).throw(ConnectionError()))
+    assert patents.search_seeds(["X"]) == []
