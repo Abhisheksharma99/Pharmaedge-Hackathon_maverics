@@ -4,6 +4,7 @@ Crawl worker: runs queued jobs from Valkey.
     cd crawler && ../.venv/bin/arq service.worker.WorkerSettings
 """
 
+import asyncio
 import logging
 from datetime import datetime, timezone
 from typing import Any, Dict
@@ -16,7 +17,7 @@ from journey.store import bump_asset_version  # noqa: E402
 from storage.mongo_storage import get_db  # noqa: E402
 
 from .api import redis_settings  # noqa: E402
-from .jobs import MongoJobStore  # noqa: E402
+from .jobs import MongoJobStore, fail_interrupted  # noqa: E402
 from .pipeline import run_job  # noqa: E402
 from .steps import STEPS  # noqa: E402
 
@@ -41,8 +42,21 @@ async def run_job_task(ctx, job_id: str) -> str:
                          on_finished=lambda asset_id: _finished(store.get(job_id)))
 
 
+def _recover() -> None:
+    db = get_db()
+    for asset_id in fail_interrupted(db):
+        db.assets.update_one({"_id": asset_id, "status": "onboarding"}, {"$set": {"status": "failed"}})
+        bump_asset_version(asset_id)
+        logging.warning("job for %s was interrupted by a worker restart; marked failed", asset_id)
+
+
+async def startup(ctx) -> None:
+    await asyncio.to_thread(_recover)
+
+
 class WorkerSettings:
     functions = [run_job_task]
+    on_startup = startup
     redis_settings = redis_settings()
     max_jobs = 2              # headless-browser steps are memory hungry
     job_timeout = 4 * 3600    # a full company-site crawl can take a while

@@ -12,6 +12,7 @@ COPY company_pr/ ./company_pr/
 COPY conference/ ./conference/
 COPY patent_intel/ ./patent_intel/
 COPY ema/ ./ema/
+COPY designations/ ./designations/
 RUN useradd --create-home app && mkdir -p logs cache && chown -R app /app
 USER app
 EXPOSE 8100

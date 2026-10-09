@@ -84,3 +84,25 @@ class FakeDb(dict):
 @pytest.fixture
 def db():
     return FakeDb()
+
+
+@pytest.fixture
+def mongo():
+    """An in-memory MongoDB database (mongomock) on its own client, for code that reaches other databases
+    through `db.client` (the corpora). Skipped when mongomock isn't installed."""
+    mongomock = pytest.importorskip("mongomock")
+    from mongomock.collection import BulkOperationBuilder
+
+    def ignore_new_options(fn):  # pymongo 4.9+ passes options (sort=...) this mongomock doesn't know
+        def wrapper(self, *args, **kwargs):
+            for option in ("sort", "hint", "collation", "array_filters"):
+                kwargs.pop(option, None)
+            return fn(self, *args, **kwargs)
+        return wrapper
+
+    for name in ("add_replace", "add_update", "add_delete"):
+        if not getattr(getattr(BulkOperationBuilder, name), "patched", False):
+            patched = ignore_new_options(getattr(BulkOperationBuilder, name))
+            patched.patched = True
+            setattr(BulkOperationBuilder, name, patched)
+    return mongomock.MongoClient()["asset_journey"]

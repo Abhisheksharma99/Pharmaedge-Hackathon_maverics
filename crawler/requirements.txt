@@ -24,8 +24,10 @@ arq
 openai>=3.26
 
 # Team crawlers run as pipeline steps (company_pr/ spiders; patent_intel/ needs httpx, selectolax and
-# pydantic-settings; ema/ needs curl-cffi, beautifulsoup4, lxml and pypdf, pinned above)
+# pydantic-settings; ema/ needs curl-cffi, beautifulsoup4, lxml and pypdf, pinned above; designations/ needs
+# pdfplumber)
 scrapy>=2.13
 dateparser>=1.2
 httpx>=0.28,<1
 pydantic-settings>=2.10,<3
+pdfplumber>=0.11

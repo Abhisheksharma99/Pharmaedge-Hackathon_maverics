@@ -56,17 +56,17 @@ The app collects data through the crawl service (`service/`: FastAPI `api.py` + 
 
 | Step | Crawler | Writes |
 |---|---|---|
-| regulatory | ours: `regulatory/fda.py`, `regulatory/ema.py` | `fda_records`, `ema_records` |
+| regulatory | ours: `regulatory/fda.py` (openFDA, live); EMA reports from the EMA corpus (`corpus/ema.py`), downloaded live from EMA until it is complete | `fda_records`, `ema_records` |
 | fda_calendar | team `patent_intel/fdacal.py` (FDA Tracker PDUFA / AdCom calendar), events naming the asset (`integrations/fda_calendar.py`) | `fda_records` (`fda_calendar_event`) |
-| ema_chmp | team `ema/chmp_highlights.py` (CHMP monthly meeting highlights) corpus, matched to the asset (`integrations/chmp.py`) | `ema_records` (`ema_chmp_opinion`, `ema_chmp_highlight`) |
+| ema_chmp | team `ema/chmp_highlights.py` (CHMP monthly meeting highlights) corpus, matched to the asset (`integrations/chmp.py`); crawled here only until the corpus is complete | `ema_records` (`ema_chmp_opinion`, `ema_chmp_highlight`) |
 | clinical | team `clinicalTrialgov/` client, our mapping (`regulatory/clinicaltrials.py`) | `trial_records` |
 | publications | team `pubmed/` (`regulatory/pubmed_source.py`) | `publication_records` |
 | conferences | team `conference/` corpus (ERS, ATS, CHEST), matched with its keyword rules (`integrations/conferences.py`) | `conference_records` |
 | patents | team `patent_intel/` (AdisInsight, PubChem, Google Patents) (`integrations/patents.py`) | `patent_records` |
 | company_site | ours: site adapter when there is one (`company/unither.py`), else the generic crawler (`company/generic.py`: sitemap / homepage pages named after the drug and product pages, the PDFs they link, and IR-page press releases when the company has no newsroom spider) | `company_records` |
-| company_news | team `company_pr/` newsroom spider picked by company domain (`integrations/newsroom.py`) | `company_records` (press releases) |
+| company_news | team `company_pr/` newsroom spider picked by company domain (`integrations/newsroom.py`): from the company_pr corpus once that spider's history is in it, else crawled live | `company_records` (press releases) |
 | news | ours: PR Newswire, BioSpace, GlobeNewswire search, AI-screened before fetching | `articles` |
-| industry_news | team `company_pr/` news and agency spiders plus Google News, kept when they mention the asset | `articles` |
+| industry_news | team `company_pr/` news and agency spiders (from the company_pr corpus once in it, else live) plus Google News (live: it searches the asset's names), kept when they mention the asset | `articles` |
 | journey, ai_triage, ai_events, index | rules (approvals, PDUFA dates and AdComs, CHMP opinions and the EC decision they lead to, trials, patent expiries), then AI triage, event extraction and the vector index over news, press releases, publications, conference abstracts and CHMP highlights | `journey_events`, `crawl_ledger`, `record_chunks` |
 | competitors | ours (`onboarding/competitors.py`): drugs in recent phase 2–4 trials for the asset's indications plus FDA same-class drugs, top 5 ranked by the reasoning model with per-indication coverage; each becomes a `competitor` asset with its own light job (scan reused for 30 days, competitor recrawled at most daily) | `assets` |
 | finalize | rule events rebuilt, suggested questions, status `ready` | `assets`, `journey_events` |
@@ -74,10 +74,27 @@ The app collects data through the crawl service (`service/`: FastAPI `api.py` + 
 **Rules for the team packages:**
 - They are used unchanged; adapters live in `integrations/`.
 - Scrapy spiders run in a child process (its reactor starts once per process). URLs already stored are passed in as a seen list, so a refresh fetches only new articles.
-- The conference crawler needs about 10–12 hours per conference for a full crawl, so its output is kept as a corpus collection (`CONFERENCE_CORPUS`, default `pharmaedge.conference_abstracts`).
+- The conference crawler needs about 10–12 hours per conference for a full crawl, so its output is kept as a corpus collection (`CONFERENCE_CORPUS`, default `pharmaedge.conference_abstracts`), filled by the corpus worker (below).
 - The patent crawler takes about 10 minutes per asset (`PATENT_MAX_PAGES`). It keeps a page cache in `cache/patents`, which is the `crawler-cache` volume in Docker.
 - The FDA calendar crawler reads the source document of every calendar event whose text doesn't name a drug, so its first run takes a while; documents are cached for 30 days in `cache/fda_calendar` (same volume) and shared by every asset. The patent step no longer runs it (`fda_calendar=False`). Only events matched to the asset are stored; `unresolved` ones are counted in the step result.
-- The CHMP meetings are kept as a corpus collection (`CHMP_CORPUS`, default `pharmaedge.ema_chmp_meetings`), refreshed by the first job each day from the newest meetings. An empty corpus is crawled in full (~30 min); load an existing crawl instead with `python -m scripts.load_chmp_corpus [../ema/output/chmp_meeting_highlights.json]`.
+- The CHMP meetings are kept as a corpus collection (`CHMP_CORPUS`, default `pharmaedge.ema_chmp_meetings`), filled by the corpus worker (below). Its first full crawl takes ~30 min; to skip it, load an existing crawl with `python -m scripts.load_chmp_corpus [../ema/output/chmp_meeting_highlights.json]`.
+
+## Corpus worker: all the shared data, as soon as the server is up
+
+`service/corpus_worker.py` (Docker service `crawler-corpus`; locally `../.venv/bin/arq service.corpus_worker.WorkerSettings`) crawls the full history of the sources every asset shares into the database when it starts, then refreshes them daily at 02:00. Asset jobs match each asset against these collections instead of crawling the sources again (`corpus/`).
+
+| Source | Crawler | Collection (`pharmaedge.`) | First run | Daily |
+|---|---|---|---|---|
+| `company_pr` | every `company_pr/` spider but `google_news` (it searches the asset's names, so it stays per asset) | `company_pr_news` (by URL) | each spider's full history, one spider at a time | newest 100 articles per spider; full history of spiders added since |
+| `ema_reports` | EMA JSON reports: EPAR, post-authorisation opinions, DHPC letters, orphan designations, referrals | `ema_reports` (by record_key) | every row | downloaded again (EMA refreshes them daily) |
+| `designations` | `designations/`: FDA expedited-program approvals (Accelerated Approval, Breakthrough, Fast Track, Priority) parsed from the PDFs in `designations/Designation_data/` | `fda_designations` (by record id) | every PDF (~6 s, no network) | never: once only (`python -m corpus designations --full` after adding a PDF) |
+| `ema_chmp` | `ema/chmp_highlights.py` | `ema_chmp_meetings` | every meeting since 2006 | meetings since the newest stored |
+| `conference_ers` / `_ats` / `_chest` | `conference/` crawlers | `conference_abstracts` (by abstract id) | every year, one at a time (~10–12 h for ERS and CHEST) | the newest year, and years not done yet |
+
+- **Groups** run in parallel as one arq job each (`ema` runs its two sources one after another: they share EMA's rate limit), in a child process `python -m corpus <group>`. Run one by hand with `python -m corpus ema` (or a single source; `--full` to crawl in full again).
+- **State** per source in `pharmaedge.corpus_sources`: status, heartbeat, progress (spiders / years done, errors), `full_done_at`, `last_success_at`, the last run's counts. A restart resumes where the last run stopped; a source another worker is running is skipped until its heartbeat is 5 min old.
+- **Per-asset steps** use a corpus once its full crawl has completed (`full_done_at`), and crawl live until then: `company_news` / `industry_news` per spider, `regulatory` (EMA reports), `ema_chmp`. The designations are in the database for asset matching (each record's `names`) but no asset step reads them yet. openFDA and the FDA calendar are not part of the corpus.
+- **Settings:** `CORPUS_GROUPS=ema,company_pr` limits the worker to some groups; `CORPUS_DB`, `COMPANY_PR_CORPUS`, `EMA_CORPUS`, `CHMP_CORPUS`, `CONFERENCE_CORPUS`, `DESIGNATIONS_CORPUS` move the collections; `CORPUS_SPIDER_TIMEOUT_MIN` (720) caps one spider's full-history run; `CONFERENCE_WORKERS` (6) sets parallel abstract downloads; `CORPUS_JOB_TIMEOUT_H` (24) caps one group's run (the next daily run continues it).
 
 ## Notes / known gaps
 

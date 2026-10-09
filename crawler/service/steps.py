@@ -17,6 +17,9 @@ from ai import llm
 from ai.events import consolidate, extract_events
 from ai.index import index_asset
 from ai.triage import ledger_id, triage_entries, triage_stored
+from corpus import company_pr as pr_corpus
+from corpus import complete as corpus_complete
+from corpus import ema as ema_corpus
 from integrations import chmp
 from integrations import conferences as conference_corpus
 from integrations import fda_calendar as fda_calendar_source
@@ -24,7 +27,7 @@ from integrations import newsroom
 from integrations import patents as patent_crawler
 from journey.rules import build_rule_events
 from journey.store import replace_rule_events
-from regulatory import clinicaltrials, ema, fda
+from regulatory import clinicaltrials, fda
 from storage.mongo_storage import get_content_hash, get_db, insert_article, upsert_records
 
 from .pipeline import StepContext, StepSkipped
@@ -33,8 +36,10 @@ StepResult = Dict[str, Any]
 
 
 def regulatory(ctx: StepContext) -> StepResult:
+    """openFDA, and EMA's reports (EPAR, post-authorisation, DHPC, referrals, orphan designations): from the EMA
+    corpus once it holds them (corpus/ema.py), else downloaded from EMA."""
     fda_counts = upsert_records("fda_records", fda.fetch_all(ctx.asset_id, ctx.names), ctx.asset_id)
-    ema_counts = upsert_records("ema_records", ema.fetch_all(ctx.names), ctx.asset_id)
+    ema_counts = upsert_records("ema_records", ema_corpus.for_asset(get_db(), ctx.names), ctx.asset_id)
     return {"fda_new": fda_counts["inserted"], "fda_updated": fda_counts["updated"],
             "ema_new": ema_counts["inserted"], "ema_updated": ema_counts["updated"]}
 
@@ -48,13 +53,14 @@ async def fda_calendar(ctx: StepContext) -> StepResult:
 
 
 def ema_chmp(ctx: StepContext) -> StepResult:
-    """CHMP opinions and meeting highlights naming the asset (team crawler ema/chmp_highlights.py). The meetings
-    corpus is refreshed at most daily, by whichever job gets there first."""
+    """CHMP opinions and meeting highlights naming the asset (team crawler ema/chmp_highlights.py), from the
+    meetings corpus the corpus worker crawls. Never crawled here: a full CHMP crawl takes 30+ min under EMA's rate
+    limit. While the corpus is still being built, the asset gets what is in it, and the rest on its next refresh."""
     db = get_db()
-    refresh = chmp.refresh_corpus(db)
     records = list(chmp.fetch(db, ctx.names))
     counts = upsert_records("ema_records", records, ctx.asset_id)
-    return {**refresh, **Counter(r["record_type"] for r in records), "new": counts["inserted"]}
+    building = {} if corpus_complete(db, "ema_chmp") else {"corpus": "still being crawled"}
+    return {**Counter(r["record_type"] for r in records), "new": counts["inserted"], **building}
 
 
 def clinical(ctx: StepContext) -> StepResult:
@@ -89,18 +95,25 @@ def company_site(ctx: StepContext) -> StepResult:
 
 def company_news(ctx: StepContext) -> StepResult:
     """Press releases from the company's newsroom spider(s) (team crawler company_pr/), picked by website
-    domain. Releases already stored are skipped; the first crawl takes the full history."""
+    domain: from the company_pr corpus for spiders whose full history is in it (corpus/company_pr.py), else
+    crawled here (releases already stored are skipped; the first crawl takes the full history)."""
     company = ctx.asset.get("company", {})
     spiders = newsroom.spiders_for_domain(_domain(company.get("website", "")))
     if not spiders:
         raise StepSkipped(f"No newsroom crawler for {company.get('name') or 'this company'} yet")
-    known = [r["url"] for r in get_db().company_records.find(
-        {"record_type": "press_release", "source": {"$in": spiders}}, {"url": 1})]
-    items, summary = newsroom.run(spiders, known_urls=known, limit=50 if known else 0,
-                                  timeout_min=15 if known else 60, is_cancelled=ctx.is_cancelled)
+    db = get_db()
+    stored = pr_corpus.stored_spiders(db)
+    from_corpus, live = [s for s in spiders if s in stored], [s for s in spiders if s not in stored]
+    items, summary = list(pr_corpus.items(db, from_corpus)) if from_corpus else [], []
+    if live:
+        known = [r["url"] for r in db.company_records.find(
+            {"record_type": "press_release", "source": {"$in": live}}, {"url": 1})]
+        crawled, summary = newsroom.run(live, known_urls=known, limit=50 if known else 0,
+                                        timeout_min=15 if known else 60, is_cancelled=ctx.is_cancelled)
+        items += crawled
     counts = upsert_records("company_records", [newsroom.press_release(i, company.get("name"), ctx.names)
                                                 for i in items], ctx.asset_id)
-    return {"spiders": ", ".join(spiders), "press_releases_new": counts["inserted"],
+    return {"spiders": ", ".join(spiders), "from_corpus": len(from_corpus), "press_releases_new": counts["inserted"],
             "spider_errors": sum(s["errors"] for s in summary)}
 
 
@@ -159,13 +172,20 @@ async def news(ctx: StepContext) -> StepResult:
 
 def industry_news(ctx: StepContext) -> StepResult:
     """Fierce, Reuters, BioSpace, EMA, Google News, ... (team crawler company_pr/). Only articles that mention
-    the asset are kept; the rest are logged in crawl_ledger so the next refresh doesn't fetch them again."""
+    the asset are kept. Spiders whose full history is in the company_pr corpus are matched there; the others
+    (always Google News, which searches the asset's names) are crawled, and their articles that don't mention
+    the asset are logged in crawl_ledger so the next refresh doesn't fetch them again."""
     db = get_db()
-    known = {a["url"] for a in db.articles.find({}, {"url": 1})}
-    known |= {r["url"] for r in db.crawl_ledger.find({"asset": ctx.asset_id, "collection": "articles"}, {"url": 1})
-              if r.get("url")}
-    items, summary = newsroom.run(newsroom.news_spiders(), known_urls=known, keywords=ctx.names,
-                                  timeout_min=10, is_cancelled=ctx.is_cancelled)
+    spiders, stored = newsroom.news_spiders(), pr_corpus.stored_spiders(db)
+    from_corpus, live = [s for s in spiders if s in stored], [s for s in spiders if s not in stored]
+    items, summary = list(pr_corpus.items(db, from_corpus, ctx.names)) if from_corpus else [], []
+    if live:
+        known = {a["url"] for a in db.articles.find({}, {"url": 1})}
+        known |= {r["url"] for r in db.crawl_ledger.find({"asset": ctx.asset_id, "collection": "articles"},
+                                                         {"url": 1}) if r.get("url")}
+        crawled, summary = newsroom.run(live, known_urls=known, keywords=ctx.names, timeout_min=10,
+                                        is_cancelled=ctx.is_cancelled)
+        items += crawled
     new = kept = 0
     skipped: List[UpdateOne] = []
     now = datetime.now(timezone.utc)
@@ -183,8 +203,8 @@ def industry_news(ctx: StepContext) -> StepResult:
                 "reason": "Does not mention the asset", "model": "name-filter", "decided_at": now}}, upsert=True))
     if skipped:
         db.crawl_ledger.bulk_write(skipped, ordered=False)
-    return {"spiders": len(summary), "articles_seen": len(items), "mentioning_asset": kept, "articles_new": new,
-            "spider_errors": sum(s["errors"] for s in summary)}
+    return {"spiders": len(spiders), "from_corpus": len(from_corpus), "articles_seen": len(items),
+            "mentioning_asset": kept, "articles_new": new, "spider_errors": sum(s["errors"] for s in summary)}
 
 
 def conferences(ctx: StepContext) -> StepResult:
@@ -290,7 +310,7 @@ STEPS = {"regulatory": regulatory, "fda_calendar": fda_calendar, "ema_chmp": ema
          "finalize": finalize}
 
 LABELS = {
-    "regulatory": "Regulatory (FDA, EMA)",
+    "regulatory": "Regulatory (FDA, EMA reports)",
     "fda_calendar": "FDA calendar (PDUFA dates, advisory committees)",
     "ema_chmp": "EMA CHMP opinions (monthly meeting highlights)",
     "clinical": "Clinical trials (ClinicalTrials.gov)",
