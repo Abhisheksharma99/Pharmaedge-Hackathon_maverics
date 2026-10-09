@@ -37,7 +37,24 @@ export class RefreshDto {
   steps?: string[];
 }
 
+export class FeedQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  since = 0;
+}
+
 const toJob = ({ _id, ...job }: Record<string, unknown>) => ({ id: _id, ...job });
+
+/** Live-build view of a job (DATA_CONTRACTS §A JobProgress). */
+const toProgress = (job: Record<string, unknown>) => ({
+  ...toJob(job),
+  records: Object.entries((job.records_by_coll as Record<string, number> | undefined) ?? {}).map(([coll, count]) => ({ coll, count })),
+  events_created: (job.events_created as number | undefined) ?? 0,
+  feed_cursor: (job.feed_cursor as number | undefined) ?? 0,
+  record_years: (job.record_years as unknown[] | undefined) ?? [],
+});
 
 @Controller()
 export class JobsController {
@@ -78,7 +95,21 @@ export class JobsController {
     const job = await this.db.collection('jobs').findOne({ _id: id as never });
     if (!job) throw new NotFoundException({ code: 'JOB_NOT_FOUND', message: 'Job not found' });
     const asset = await this.db.collection('assets').findOne({ _id: job.asset }, { projection: { name: 1 } });
-    return { ...toJob(job), assetName: (asset?.name as string | undefined) ?? job.asset };
+    return { ...toProgress(job), assetName: (asset?.name as string | undefined) ?? job.asset };
+  }
+
+  /** Live-build log lines after `since` (poll every 2 s while the job runs). */
+  @Get('jobs/:id/feed')
+  async feed(@Param('id') id: string, @Query() query: FeedQueryDto) {
+    const job = await this.db.collection('jobs').findOne({ _id: id as never }, { projection: { _id: 1 } });
+    if (!job) throw new NotFoundException({ code: 'JOB_NOT_FOUND', message: 'Job not found' });
+    const items = await this.db
+      .collection('job_feed')
+      .find({ job: id, id: { $gt: query.since } }, { projection: { _id: 0, job: 0 } })
+      .sort({ id: 1 })
+      .limit(500)
+      .toArray();
+    return { items, cursor: Math.max(query.since, ...items.map((i) => i.id as number)) };
   }
 
   @Post('jobs/:id/cancel')

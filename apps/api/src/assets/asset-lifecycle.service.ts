@@ -4,6 +4,7 @@ import type { AuthUser } from '../auth/auth.types.js';
 import { addMessage, findSession } from '../chat/chat.store.js';
 import { MONGO_DB } from '../database/database.module.js';
 import { CrawlerClient } from '../jobs/crawler.client.js';
+import { NotificationsService } from '../me/notifications.service.js';
 import { CacheService } from '../valkey/cache.service.js';
 import { AssetsService, slug, type AssetDoc } from './assets.service.js';
 import type { CreateAssetDto } from './dto/create-asset.dto.js';
@@ -32,6 +33,7 @@ export class AssetLifecycleService {
     private readonly assets: AssetsService,
     private readonly crawler: CrawlerClient,
     private readonly cache: CacheService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async create(dto: CreateAssetDto, user: AuthUser) {
@@ -75,6 +77,9 @@ export class AssetLifecycleService {
       throw err;
     }
     await Promise.all([this.cache.bump('assets:ver'), this.cache.bump(`asset:${id}:ver`)]);
+    await this.notifications
+      .push('crawls', 'onboarding_started', `Building the ${dto.name} journey`, 'Collecting data from 12 sources', `/assets/${encodeURIComponent(id)}/overview`)
+      .catch((err: Error) => this.logger.warn(`onboarding notification: ${err.message}`));
     if (session) {
       await addMessage(this.db, session, {
         role: 'assistant',
@@ -97,6 +102,10 @@ export class AssetLifecycleService {
       this.db.collection('journey_events').deleteMany({ asset: id }),
       this.db.collection('crawl_ledger').deleteMany({ asset: id }),
       ...RECORD_COLLECTIONS.map((c) => this.db.collection(c).updateMany({ assets: id }, { $pull: { assets: id } as never })),
+      ...['asset_branches', 'event_stars', 'event_comments', 'journey_notes', 'analytics_pins', 'asset_analytics', 'crawl_feedback'].map((c) =>
+        this.db.collection(c).deleteMany({ asset: id }),
+      ),
+      this.db.collection('web_records').updateMany({ assets: id }, { $pull: { assets: id } as never }),
       this.db.collection('assets').updateMany({}, { $pull: { competitors: { id }, competitor_of: id } as never }),
       this.db.collection('chat_sessions').updateMany({ asset_id: id }, { $set: { asset_id: null } }),
     ]);

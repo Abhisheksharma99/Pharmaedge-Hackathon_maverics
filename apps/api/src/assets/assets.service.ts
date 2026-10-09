@@ -4,7 +4,8 @@ import type { Db, Document } from 'mongodb';
 import { MONGO_DB } from '../database/database.module.js';
 import { CacheService } from '../valkey/cache.service.js';
 import type { RecordsQueryDto, TimelineQueryDto } from './dto/asset-queries.dto.js';
-import { SOURCE_TABS, type SourceTab } from './source-registry.js';
+import { noteToEvent, toEventV3, type NoteDoc } from '../journey/events.js';
+import { SOURCE_TABS, listOmit, type SourceTab } from './source-registry.js';
 
 const CACHE_TTL_SECONDS = 3600;
 const ACTIVE_TRIAL_STATUSES = ['RECRUITING', 'ACTIVE_NOT_RECRUITING', 'NOT_YET_RECRUITING', 'ENROLLING_BY_INVITATION'];
@@ -81,9 +82,8 @@ export class AssetsService {
   }
 
   private tab(name: string): SourceTab {
-    const tab = SOURCE_TABS[name];
-    if (!tab) throw new NotFoundException({ code: 'TAB_NOT_FOUND', message: `No tab "${name}"` });
-    return tab;
+    if (!Object.hasOwn(SOURCE_TABS, name)) throw new NotFoundException({ code: 'TAB_NOT_FOUND', message: `No tab "${name}"` });
+    return SOURCE_TABS[name]!;
   }
 
   private async counts(id: string) {
@@ -159,8 +159,9 @@ export class AssetsService {
     });
   }
 
-  timeline(id: string, query: TimelineQueryDto) {
-    return this.cached(id, 'timeline', query, async () => {
+  async timeline(id: string, query: TimelineQueryDto) {
+    const { include, ...cacheable } = query;
+    const base = await this.cached(id, 'timeline:v3', cacheable, async () => {
       await this.getAsset(id);
       const match: Document = { asset: id };
       if (query.category?.length) match.category = { $in: query.category };
@@ -169,14 +170,23 @@ export class AssetsService {
       if (query.milestones === 'exclude') match.is_milestone = false;
       if (query.from || query.to) match.date = { ...(query.from && { $gte: query.from }), ...(query.to && { $lte: query.to }) };
       if (query.companyOnly) match.$or = [{ category: { $ne: 'clinical' } }, { sponsor_is_company: true }];
+      if (query.scope === 'key') match.key = true;
+      if (query.branch?.length) match.branch = { $in: query.branch };
       const sort = query.milestones === 'only' ? { date: 1 as const } : { date: -1 as const };
       const coll = this.db.collection('journey_events');
-      const [events, total] = await Promise.all([
-        coll.find(match, { projection: { updated_at: 0 } }).sort(sort).limit(query.limit).toArray(),
-        coll.countDocuments(match),
-      ]);
-      return { events: events.map(({ _id, ...e }) => ({ id: _id, ...e })), total };
+      const [events, total] = await Promise.all([coll.find(match).sort(sort).limit(query.limit).toArray(), coll.countDocuments(match)]);
+      return { events: events.map(toEventV3), total };
     });
+    if (!include?.includes('notes')) return base;
+    // Notes change often and per team: merged outside the cache.
+    const noteMatch: Document = { asset: id };
+    if (query.category?.length) noteMatch.category = { $in: query.category };
+    if (query.branch?.length) noteMatch.branch = { $in: query.branch };
+    if (query.from || query.to) noteMatch.date = { ...(query.from && { $gte: query.from }), ...(query.to && { $lte: query.to }) };
+    const notes = (await this.db.collection<NoteDoc>('journey_notes').find(noteMatch).toArray()).map((n) => noteToEvent(n));
+    const asc = query.milestones === 'only';
+    const events = [...base.events, ...notes].sort((a, b) => (asc ? 1 : -1) * String(a.date).localeCompare(String(b.date)));
+    return { events, total: base.total + notes.length };
   }
 
   records(id: string, tabName: string, query: RecordsQueryDto) {
@@ -194,7 +204,7 @@ export class AssetsService {
       if (query.mentionsOnly) match.mentions = { $exists: true, $ne: [] };
 
       const [first, ...others] = tab.collections;
-      const omit = Object.fromEntries([...tab.omitInList, '_id'].map((f) => [f, 0]));
+      const omit = listOmit(tab);
       const [result] = await this.db
         .collection(first!)
         .aggregate([

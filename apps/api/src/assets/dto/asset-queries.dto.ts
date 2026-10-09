@@ -38,11 +38,29 @@ export class TimelineQueryDto {
   @Matches(ISO_DATE)
   to?: string;
 
+  /** key = the curated key events (spec §4.1); all (default) = everything. */
+  @IsOptional()
+  @IsIn(['key', 'all'])
+  scope?: 'key' | 'all';
+
+  /** notes = merge the team's notes (via 'user'). */
+  @IsOptional()
+  @Transform(csv)
+  @IsArray()
+  @IsIn(['notes'], { each: true })
+  include?: string[];
+
+  @IsOptional()
+  @Transform(csv)
+  @IsArray()
+  @IsString({ each: true })
+  branch?: string[];
+
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(1000)
+  @Max(5000)
   limit = 500;
 }
 

@@ -31,9 +31,9 @@ export async function createTestApp(env: Record<string, string> = {}): Promise<T
     ...env,
   });
   const { AppModule } = await import('../../src/app.module.js');
-  const { configureApp } = await import('../../src/app.setup.js');
+  const { configureApp, FASTIFY_OPTIONS } = await import('../../src/app.setup.js');
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
-  const app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
+  const app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter(FASTIFY_OPTIONS));
   await configureApp(app);
   await app.init();
   await app.getHttpAdapter().getInstance().ready();

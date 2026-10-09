@@ -168,6 +168,7 @@ describe('adding and removing assets', () => {
     const asset = await db.collection('assets').findOne({ _id: 'macitentan' as any });
     expect(asset).toMatchObject({ aliases: ['Winrevair', 'Sotatercept', 'MK-7962'], company: { name: 'Merck', website: 'https://www.merck.com' } });
     expect(asset!.company.ir_url).toBeUndefined();
+    expect(await db.collection('notifications').countDocuments({ kind: 'onboarding_started' })).toBeGreaterThan(0);
     const messages = (await req('GET', `/api/chat/sessions/${session.id}/messages`)).json();
     expect(messages[0].cards[0]).toMatchObject({ type: 'job', jobId: 'job-1', assetId: 'macitentan', assetName: 'Macitentan' });
     // It shows up in the asset list straight away.

@@ -227,3 +227,19 @@ describe('caching', () => {
     expect(after.map((a: { id: string }) => a.id)).toEqual(['aaa-new', A]);
   });
 });
+
+describe('v3 lifecycle', () => {
+  const V3_COLLECTIONS = ['asset_branches', 'event_stars', 'event_comments', 'journey_notes', 'analytics_pins', 'asset_analytics', 'crawl_feedback'];
+
+  it('removes v3 data with the asset', async () => {
+    await db.collection('assets').insertOne({ _id: 'gone' as any, name: 'Gone', kind: 'primary', status: 'ready', company: { name: 'X' }, tags: {} });
+    for (const coll of V3_COLLECTIONS) await db.collection(coll).insertOne({ asset: 'gone' });
+    await db.collection('web_records').insertOne({ key: 'w1', assets: ['gone', 'other'] });
+    const res = await ctx.app.inject({ method: 'DELETE', url: '/api/assets/gone', cookies });
+    expect(res.statusCode).toBe(204);
+    for (const coll of V3_COLLECTIONS) {
+      expect(await db.collection(coll).countDocuments({ asset: 'gone' })).toBe(0);
+    }
+    expect((await db.collection('web_records').findOne({ key: 'w1' }))!.assets).toEqual(['other']);
+  });
+});

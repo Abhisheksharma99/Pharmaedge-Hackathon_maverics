@@ -141,3 +141,29 @@ describe('jobs', () => {
     expect((await ctx.app.inject({ method: 'POST', url: '/api/assets/trep/refresh' })).statusCode).toBe(401);
   });
 });
+
+describe('live build progress', () => {
+  beforeAll(async () => {
+    const db = ctx.app.get<Db>(MONGO_DB);
+    await db.collection('jobs').updateOne({ _id: 'new' as never }, { $set: { records_by_coll: { fda_records: 44, ema_records: 12 }, events_created: 7, feed_cursor: 3, record_years: [{ coll: 'fda_records', year: 2021, n: 4 }] } });
+    await db.collection('job_feed').insertMany([1, 2, 3].map((id) => ({ job: 'new', id, t: new Date(), step: 'regulatory', kind: 'info', text: `line ${id}` })));
+  });
+
+  it('reports records per collection and events created', async () => {
+    const job = (await req('GET', '/api/jobs/new')).json();
+    expect(job.records).toEqual([{ coll: 'fda_records', count: 44 }, { coll: 'ema_records', count: 12 }]);
+    expect(job).toMatchObject({ events_created: 7, feed_cursor: 3, record_years: [{ coll: 'fda_records', year: 2021, n: 4 }] });
+    expect((await req('GET', '/api/jobs/old')).json()).toMatchObject({ records: [], events_created: 0, feed_cursor: 0, record_years: [] });
+  });
+
+  it('pages the feed by cursor and never moves the cursor back', async () => {
+    const first = (await req('GET', '/api/jobs/new/feed')).json();
+    expect(first.items.map((i: { text: string }) => i.text)).toEqual(['line 1', 'line 2', 'line 3']);
+    expect(first.cursor).toBe(3);
+    expect(first.items[0]).not.toHaveProperty('_id');
+    const next = (await req('GET', '/api/jobs/new/feed?since=2')).json();
+    expect(next.items.map((i: { id: number }) => i.id)).toEqual([3]);
+    expect((await req('GET', '/api/jobs/new/feed?since=3')).json()).toEqual({ items: [], cursor: 3 });
+    expect((await req('GET', '/api/jobs/missing/feed')).statusCode).toBe(404);
+  });
+});

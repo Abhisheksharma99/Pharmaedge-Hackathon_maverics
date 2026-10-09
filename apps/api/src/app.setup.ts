@@ -4,6 +4,13 @@ import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
 
+/**
+ * Fastify adapter options shared by main.ts and the e2e tests. trustProxy: nginx sits in front, so the client IP
+ * (login rate limit) comes from X-Forwarded-For. maxParamLength: event ids embed source URLs and exceed the 100-char
+ * router default (longer params get a 414 before Nest runs).
+ */
+export const FASTIFY_OPTIONS = { trustProxy: true, routerOptions: { maxParamLength: 2048 } };
+
 /** Everything main.ts and the e2e tests both need, so tests run the real app. */
 export async function configureApp(app: NestFastifyApplication): Promise<void> {
   await app.register(fastifyCookie);

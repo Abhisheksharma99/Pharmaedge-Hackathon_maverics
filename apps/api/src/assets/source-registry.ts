@@ -20,6 +20,8 @@ export interface SourceTab {
   keyField: string;
   /** Field the `status` filter applies to (default `overall_status`, the trial status). */
   statusField?: string;
+  /** Fields whose top values the tab insights count. */
+  insightFacets: string[];
 }
 
 export const SOURCE_TABS: Record<string, SourceTab> = {
@@ -28,6 +30,7 @@ export const SOURCE_TABS: Record<string, SourceTab> = {
     searchFields: ['title', 'official_title', 'acronym', 'nct_id', 'lead_sponsor'],
     omitInList: ['study'],
     keyField: 'record_key',
+    insightFacets: ['phases', 'overall_status', 'conditions'],
   },
   regulatory: {
     collections: ['fda_records', 'ema_records'],
@@ -36,6 +39,7 @@ export const SOURCE_TABS: Record<string, SourceTab> = {
     searchFields: ['name_of_medicine', 'brand_names', 'application_number', 'submission_class', 'record_type', 'title'],
     omitInList: ['documents', 'products', 'therapeutic_indication', 'content', 'evidence'],
     keyField: 'record_key',
+    insightFacets: ['record_type', 'submission_status'],
   },
   documents: {
     collections: ['company_records'],
@@ -43,6 +47,7 @@ export const SOURCE_TABS: Record<string, SourceTab> = {
     searchFields: ['title', 'url'],
     omitInList: ['content'],
     keyField: 'record_key',
+    insightFacets: ['record_type'],
   },
   'company-ir': {
     collections: ['company_records'],
@@ -50,18 +55,21 @@ export const SOURCE_TABS: Record<string, SourceTab> = {
     searchFields: ['title'],
     omitInList: ['content'],
     keyField: 'record_key',
+    insightFacets: ['mentions'],
   },
   news: {
     collections: ['articles'],
     searchFields: ['title', 'company', 'keyword'],
     omitInList: ['content', 'feed_description'],
     keyField: 'url',
+    insightFacets: ['source'],
   },
   publications: {
     collections: ['publication_records'],
     searchFields: ['title', 'journal', 'authors'],
     omitInList: ['abstract'],
     keyField: 'record_key',
+    insightFacets: ['journal', 'publication_types'],
   },
   // Team conference crawler (ERS, ATS, CHEST abstracts).
   conferences: {
@@ -69,6 +77,7 @@ export const SOURCE_TABS: Record<string, SourceTab> = {
     searchFields: ['title', 'conference', 'session_title', 'category', 'authors'],
     omitInList: ['abstract'],
     keyField: 'record_key',
+    insightFacets: ['conference', 'session_type'],
   },
   // Team patent crawler (AdisInsight, PubChem, Google Patents).
   patents: {
@@ -76,6 +85,13 @@ export const SOURCE_TABS: Record<string, SourceTab> = {
     searchFields: ['title', 'publication_number', 'assignees', 'family_id'],
     omitInList: ['abstract', 'events', 'cpc', 'inventors'],
     keyField: 'record_key',
+    insightFacets: ['legal_status', 'assignees'],
     statusField: 'legal_status',
   },
 };
+
+/** Every record collection some tab reads; the only valid sources of a note. */
+export const RECORD_COLLECTIONS = [...new Set(Object.values(SOURCE_TABS).flatMap((t) => t.collections))];
+
+/** Mongo exclusion projection of what a list response leaves out for a tab (heavy fields and `_id`). */
+export const listOmit = (tab: SourceTab): Record<string, 0> => Object.fromEntries([...tab.omitInList, '_id'].map((f) => [f, 0]));
