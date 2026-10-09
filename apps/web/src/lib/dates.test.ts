@@ -50,6 +50,10 @@ describe('relativeFuture', () => {
     expect(relativeFuture('2027-07-09', today)).toBe('in 9 months')
     expect(relativeFuture('2028-05-30', today)).toBe('in 1.6 years')
   })
+  it('uses the singular for one month', () => {
+    expect(relativeFuture('2026-11-23', today)).toBe('in 1 month')
+    expect(relativeFuture('2026-08-25', today)).toBe('1 month ago')
+  })
   it('handles today and past dates', () => {
     expect(relativeFuture(today, today)).toBe('today')
     expect(relativeFuture('2026-09-29', today)).toBe('10 days ago')

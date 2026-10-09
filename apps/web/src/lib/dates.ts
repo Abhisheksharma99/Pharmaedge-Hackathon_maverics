@@ -49,7 +49,7 @@ export function relativeFuture(iso: string, today: string = todayIso()): string 
   if (days === 0) return 'today'
   const n = Math.abs(days)
   const months = Math.round(n / 30.4)
-  const span = n < 45 ? `${n} day${n === 1 ? '' : 's'}` : months < 18 ? `${months} months` : `${(n / 365).toFixed(1)} years`
+  const span = n < 45 ? `${n} day${n === 1 ? '' : 's'}` : months < 18 ? `${months} month${months === 1 ? '' : 's'}` : `${(n / 365).toFixed(1)} years`
   return days > 0 ? `in ${span}` : `${span} ago`
 }
 

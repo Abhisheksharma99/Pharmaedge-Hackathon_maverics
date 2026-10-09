@@ -28,7 +28,9 @@ export function StackBars({
   const W = Math.max(useElementWidth(ref), 260)
   const [hover, setHover] = useState<number | null>(null)
   const totals = cols.map((_, i) => series.reduce((s, x) => s + (x.vals[i] ?? 0), 0))
-  const max = Math.max(1, ...totals)
+  const top = Math.max(0, ...totals)
+  // Whole, evenly spaced ticks: the axis tops out at the next multiple of 4.
+  const max = top === 0 ? 4 : Math.ceil(top / 4) * 4
   const cw = (W - 30) / Math.max(1, cols.length)
   const bw = Math.max(3, Math.min(26, cw - 3))
   return (
@@ -43,9 +45,11 @@ export function StackBars({
         {[0.25, 0.5, 0.75, 1].map((f) => (
           <g key={f}>
             <line x1={26} x2={W} y1={h - h * f + 4} y2={h - h * f + 4} stroke="#eef0f3" />
-            <text x={22} y={h - h * f + 8} textAnchor="end" className="fill-muted-foreground font-mono text-[10.5px]">
-              {Math.round(max * f)}
-            </text>
+            {top > 0 && (
+              <text x={22} y={h - h * f + 8} textAnchor="end" className="fill-muted-foreground font-mono text-[10.5px]">
+                {max * f}
+              </text>
+            )}
           </g>
         ))}
         {cols.map((c, i) => {

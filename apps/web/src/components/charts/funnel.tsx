@@ -3,9 +3,9 @@ import type { Slice } from './donut'
 
 const rate = (v: number, prev: number) => (prev > 0 ? `${Math.round((v / prev) * 100)}%` : '—')
 
-/** Funnel (AI triage): each bar sized against the first step; labels stay visible beside the 62% track. */
+/** Funnel (AI triage): bars sized against the largest step; labels stay visible beside the 62% track. */
 export function Funnel({ steps }: { steps: Slice[] }) {
-  const max = steps[0]?.v || 1
+  const max = Math.max(1, ...steps.map((s) => s.v))
   return (
     <ol className="flex flex-col gap-1.5">
       {steps.map((s, i) => (
@@ -13,7 +13,7 @@ export function Funnel({ steps }: { steps: Slice[] }) {
           <span className="flex">
             <span
               className="flex h-6 min-w-9 origin-left animate-grow-x items-center rounded-md px-2 text-xs text-white"
-              style={{ width: `${Math.max(8, (s.v / max) * 100)}%`, background: s.c, animationDelay: `${i * 80}ms` }}
+              style={{ width: `${Math.min(100, Math.max(8, (s.v / max) * 100))}%`, background: s.c, animationDelay: `${i * 80}ms` }}
             >
               <b className="font-mono font-semibold">{formatNumber(s.v)}</b>
             </span>

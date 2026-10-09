@@ -36,6 +36,7 @@ export function Gantt({ rows, from, to, today = todayIso() }: { rows: GanttRow[]
         </div>
       </div>
       {rows.map((r, i) => {
+        const known = Number.isFinite(r.s) && Number.isFinite(r.e)
         const left = pct(Math.min(r.s, r.e))
         const width = Math.max(0.8, pct(Math.max(r.s, r.e)) - left)
         return (
@@ -48,26 +49,29 @@ export function Gantt({ rows, from, to, today = todayIso() }: { rows: GanttRow[]
               {ticks.map((y) => (
                 <i key={y} className="absolute inset-y-0 border-l border-[#f2f4f7]" style={{ left: `${pct(y)}%` }} />
               ))}
-              <span
-                title={r.tip}
-                className={cn(
-                  'absolute top-2.5 flex h-3.5 min-w-1.5 origin-left animate-grow-x items-center justify-end rounded border-[1.5px]',
-                  r.dash && 'border-dashed',
-                )}
-                style={{
-                  left: `${left}%`,
-                  width: `${Math.min(width, 100 - left)}%`,
-                  background: r.dash ? 'transparent' : r.c,
-                  borderColor: r.c,
-                  animationDelay: `${i * 35}ms`,
-                }}
-              >
-                {r.tag && (
-                  <em className={cn('px-1 text-[9.5px] font-bold whitespace-nowrap not-italic', r.dash ? 'text-destructive' : 'text-white')}>
-                    {r.tag}
-                  </em>
-                )}
-              </span>
+              {!known && <span className="absolute top-2.5 text-[10.5px] text-muted-foreground">Dates unknown</span>}
+              {known && (
+                <span
+                  title={r.tip}
+                  className={cn(
+                    'absolute top-2.5 flex h-3.5 min-w-1.5 origin-left animate-grow-x items-center justify-end rounded border-[1.5px]',
+                    r.dash && 'border-dashed',
+                  )}
+                  style={{
+                    left: `${left}%`,
+                    width: `${Math.min(width, 100 - left)}%`,
+                    background: r.dash ? 'transparent' : r.c,
+                    borderColor: r.c,
+                    animationDelay: `${i * 35}ms`,
+                  }}
+                >
+                  {r.tag && (
+                    <em className={cn('px-1 text-[9.5px] font-bold whitespace-nowrap not-italic', r.dash ? 'text-destructive' : 'text-white')}>
+                      {r.tag}
+                    </em>
+                  )}
+                </span>
+              )}
             </div>
           </div>
         )

@@ -228,3 +228,48 @@ describe('TermBar', () => {
     expect(container.innerHTML).not.toMatch(/NaN|Infinity/)
   })
 })
+
+describe('review fixes: geometry guards', () => {
+  const pct = (el: HTMLElement, prop: 'left' | 'width') => parseFloat(el.style[prop])
+
+  it('Funnel bars never exceed their track, even when a later step is larger or the first is 0', () => {
+    const { rerender } = render(<Funnel steps={[{ l: 'a', v: 10, c: '#000' }, { l: 'b', v: 40, c: '#111' }]} />)
+    const widths = () => screen.getAllByRole('listitem').map((li) => pct(li.querySelector('span > span') as HTMLElement, 'width'))
+    expect(widths().every((w) => Number.isFinite(w) && w > 0 && w <= 100)).toBe(true)
+    rerender(<Funnel steps={[{ l: 'a', v: 0, c: '#000' }, { l: 'b', v: 0, c: '#111' }, { l: 'c', v: 12, c: '#222' }]} />)
+    expect(widths().every((w) => Number.isFinite(w) && w > 0 && w <= 100)).toBe(true)
+  })
+
+  it('Gantt skips the bar of a row whose dates are unknown', () => {
+    render(<Gantt rows={[{ l: 'pending', s: 2020, e: Number.NaN, c: '#6941c6', tag: 'P' }, { l: 'ok', s: 2010, e: 2015, c: '#000', tag: 'K' }]} from={2000} to={2030} today="2026-10-09" />)
+    expect(screen.getByText('pending')).toBeInTheDocument()
+    expect(screen.queryByText('P')).not.toBeInTheDocument()
+    expect(screen.getByText('Dates unknown')).toBeInTheDocument()
+    const bar = screen.getByText('K').parentElement as HTMLElement
+    expect(pct(bar, 'left')).toBeCloseTo(33.33, 1)
+    expect(pct(bar, 'width')).toBeCloseTo(16.67, 1)
+  })
+
+  it('TermBar with a missing date shows only its label', () => {
+    render(<TermBar start="2021-06-01" end="" label="Phase 3 · n=576" color="#2347d9" today="2026-10-09" />)
+    expect(screen.getByText('Phase 3 · n=576')).toBeInTheDocument()
+    expect(screen.queryByText('Today')).not.toBeInTheDocument()
+  })
+
+  it('TermBar positions are finite numbers inside the track', () => {
+    const { container } = render(<TermBar start="2021-06-01" end="2021-06-01" label="x" color="#2347d9" today="2026-10-09" />)
+    for (const el of container.querySelectorAll<HTMLElement>('[style*="left"]')) {
+      expect(Number.isFinite(pct(el, 'left'))).toBe(true)
+    }
+  })
+
+  it('StackBars ticks are whole, evenly spaced numbers for small counts and absent without data', () => {
+    const ticks = (c: HTMLElement) => [...c.querySelectorAll('svg > g')].slice(0, 4).map((g) => g.querySelector('text')?.textContent)
+    const { container, rerender } = render(<StackBars cols={[2024, 2025]} series={[{ k: 'a', l: 'A', c: '#000', vals: [1, 0] }]} />)
+    expect(ticks(container)).toEqual(['1', '2', '3', '4'])
+    rerender(<StackBars cols={[2024, 2025]} series={[{ k: 'a', l: 'A', c: '#000', vals: [5, 2] }]} />)
+    expect(ticks(container)).toEqual(['2', '4', '6', '8'])
+    rerender(<StackBars cols={[2024, 2025]} series={[{ k: 'a', l: 'A', c: '#000', vals: [0, 0] }]} />)
+    expect(container.querySelectorAll('svg > g text').length).toBe(0 + 2) // only the two column labels
+  })
+})

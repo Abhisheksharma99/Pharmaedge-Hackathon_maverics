@@ -17,6 +17,15 @@ export function TermBar({
   const t0 = yearFraction(start)
   const t1 = yearFraction(end)
   const now = yearFraction(today)
+  if (!Number.isFinite(t0) || !Number.isFinite(t1)) {
+    return (
+      <div className="flex justify-between font-mono text-[11px] text-muted-foreground">
+        <span>{start || '—'}</span>
+        <span>{label}</span>
+        <span>{end || '—'}</span>
+      </div>
+    )
+  }
   const lo = Math.min(t0, now) - 0.5
   const hi = Math.max(t1, now) + 0.5
   const pct = (v: number) => ((v - lo) / (hi - lo)) * 100
