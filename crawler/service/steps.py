@@ -17,7 +17,9 @@ from ai import llm
 from ai.events import consolidate, extract_events
 from ai.index import index_asset
 from ai.triage import ledger_id, triage_entries, triage_stored
+from integrations import chmp
 from integrations import conferences as conference_corpus
+from integrations import fda_calendar as fda_calendar_source
 from integrations import newsroom
 from integrations import patents as patent_crawler
 from journey.rules import build_rule_events
@@ -35,6 +37,24 @@ def regulatory(ctx: StepContext) -> StepResult:
     ema_counts = upsert_records("ema_records", ema.fetch_all(ctx.names), ctx.asset_id)
     return {"fda_new": fda_counts["inserted"], "fda_updated": fda_counts["updated"],
             "ema_new": ema_counts["inserted"], "ema_updated": ema_counts["updated"]}
+
+
+async def fda_calendar(ctx: StepContext) -> StepResult:
+    """PDUFA dates and advisory committee meetings naming the asset (team crawler patent_intel/fdacal.py)."""
+    records, report = await fda_calendar_source.fetch(ctx.asset, ctx.names)
+    counts = upsert_records("fda_records", records, ctx.asset_id)
+    return {"events": len(records), "events_new": counts["inserted"], "unresolved": report["unresolved"],
+            "blocked_hosts": len(report["blocked_hosts"])}
+
+
+def ema_chmp(ctx: StepContext) -> StepResult:
+    """CHMP opinions and meeting highlights naming the asset (team crawler ema/chmp_highlights.py). The meetings
+    corpus is refreshed at most daily, by whichever job gets there first."""
+    db = get_db()
+    refresh = chmp.refresh_corpus(db)
+    records = list(chmp.fetch(db, ctx.names))
+    counts = upsert_records("ema_records", records, ctx.asset_id)
+    return {**refresh, **Counter(r["record_type"] for r in records), "new": counts["inserted"]}
 
 
 def clinical(ctx: StepContext) -> StepResult:
@@ -229,7 +249,8 @@ async def competitors(ctx: StepContext) -> StepResult:
 
 
 # How the next milestone reads in a question ("... next trial readout")
-MILESTONE_WORDS = {"expected_readout": "trial readout", "regulatory_decision_expected": "regulatory decision"}
+MILESTONE_WORDS = {"expected_readout": "trial readout", "regulatory_decision_expected": "regulatory decision",
+                   "advisory_committee": "FDA advisory committee meeting"}
 
 
 def suggested_questions(db, asset: Dict[str, Any]) -> List[str]:
@@ -262,13 +283,15 @@ def finalize(ctx: StepContext) -> StepResult:
     return {**counts, "suggested_questions": len(questions)}
 
 
-STEPS = {"regulatory": regulatory, "clinical": clinical, "publications": publications, "conferences": conferences,
-         "patents": patents, "company_site": company_site, "company_news": company_news, "news": news,
+STEPS = {"regulatory": regulatory, "fda_calendar": fda_calendar, "ema_chmp": ema_chmp, "clinical": clinical,
+         "publications": publications, "conferences": conferences, "patents": patents, "company_site": company_site, "company_news": company_news, "news": news,
          "industry_news": industry_news, "journey": journey, "ai_triage": ai_triage, "ai_events": ai_events,
          "index": index, "competitors": competitors, "finalize": finalize}
 
 LABELS = {
     "regulatory": "Regulatory (FDA, EMA)",
+    "fda_calendar": "FDA calendar (PDUFA dates, advisory committees)",
+    "ema_chmp": "EMA CHMP opinions (monthly meeting highlights)",
     "clinical": "Clinical trials (ClinicalTrials.gov)",
     "publications": "Publications (PubMed)",
     "conferences": "Conference abstracts (ERS, ATS, CHEST)",
@@ -291,15 +314,17 @@ def _plan(*names: str) -> List[Dict[str, str]]:
 
 
 # Acquisition first, then the journey built from what was found. Onboarding runs the fast sources first so the
-# asset page fills progressively (patents take ~10 min, so they run after competitors). Competitor jobs are light:
+# asset page fills progressively (patents take ~10 min, and the FDA calendar reads every event's source document
+# until its cache is warm, so both run after competitors; finalize puts their events in the journey). ema_chmp
+# runs before ai_triage / ai_events, which extract events from its records. Competitor jobs are light:
 # no company site, newsroom, industry news or patents, and no competitors of their own.
 PLANS: Dict[str, List[Dict[str, str]]] = {
-    "refresh": _plan("regulatory", "clinical", "publications", "conferences", "patents", "company_site",
+    "refresh": _plan("regulatory", "fda_calendar", "ema_chmp", "clinical", "publications", "conferences", "patents",
+                     "company_site", "company_news", "news", "industry_news", "journey", "ai_triage", "ai_events",
+                     "index", "competitors", "finalize"),
+    "onboard": _plan("regulatory", "ema_chmp", "clinical", "publications", "conferences", "company_site",
                      "company_news", "news", "industry_news", "journey", "ai_triage", "ai_events", "index",
-                     "competitors", "finalize"),
-    "onboard": _plan("regulatory", "clinical", "publications", "conferences", "company_site", "company_news", "news",
-                     "industry_news", "journey", "ai_triage", "ai_events", "index", "competitors", "patents",
-                     "finalize"),
-    "competitor": _plan("regulatory", "clinical", "publications", "conferences", "news", "patents", "journey",
-                        "ai_triage", "ai_events", "index", "finalize"),
+                     "competitors", "fda_calendar", "patents", "finalize"),
+    "competitor": _plan("regulatory", "fda_calendar", "ema_chmp", "clinical", "publications", "conferences", "news",
+                        "patents", "journey", "ai_triage", "ai_events", "index", "finalize"),
 }

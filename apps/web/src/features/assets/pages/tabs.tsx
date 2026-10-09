@@ -17,11 +17,14 @@ import { useAssetContext } from './asset-layout'
 export const RECORD_TYPE_LABEL: Record<string, string> = {
   fda_submission: 'FDA submission',
   fda_recall: 'FDA recall',
+  fda_calendar_event: 'FDA calendar (PDUFA / AdCom)',
   ema_epar: 'EMA medicine (EPAR)',
   ema_post_authorisation: 'EMA post-authorisation',
   ema_orphan_designation: 'EMA orphan designation',
   ema_dhpc: 'EMA safety communication',
   ema_referral: 'EMA referral',
+  ema_chmp_opinion: 'CHMP opinion',
+  ema_chmp_highlight: 'CHMP meeting highlights',
   prescribing_info: 'Prescribing information',
   annual_report: 'Annual report',
   company_document: 'Company document',
@@ -169,10 +172,12 @@ export function RegulatoryTab() {
             options={[
               ['fda_submission', 'FDA submissions'],
               ['fda_recall', 'FDA recalls'],
+              ['fda_calendar_event', 'FDA calendar (PDUFA, AdCom)'],
               ['ema_epar', 'EMA medicines'],
               ['ema_post_authorisation', 'EMA post-authorisation'],
               ['ema_orphan_designation', 'EMA orphan designations'],
               ['ema_dhpc,ema_referral', 'EMA safety & referrals'],
+              ['ema_chmp_opinion,ema_chmp_highlight', 'CHMP opinions'],
             ]}
           />
         }

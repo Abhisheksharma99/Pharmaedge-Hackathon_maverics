@@ -141,7 +141,8 @@ async def fetch(asset: Dict[str, Any], names: List[str]) -> Tuple[List[Dict[str,
                              drug_name=None if adis_id else asset["name"],
                              companies=companies,
                              terms=None if adis_id else names, seeds=seeds,
-                             max_pages=MAX_PAGES, probe_budget=PROBE_PAGES)
+                             max_pages=MAX_PAGES, probe_budget=PROBE_PAGES,
+                             fda_calendar=False)  # the fda_calendar step covers it
     finally:
         await http.aclose()
     patents = {p["_id"]: p for p in store.docs.get("patents", [])}

@@ -111,6 +111,8 @@ TRIAGED_SOURCES = {
     "company_records": ("record_key", {"record_type": "press_release"}, "content"),
     "publication_records": ("record_key", {}, "abstract"),
     "conference_records": ("record_key", {}, "abstract"),
+    # EMA CHMP meeting highlights (opinions and narrative), not the structured EMA reports: rules cover those.
+    "ema_records": ("record_key", {"record_type": {"$in": ["ema_chmp_opinion", "ema_chmp_highlight"]}}, "content"),
 }
 
 

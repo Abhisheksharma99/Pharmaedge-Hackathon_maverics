@@ -23,7 +23,9 @@ arq
 # AI ingestion (triage, events, embeddings)
 openai>=3.26
 
-# Team crawlers run as pipeline steps (company_pr/ spiders; patent_intel/ needs httpx + selectolax)
+# Team crawlers run as pipeline steps (company_pr/ spiders; patent_intel/ needs httpx, selectolax and
+# pydantic-settings; ema/ needs curl-cffi, beautifulsoup4, lxml and pypdf, pinned above)
 scrapy>=2.13
 dateparser>=1.2
 httpx>=0.28,<1
+pydantic-settings>=2.10,<3

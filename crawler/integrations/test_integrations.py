@@ -4,7 +4,7 @@ import asyncio
 
 import pytest
 
-from integrations import conferences, newsroom, patents
+from integrations import chmp, conferences, fda_calendar, newsroom, patents
 
 NAMES = ["Treprostinil", "Tyvaso", "Tyvaso DPI"]
 
@@ -118,3 +118,81 @@ def test_patent_search_seeds_are_publication_numbers_and_never_fail(monkeypatch)
     assert "%22Sotatercept%22%20OR%20%22MK-7962%22" in seen["url"]
     monkeypatch.setattr(patents.requests, "get", lambda url, **kw: (_ for _ in ()).throw(ConnectionError()))
     assert patents.search_seeds(["X"]) == []
+
+
+MEETING = {
+    "id": "meeting-highlights-chmp-24-27-june-2024", "url": "https://www.ema.europa.eu/en/news/m",
+    "title": "Meeting highlights from the CHMP 24-27 June 2024", "published_at": "2024-06-28T12:01:00+02:00",
+    "meeting": {"label": "24-27 June 2024", "start_date": "2024-06-24", "end_date": "2024-06-27"},
+    "highlights": [{"heading": "New medicines", "text": "The committee recommended Winrevair (sotatercept) for PAH.\n"
+                                                         "Ozempic got a new indication."}],
+    "outcomes": [
+        {"medicine_name": "Winrevair", "section": "Positive recommendations on new medicines", "opinion": "positive",
+         "procedure": "new_medicine", "inn": None, "common_name": "sotatercept", "company": "Merck Sharp & Dohme B.V.",
+         "therapeutic_indication": "Treatment of pulmonary arterial hypertension in adults",
+         "status": "Pending EC decision", "ema_url": "https://www.ema.europa.eu/en/medicines/human/EPAR/winrevair"},
+        {"medicine_name": "Ozempic", "section": "Extensions", "opinion": "positive",
+         "procedure": "extension_of_indication", "inn": "semaglutide"},
+    ],
+}
+
+
+def test_chmp_opinions_naming_the_asset_become_ema_records():
+    [r] = chmp.to_records(MEETING, chmp.name_regex(["Sotatercept", "Winrevair"]))
+    assert r["record_key"] == ("ema:chmp:meeting-highlights-chmp-24-27-june-2024:"
+                               "positive-recommendations-on-new-medicines:winrevair")
+    assert r["record_type"] == "ema_chmp_opinion" and r["source"] == "ema" and r["date"] == "2024-06-27"
+    assert r["title"] == "CHMP recommends approval of Winrevair (sotatercept)"
+    assert r["mentions"] == ["sotatercept", "Winrevair"] and r["status"] == "Pending EC decision"
+    # Text for AI triage and extraction: this medicine's card and paragraphs, not the rest of the meeting.
+    assert "Treatment of pulmonary arterial hypertension in adults" in r["content"]
+    assert "recommended Winrevair (sotatercept)" in r["content"] and "Ozempic" not in r["content"]
+
+
+def test_chmp_narrative_only_meetings_give_a_highlights_record():
+    old = {**MEETING, "id": "m-2008", "outcomes": [], "meeting": {"label": "May 2008", "end_date": "2008-05-29"}}
+    [r] = chmp.to_records(old, chmp.name_regex(["Ozempic"]))
+    assert r["record_type"] == "ema_chmp_highlight" and r["record_key"] == "ema:chmp:m-2008:highlights"
+    assert r["content"].endswith("Ozempic got a new indication.") and r["date"] == "2008-05-29"
+    assert chmp.to_records(old, chmp.name_regex(["Tyvaso"])) == []
+
+
+def test_chmp_names_match_whole_words_only():
+    rx = chmp.name_regex(["Tyvaso", "ab"])  # names under 3 characters are ignored
+    assert rx.search("Tyvaso DPI") and not rx.search("Tyvasox") and not rx.search("about")
+
+
+def test_fda_calendar_record_uses_the_assets_spelling():
+    event = {"date": "2026-05-24", "event_type": "pdufa", "calendar": "pdufa", "matched_terms": ["tyvaso dpi"],
+             "ticker": "UTHR", "company": "United Therapeutics Corporation", "is_company": True,
+             "title": "UTHR United Therapeutics Corporation PDUFA", "description": "d", "links": [],
+             "evidence": [], "provenance": {"uid": "abc@google.com"}}
+    r = fda_calendar.to_record(event, NAMES)
+    assert r["record_key"] == "fda_calendar:abc@google.com" and r["record_type"] == "fda_calendar_event"
+    assert r["title"] == "PDUFA date: Tyvaso DPI (United Therapeutics Corporation)" and r["drugs"] == ["Tyvaso DPI"]
+    assert r["url"] == "https://www.fdatracker.com/fda-calendar/" and r["sponsor_is_company"] is True
+
+
+def test_fda_calendar_source_links_remember_failures(tmp_path, monkeypatch):
+    calls = []
+
+    async def fetch(self, url, ttl_s, ctype="html", headers=None, attempts=6):
+        calls.append(url)
+        if url.endswith("/wrong-type"):
+            raise ValueError("unexpected content-type 'application/pdf'")
+        return {"/dead": 404, "/busy": 429}.get(url[url.rindex("/"):], 200), "page"
+
+    monkeypatch.setattr(fda_calendar.Http, "get_html", fetch)
+    web = fda_calendar.RemembersFailures(fda_calendar.Cache(tmp_path), public_web=True)
+
+    async def twice(url):
+        return [await web.get_html(url, 60) for _ in range(2)]
+
+    assert asyncio.run(twice("https://x.com/dead")) == [(404, "page"), (404, "")]
+    assert asyncio.run(twice("https://x.com/busy")) == [(429, "page"), (429, "page")]  # rate limits are retried
+    assert asyncio.run(twice("https://x.com/ok")) == [(200, "page"), (200, "page")]  # successes: the crawler's cache
+    for _ in range(2):
+        with pytest.raises(ValueError, match="content-type"):
+            asyncio.run(web.get_html("https://x.com/wrong-type", 60))
+    assert calls == ["https://x.com/dead", "https://x.com/busy", "https://x.com/busy", "https://x.com/ok",
+                     "https://x.com/ok", "https://x.com/wrong-type"]

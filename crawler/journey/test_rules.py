@@ -62,6 +62,64 @@ def test_ema_rules():
     assert types["orphan_designation"]["significance"] == "Medium"
 
 
+
+def calendar(key, event_type, when):
+    return {"record_key": key, "record_type": "fda_calendar_event", "event_type": event_type, "date": when,
+            "drugs": ["Tyvaso DPI"], "company": "United Therapeutics Corporation", "sponsor_is_company": True,
+            "description": "2026-05-24 The FDA set a PDUFA date https://ir.unither.com/news/x"}
+
+
+def test_fda_calendar_rules_make_upcoming_dates_milestones():
+    events = fda_events(A, [calendar("c1", "pdufa", "2026-05-24"), calendar("c2", "pdufa", "2025-01-10"),
+                            calendar("c3", "adcom", "2026-03-02")], today="2026-01-01")
+    ahead, past, adcom = events
+    assert ahead["type"] == "regulatory_decision_expected" and ahead["is_milestone"] and ahead["expected_date"] == "2026-05-24"
+    assert ahead["title"] == "FDA decision expected (PDUFA date): Tyvaso DPI" and ahead["region"] == "US"
+    assert ahead["summary"] == "2026-05-24 The FDA set a PDUFA date"  # links stripped
+    assert past["type"] == "pdufa_date" and not past["is_milestone"] and past["significance"] == "Medium"
+    assert adcom["type"] == "advisory_committee" and adcom["is_milestone"] and adcom["sources"][0]["record_key"] == "c3"
+
+
+def chmp(key, opinion, procedure, when, name="Winrevair", status="pending EC decision", indication=None):
+    return {"record_key": key, "record_type": "ema_chmp_opinion", "opinion": opinion, "procedure": procedure,
+            "date": when, "name_of_medicine": name, "status": status, "therapeutic_indication": indication,
+            "title": f"CHMP opinion on {name}", "company": "MSD"}
+
+
+def test_chmp_positive_opinion_adds_the_ec_decision_milestone():
+    events = ema_events(A, [chmp("o1", "positive", "new_medicine", "2026-06-26", indication="PAH")],
+                        today="2026-07-01")
+    opinion, decision = events
+    assert opinion["type"] == "regulatory_opinion" and opinion["significance"] == "High" and opinion["region"] == "EU"
+    assert opinion["summary"] == "PAH · MSD · pending EC decision"
+    assert decision["type"] == "regulatory_decision_expected" and decision["is_milestone"]
+    assert decision["date"] == "2026-09-01" and decision["sources"] == [{"collection": "ema_records", "record_key": "o1"}]
+    # Past the 67 days, or once the EPAR shows the authorisation, there is nothing left to expect.
+    assert len(ema_events(A, [chmp("o1", "positive", "new_medicine", "2026-06-26")], today="2026-09-02")) == 1
+    approved = {"record_key": "e1", "record_type": "ema_epar", "medicine_status": "Authorised", "date": "2026-08-20",
+                "name_of_medicine": "Winrevair"}
+    assert [e["type"] for e in ema_events(A, [approved, chmp("o1", "positive", "new_medicine", "2026-06-26")],
+                                          today="2026-08-25")] == ["approval", "regulatory_opinion"]
+
+
+def test_chmp_opinions_already_in_the_ema_reports_become_extra_evidence():
+    post = {"record_key": "p1", "record_type": "ema_post_authorisation", "date": "2025-12-11",
+            "name_of_medicine": "Winrevair", "post_authorisation_opinion_status": "Positive"}
+    withdrawn = {"record_key": "w1", "record_type": "ema_epar", "medicine_status": "Application withdrawn",
+                 "date": "2022-10-20", "name_of_medicine": "Orepaxam"}
+    events = ema_events(A, [chmp("o2", "positive", "extension_of_indication", "2025-12-11", status="",
+                                 indication="PAH in children"),
+                            chmp("o3", "withdrawn", "new_medicine", "2022-11-10", name="Orepaxam", status=""),
+                            post, withdrawn], today="2026-07-01")
+    assert [e["type"] for e in events] == ["label_expansion", "application_withdrawn"]
+    label, gone = events
+    assert [s["record_key"] for s in label["sources"]] == ["p1", "o2"] and label["indication"] == "PAH in children"
+    assert [s["record_key"] for s in gone["sources"]] == ["w1", "o3"]
+
+
+def test_chmp_highlights_without_an_opinion_are_left_to_ai_extraction():
+    assert ema_events(A, [{"record_key": "h1", "record_type": "ema_chmp_highlight", "date": "2008-05-29"}]) == []
+
 def trial(key, phases, status, start, primary_completion, sponsor="United Therapeutics", **extra):
     return {"record_key": key, "nct_id": key, "title": f"Study {key}", "phases": phases, "overall_status": status,
             "start_date": start, "primary_completion_date": primary_completion, "lead_sponsor": sponsor,

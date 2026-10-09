@@ -1,8 +1,9 @@
 """
 AI enrichment and consolidation (spec §5.3).
 
-extract_events: ingested articles / press releases / publications -> dated journey
-events and forward-looking milestones (origin "ai"), each citing its source.
+extract_events: ingested articles / press releases / publications / conference abstracts /
+EMA CHMP highlights -> dated journey events and forward-looking milestones
+(origin "ai"), each citing its source.
 consolidate: merges events about the same real-world occurrence (e.g. an approval
 covered by a press release and five news stories) into one event with all
 sources. Rule events (from FDA/EMA/trials) are authoritative and always kept.
@@ -20,23 +21,28 @@ from storage.mongo_storage import get_db
 from . import llm
 from .triage import TRIAGED_SOURCES, asset_context, ingest_query
 
-EVENT_TYPES = ["approval", "label_expansion", "regulatory_submission", "regulatory_decision_expected", "trial_start",
-               "trial_readout", "trial_enrollment_complete", "publication", "safety", "launch", "deal",
-               "litigation", "financials", "guidance"]
+EVENT_TYPES = ["approval", "label_expansion", "regulatory_submission", "regulatory_opinion",
+               "regulatory_decision_expected", "advisory_committee", "trial_start", "trial_readout",
+               "trial_enrollment_complete", "publication", "safety", "launch", "deal", "litigation", "financials",
+               "guidance"]
 CATEGORY_OF = {"approval": "regulatory", "label_expansion": "regulatory", "regulatory_submission": "regulatory",
-               "regulatory_decision_expected": "regulatory", "trial_start": "clinical", "trial_readout": "clinical",
+               "regulatory_opinion": "regulatory", "regulatory_decision_expected": "regulatory",
+               "advisory_committee": "regulatory", "trial_start": "clinical", "trial_readout": "clinical",
                "trial_enrollment_complete": "clinical", "publication": "clinical", "safety": "safety",
                "launch": "company", "deal": "company", "litigation": "company", "financials": "company",
                "guidance": "company"}
 
-EXTRACT_SYSTEM = """Extract journey events for ONE drug asset from a document (press release, news story or
-publication abstract). Return 0-3 events that are specifically about this asset; return none if the document
-has no concrete event. Rules:
+EXTRACT_SYSTEM = """Extract journey events for ONE drug asset from a document (press release, news story,
+publication abstract or EMA CHMP meeting highlights). Return 0-3 events that are specifically about this asset;
+return none if the document has no concrete event. Rules:
 - date: when the event happened (YYYY-MM-DD), NOT the publication date unless they are the same. Use the
   publication date only when the event happened that day (e.g. "today announced FDA approval").
 - Forward-looking statements (expected readouts, PDUFA dates, planned launches/filings) are milestones:
   is_milestone=true, expected_date at the end of the stated period (H1 2027 -> 2027-06-30, Q4 2026 ->
   2026-12-31, 2027 -> 2027-12-31), date = expected_date.
+- Regulators: a CHMP opinion (positive, negative, re-examination) is regulatory_opinion, dated at the meeting; it
+  is not an approval - the European Commission decides later. An FDA advisory committee meeting or vote is
+  advisory_committee. Use approval only when the text says the authorisation was granted.
 - significance: High = approvals, pivotal (phase 3) readouts, major safety actions, major deals or litigation
   outcomes; Medium = submissions/acceptances, phase 2 data, launches, enrollment completion, guidance;
   Low = everything else.

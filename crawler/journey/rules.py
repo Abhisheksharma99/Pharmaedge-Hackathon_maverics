@@ -10,7 +10,8 @@ Every event keeps references to the records it came from, so the UI can always
 show the evidence behind it.
 """
 
-from datetime import date
+import re
+from datetime import date, timedelta
 from typing import Any, Dict, Iterable, List, Optional
 
 SIGNIFICANCE_BY_PHASE = {"PHASE3": "High", "PHASE2": "Medium", "PHASE4": "Low", "PHASE1": "Low", "EARLY_PHASE1": "Low"}
@@ -43,9 +44,35 @@ def _brand(record: Dict[str, Any]) -> str:
     return " ".join(w if w in _ACRONYMS else w.title() for w in names[0].split())
 
 
-def fda_events(asset: str, records: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
+CALENDAR_URL = re.compile(r"https?://\S+")
+
+
+def fda_calendar_event(asset: str, r: Dict[str, Any], today: str) -> Dict[str, Any]:
+    """FDA Tracker calendar: a PDUFA goal date ahead is the FDA decision milestone, one behind is history (the
+    decision itself comes from Drugs@FDA); advisory committee meetings likewise."""
+    drugs = ", ".join(r.get("drugs") or [])
+    upcoming = r["date"] > today
+    common = dict(category="regulatory", region="US", date=r["date"], significance="High", is_milestone=upcoming,
+                  expected_date=r["date"] if upcoming else None, sponsor=r.get("company"),
+                  sponsor_is_company=r.get("sponsor_is_company"),
+                  summary=re.sub(r"\s+", " ", CALENDAR_URL.sub("", r.get("description") or "")).strip()[:400])
+    if r.get("event_type") == "pdufa":
+        if upcoming:
+            return _event(asset, r, "fda_records", "regulatory_decision_expected", **common,
+                          title=f"FDA decision expected (PDUFA date): {drugs}")
+        return _event(asset, r, "fda_records", "pdufa_date", **{**common, "significance": "Medium"},
+                      title=f"PDUFA goal date: {drugs}")
+    return _event(asset, r, "fda_records", "advisory_committee", **common,
+                  title=f"FDA advisory committee {'meeting scheduled' if upcoming else 'meeting'}: {drugs}")
+
+
+def fda_events(asset: str, records: Iterable[Dict[str, Any]], today: Optional[str] = None) -> List[Dict[str, Any]]:
+    today = today or date.today().isoformat()
     events = []
     for r in records:
+        if r.get("record_type") == "fda_calendar_event" and r.get("date"):
+            events.append(fda_calendar_event(asset, r, today))
+            continue
         if r.get("record_type") == "fda_recall":
             events.append(_event(asset, r, "fda_records", "recall", category="safety", region="US", date=r.get("date", ""),
                                  title=f"FDA recall: {r.get('product_description', '')[:90]}",
@@ -83,11 +110,63 @@ def fda_events(asset: str, records: Iterable[Dict[str, Any]]) -> List[Dict[str, 
     return events
 
 
-def ema_events(asset: str, records: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
+EC_DECISION_DAYS = 67  # the European Commission decides within 67 days of a CHMP opinion
+# The same occurrence in the EMA reports: a post-authorisation opinion is dated within the meeting; a withdrawal
+# is announced at the next meeting.
+SAME_OCCURRENCE = {"regulatory_opinion": ("label_expansion", 10), "application_withdrawn": ("application_withdrawn", 45)}
+
+
+def _days_apart(a: str, b: str) -> int:
+    return abs((date.fromisoformat(a[:10]) - date.fromisoformat(b[:10])).days)
+
+
+def chmp_events(asset: str, r: Dict[str, Any], known: List[Dict[str, Any]], today: str) -> List[Dict[str, Any]]:
+    """A CHMP opinion from the meeting highlights. When the EMA reports already gave the same occurrence an event
+    (a post-authorisation opinion, a withdrawn application: same medicine, within days), the highlights record is
+    added to that event's evidence instead of duplicating it. A positive opinion pending the EC decision adds the
+    decision as a milestone."""
+    opinion, procedure, name = r.get("opinion"), r.get("procedure"), (r.get("name_of_medicine") or "").lower()
+    kind = "application_withdrawn" if opinion == "withdrawn" else "regulatory_opinion"
+    same_type, window = SAME_OCCURRENCE[kind]
+    same = next((e["event"] for e in known if e["medicine"] == name and e["event"]["type"] == same_type
+                 and _days_apart(e["event"]["date"], r["date"]) <= window), None)
     events = []
+    if same:
+        same["sources"].append({"collection": "ema_records", "record_key": r["record_key"]})
+        if r.get("therapeutic_indication") and same["type"] == "label_expansion":
+            same.update(indication=r["therapeutic_indication"], summary=r["therapeutic_indication"])
+    else:
+        major = opinion in {"positive", "negative"} and procedure in {"new_medicine", "extension_of_indication"}
+        significance = "High" if major else "Low" if opinion in {"other", "scientific_opinion"} else "Medium"
+        summary = " · ".join(v for v in (r.get("therapeutic_indication"), r.get("company"), r.get("status")) if v)
+        events.append(_event(asset, r, "ema_records", kind, category="regulatory", region="EU", date=r["date"],
+                             significance=significance, title=r.get("title") or f"CHMP opinion: {name}",
+                             summary=summary or r.get("section") or "", indication=r.get("therapeutic_indication")))
+    decision = (date.fromisoformat(r["date"][:10]) + timedelta(days=EC_DECISION_DAYS)).isoformat()
+    decided = any(e["medicine"] == name and e["event"]["type"] == "approval" and e["event"]["date"] >= r["date"]
+                  for e in known)  # the EPAR already shows the Commission's authorisation
+    if (opinion == "positive" and "pending ec decision" in (r.get("status") or "").lower() and decision > today
+            and not decided):
+        events.append(_event(asset, r, "ema_records", "regulatory_decision_expected", category="regulatory",
+                             region="EU", date=decision, expected_date=decision, is_milestone=True,
+                             significance="High", indication=r.get("therapeutic_indication"),
+                             title=f"European Commission decision expected: {r.get('name_of_medicine')}",
+                             summary=f"CHMP positive opinion adopted {r['date']}; the Commission decides within "
+                                     f"{EC_DECISION_DAYS} days."))
+    return events
+
+
+def ema_events(asset: str, records: Iterable[Dict[str, Any]], today: Optional[str] = None) -> List[Dict[str, Any]]:
+    today = today or date.today().isoformat()
+    events, known, chmp = [], [], []
     for r in records:
         if not r.get("date"):
             continue
+        if r.get("record_type") == "ema_chmp_opinion":
+            chmp.append(r)  # after the EMA reports, so a duplicate folds into their event
+            continue
+        if r.get("record_type") == "ema_chmp_highlight":
+            continue  # narrative only: AI event extraction reads it
         rt, name = r.get("record_type"), r.get("name_of_medicine") or r.get("medicine_name") or "medicine"
         common = dict(category="regulatory", region="EU", date=r["date"])
         if rt == "ema_epar" and r.get("medicine_status") == "Authorised":
@@ -111,6 +190,10 @@ def ema_events(asset: str, records: Iterable[Dict[str, Any]]) -> List[Dict[str, 
             events.append(_event(asset, r, "ema_records", "safety_communication", category="safety", region="EU",
                                  date=r["date"], significance="High", title=f"Safety communication: {name}",
                                  summary=r.get("dhpc_type", "")))
+        if events and events[-1]["sources"][0]["record_key"] == r["record_key"]:
+            known.append({"medicine": name.lower(), "event": events[-1]})
+    for r in sorted(chmp, key=lambda r: r["date"]):
+        events.extend(chmp_events(asset, r, known, today))
     return events
 
 

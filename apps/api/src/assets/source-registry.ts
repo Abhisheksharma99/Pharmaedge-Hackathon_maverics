@@ -33,8 +33,8 @@ export const SOURCE_TABS: Record<string, SourceTab> = {
     collections: ['fda_records', 'ema_records'],
     // Monthly adverse-event counts are a chart (see series), not list items.
     match: { record_type: { $ne: 'fda_adverse_events_monthly' } },
-    searchFields: ['name_of_medicine', 'brand_names', 'application_number', 'submission_class', 'record_type'],
-    omitInList: ['documents', 'products', 'therapeutic_indication'],
+    searchFields: ['name_of_medicine', 'brand_names', 'application_number', 'submission_class', 'record_type', 'title'],
+    omitInList: ['documents', 'products', 'therapeutic_indication', 'content', 'evidence'],
     keyField: 'record_key',
   },
   documents: {

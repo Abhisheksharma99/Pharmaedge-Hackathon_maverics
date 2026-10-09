@@ -151,6 +151,30 @@ describe('records', () => {
     expect(res.items.map((r: { key: string }) => r.key)).toEqual(['ema:1', 'fda:1']);
   });
 
+  it('serves FDA calendar events and CHMP opinions as regulatory records, without their heavy fields', async () => {
+    const calendar = { record_key: 'fda_calendar:uid1', record_type: 'fda_calendar_event', date: '2022-05-23', title: 'PDUFA date: Tyvaso DPI', evidence: [{ text: 'long' }], assets: [A] };
+    const chmp = [
+      { record_key: 'ema:chmp:m1:positive:trepulmix', record_type: 'ema_chmp_opinion', date: '2020-01-30', title: 'CHMP recommends approval of Trepulmix (treprostinil sodium)', name_of_medicine: 'Trepulmix', status: 'Pending EC decision', content: 'Medicine card and paragraphs', assets: [A] },
+      { record_key: 'ema:chmp:m0:highlights', record_type: 'ema_chmp_highlight', date: '2008-05-29', title: 'CHMP meeting highlights (May 2008)', content: 'Narrative', assets: [A] },
+    ];
+    await db.collection('fda_records').insertOne(calendar);
+    await db.collection('ema_records').insertMany(chmp);
+    try {
+      const byType = (await get(`/api/assets/${A}/records/regulatory?type=fda_calendar_event,ema_chmp_opinion,ema_chmp_highlight`)).json();
+      expect(byType.items.map((r: { key: string }) => r.key)).toEqual(['fda_calendar:uid1', 'ema:chmp:m1:positive:trepulmix', 'ema:chmp:m0:highlights']);
+      expect(byType.items[0]).not.toHaveProperty('evidence');
+      expect(byType.items[1]).toMatchObject({ status: 'Pending EC decision' });
+      expect(byType.items[1]).not.toHaveProperty('content');
+      // Titles are searchable (the calendar event has no medicine name).
+      expect((await get(`/api/assets/${A}/records/regulatory?q=pdufa`)).json().items.map((r: { key: string }) => r.key)).toEqual(['fda_calendar:uid1']);
+      const full = await get(`/api/assets/${A}/record/regulatory?key=${encodeURIComponent('ema:chmp:m1:positive:trepulmix')}`);
+      expect(full.json()).toMatchObject({ content: 'Medicine card and paragraphs' });
+    } finally {
+      await db.collection('fda_records').deleteOne({ record_key: calendar.record_key });
+      await db.collection('ema_records').deleteMany({ record_key: { $in: chmp.map((r) => r.record_key) } });
+    }
+  });
+
   it('serves patents (status = legal status) and conference abstracts from the team crawlers', async () => {
     const patents = (await get(`/api/assets/${A}/records/patents`)).json();
     expect(patents.items.map((r: { key: string }) => r.key)).toEqual(['patent:EP2A1', 'patent:US1B2']);
