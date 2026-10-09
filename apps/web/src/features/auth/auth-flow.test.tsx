@@ -113,7 +113,7 @@ describe('signed in', () => {
   it('keeps analysts out of user management', async () => {
     fakeApi(ANALYST)
     const router = renderAt('/settings/users')
-    await screen.findByRole('heading', { name: /Welcome, Ana/ })
+    await screen.findByRole('heading', { name: /^Good (morning|afternoon|evening), Ana$/ })
     expect(router.state.location.pathname).toBe('/')
   })
 

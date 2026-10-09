@@ -6,3 +6,6 @@ globalThis.ResizeObserver ??= class {
   unobserve() {}
   disconnect() {}
 }
+
+// jsdom has no scrollIntoView; cmdk (⌘K palette) scrolls the highlighted row into view.
+Element.prototype.scrollIntoView ??= function scrollIntoView() {}

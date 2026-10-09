@@ -61,3 +61,15 @@ export function formatDay(iso: string | null | undefined): string {
   if (!month) return m[1]!
   return m[3] ? `${month} ${Number(m[3])}, ${m[1]}` : `${month} ${m[1]}`
 }
+
+/** Notification times: "just now", "5m ago", "3h ago", "2d ago", then the date; "" when not a date. */
+export function timeAgo(iso: string, now: number = Date.now()): string {
+  const mins = Math.floor((now - Date.parse(iso)) / 60_000)
+  if (Number.isNaN(mins)) return ''
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  return days < 7 ? `${days}d ago` : formatDay(iso.slice(0, 10))
+}

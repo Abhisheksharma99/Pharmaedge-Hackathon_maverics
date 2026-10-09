@@ -97,6 +97,8 @@
     --animate-grow-x: grow-x 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
     --animate-fade-up: fade-up 0.45s both;
     --animate-fade: fade 0.5s both;
+    /* live dots: sidebar crawl dot, "Building" rows, collecting pills */
+    --animate-blink-dot: blink-dot 1.2s ease-in-out infinite;
 
     @keyframes grow {
         from { transform: scaleY(0); }
@@ -113,6 +115,9 @@
     @keyframes fade {
         from { opacity: 0; }
         to { opacity: 1; }
+    }
+    @keyframes blink-dot {
+        50% { opacity: 0.25; }
     }
 }
 

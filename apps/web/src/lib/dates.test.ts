@@ -1,4 +1,4 @@
-import { clampDay, daysBetween, formatDay, fromYearFraction, interpolateDate, relativeFuture, yearFraction } from './dates'
+import { clampDay, daysBetween, formatDay, fromYearFraction, interpolateDate, relativeFuture, timeAgo, yearFraction } from './dates'
 
 describe('yearFraction', () => {
   it('maps a full date with the design formula', () => {
@@ -75,5 +75,17 @@ describe('daysBetween / formatDay', () => {
     expect(formatDay('2021-03')).toBe('Mar 2021')
     expect(formatDay('2021')).toBe('2021')
     expect(formatDay('')).toBe('Undated')
+  })
+})
+
+describe('timeAgo', () => {
+  const now = Date.parse('2026-10-09T12:00:00Z')
+  it('reads minutes, hours and days, then the date', () => {
+    expect(timeAgo('2026-10-09T11:59:40Z', now)).toBe('just now')
+    expect(timeAgo('2026-10-09T11:55:00Z', now)).toBe('5m ago')
+    expect(timeAgo('2026-10-09T09:00:00Z', now)).toBe('3h ago')
+    expect(timeAgo('2026-10-07T12:00:00Z', now)).toBe('2d ago')
+    expect(timeAgo('2026-09-01T10:00:00Z', now)).toBe('Sep 1, 2026')
+    expect(timeAgo('garbage', now)).toBe('')
   })
 })

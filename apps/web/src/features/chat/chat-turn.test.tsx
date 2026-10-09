@@ -1,3 +1,4 @@
+import { StrictMode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -76,18 +77,19 @@ function fakeApi() {
   return state
 }
 
-function renderAt(path: string) {
-  const router = createMemoryRouter(routes, { initialEntries: [path] })
+function renderAt(path: string | string[], strict = false) {
+  const router = createMemoryRouter(routes, { initialEntries: Array.isArray(path) ? path : [path] })
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  render(
+  const app = (
     <QueryClientProvider client={client}>
       <AuthProvider>
         <TooltipProvider>
           <RouterProvider router={router} />
         </TooltipProvider>
       </AuthProvider>
-    </QueryClientProvider>,
+    </QueryClientProvider>
   )
+  render(strict ? <StrictMode>{app}</StrictMode> : app)
   return router
 }
 
@@ -158,5 +160,40 @@ describe('Asset AI chat', () => {
     const create = api.calls.find((c) => c.url === '/api/chat/sessions' && c.init?.method === 'POST')
     expect(create?.init?.body).toBe('{}')
     expect(api.calls.some((c) => c.url === '/api/chat/sessions/s2/turn')).toBe(true)
+  })
+
+  it('asks the question from ?ask= once, in a new session', async () => {
+    const api = fakeApi()
+    const router = renderAt(`/chat?ask=${encodeURIComponent('What changed this month?')}`)
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/chat/s2'))
+    expect(await screen.findByText('What changed this month?')).toBeInTheDocument()
+    expect(api.calls.filter((c) => c.url === '/api/chat/sessions' && c.init?.method === 'POST')).toHaveLength(1)
+    expect(api.calls.filter((c) => c.url === '/api/chat/sessions/s2/turn')).toHaveLength(1)
+    expect(api.calls.find((c) => c.url === '/api/chat/sessions/s2/turn')?.init?.body).toBe('{"message":"What changed this month?"}')
+  })
+
+  it('does not re-ask when going Back after an auto-sent ?ask= question', async () => {
+    const api = fakeApi()
+    const router = renderAt(['/chat/s1', `/chat?ask=${encodeURIComponent('What changed this month?')}`])
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/chat/s2'))
+    expect(await screen.findByText('What changed this month?')).toBeInTheDocument()
+    await router.navigate(-1)
+    await waitFor(() => expect(router.state.location.pathname).toBe('/chat/s1'))
+    expect(router.state.location.search).toBe('')
+    expect(api.calls.filter((c) => c.url === '/api/chat/sessions' && c.init?.method === 'POST')).toHaveLength(1)
+    expect(api.calls.filter((c) => c.url.endsWith('/turn'))).toHaveLength(1)
+  })
+
+  it('sends the ?ask= question once under StrictMode double-mounting and leaves the ask param behind', async () => {
+    const api = fakeApi()
+    const router = renderAt(`/chat?ask=${encodeURIComponent('What changed this month?')}`, true)
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/chat/s2'))
+    expect(router.state.location.search).toBe('')
+    expect(await screen.findByText('What changed this month?')).toBeInTheDocument()
+    expect(api.calls.filter((c) => c.url === '/api/chat/sessions' && c.init?.method === 'POST')).toHaveLength(1)
+    expect(api.calls.filter((c) => c.url === '/api/chat/sessions/s2/turn')).toHaveLength(1)
   })
 })

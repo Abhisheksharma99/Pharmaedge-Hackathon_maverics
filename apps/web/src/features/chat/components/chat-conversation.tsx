@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ComponentType } from 'react'
+import { useEffect, useEffectEvent, useRef, useState, type ComponentType } from 'react'
 import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ApiError } from '@/lib/api'
@@ -28,6 +28,7 @@ export function ChatConversation({
   EmptyState,
   emptyPlaceholder,
   initialDraft = '',
+  initialQuestion,
   autoFocus = false,
   contentClassName,
 }: {
@@ -40,6 +41,8 @@ export function ChatConversation({
   EmptyState?: ComponentType<ConversationActions>
   emptyPlaceholder?: string
   initialDraft?: string
+  /** Asked once when the conversation mounts, as if typed (`/chat?ask=`). */
+  initialQuestion?: string
   autoFocus?: boolean
   /** Horizontal sizing of the thread and composer columns. */
   contentClassName?: string
@@ -63,6 +66,15 @@ export function ChatConversation({
   useEffect(() => {
     if (autoFocus) inputRef.current?.focus()
   }, [autoFocus])
+
+  // The ref keeps React's dev double-mount from asking twice; the effect event always calls the current `ask`.
+  const asked = useRef(false)
+  const askInitial = useEffectEvent((question: string) => void ask(question))
+  useEffect(() => {
+    if (!initialQuestion || asked.current) return
+    asked.current = true
+    askInitial(initialQuestion)
+  }, [initialQuestion])
 
   // Follow the answer as it streams, unless the reader scrolled up.
   useEffect(() => {

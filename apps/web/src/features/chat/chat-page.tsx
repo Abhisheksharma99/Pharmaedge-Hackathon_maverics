@@ -11,7 +11,10 @@ const PORTFOLIO_QUESTIONS = [
   'Compare my assets with their closest competitors',
 ]
 
-/** Full-page Asset AI (`/chat`, `/chat/:sessionId`); `?intent=add` starts with "Add " in the composer. */
+/**
+ * Full-page Asset AI (`/chat`, `/chat/:sessionId`); `?intent=add` starts with "Add " in the composer and
+ * `?ask=<question>` sends the question in a new chat (Home, ⌘K and the starter questions link here).
+ */
 export function ChatPage() {
   const { sessionId = null } = useParams()
   const [params] = useSearchParams()
@@ -19,6 +22,7 @@ export function ChatPage() {
   const sessions = useChatSessions()
   const createSession = useCreateChatSession()
   const addIntent = sessionId === null && params.get('intent') === 'add'
+  const askParam = sessionId === null ? (params.get('ask')?.trim() ?? '') : ''
   const title = sessionId ? (sessions.data?.find((s) => s.id === sessionId)?.title ?? '') : ''
 
   return (
@@ -32,14 +36,15 @@ export function ChatPage() {
           {title && <span className="min-w-0 truncate text-text-secondary">· {title}</span>}
         </div>
         <ChatConversation
-          key={`${sessionId ?? 'new'}${addIntent ? ':add' : ''}`}
+          key={`${sessionId ?? 'new'}${addIntent ? ':add' : ''}${askParam ? `:ask:${askParam}` : ''}`}
           sessionId={sessionId}
           createSession={async () => (await createSession.mutateAsync(undefined)).id}
-          onSessionCreated={(id) => navigate(`/chat/${encodeURIComponent(id)}`)}
+          onSessionCreated={(id) => navigate(`/chat/${encodeURIComponent(id)}`, { replace: askParam !== '' })}
           suggestions={PORTFOLIO_QUESTIONS}
           EmptyState={ChatEmptyState}
           emptyPlaceholder="Ask about your assets, or type “Add” and a drug name…"
           initialDraft={addIntent ? ADD_ASSET_DRAFT : ''}
+          initialQuestion={askParam || undefined}
           autoFocus={addIntent}
           contentClassName="mx-auto w-full max-w-[760px] px-6"
         />

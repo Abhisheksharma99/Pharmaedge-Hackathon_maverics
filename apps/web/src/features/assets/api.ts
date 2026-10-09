@@ -1,4 +1,4 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 
 export type Significance = 'High' | 'Medium' | 'Low'
@@ -161,5 +161,35 @@ export function useAdverseEvents(id: string) {
   return useQuery({
     queryKey: ['asset', id, 'adverse-events'],
     queryFn: () => apiFetch<{ month: string; count: number }[]>(`/assets/${encodeURIComponent(id)}/series/adverse-events`),
+  })
+}
+
+/** Every word of `q` appears in the asset's name, brands, company, indications or mechanism (Asset Search, ⌘K). */
+export function assetMatches(asset: AssetSummary, q: string): boolean {
+  const haystack = [
+    asset.name,
+    ...asset.aliases,
+    asset.company.name,
+    ...(asset.tags.indications ?? []),
+    ...(asset.tags.investigational_indications ?? []),
+    asset.tags.mechanism ?? '',
+  ]
+    .join(' ')
+    .toLowerCase()
+  return q.toLowerCase().split(/\s+/).filter(Boolean).every((word) => haystack.includes(word))
+}
+
+/** Primary assets first, then by name. */
+export const byKindThenName = (a: Pick<AssetSummary, 'kind' | 'name'>, b: Pick<AssetSummary, 'kind' | 'name'>) =>
+  Number(a.kind === 'competitor') - Number(b.kind === 'competitor') || a.name.localeCompare(b.name)
+
+/** Details of several assets (approval regions for cards and tables), sharing the ['asset', id] cache; undefined until loaded. */
+export function useAssetDetails(ids: string[]): Record<string, AssetDetail | undefined> {
+  return useQueries({
+    queries: ids.map((id) => ({
+      queryKey: ['asset', id],
+      queryFn: () => apiFetch<AssetDetail>(`/assets/${encodeURIComponent(id)}`),
+    })),
+    combine: (results) => Object.fromEntries(results.map((r, i) => [ids[i], r.data])) as Record<string, AssetDetail | undefined>,
   })
 }
