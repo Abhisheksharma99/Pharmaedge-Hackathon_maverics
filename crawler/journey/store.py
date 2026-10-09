@@ -42,7 +42,10 @@ def replace_rule_events(db, asset: str, events: Iterable[Dict[str, Any]]) -> Dic
     events = list(events)
     now = datetime.now(timezone.utc)
     # $set, not replace: keeps evidence merged in by AI consolidation (merged_sources).
-    ops = [UpdateOne({"_id": e["_id"]}, {"$set": {**{k: v for k, v in e.items() if k != "_id"}, "updated_at": now}}, upsert=True) for e in events]
+    # `links` is rule-owned: unset when a rebuild finds no related events, so stale links don't persist.
+    ops = [UpdateOne({"_id": e["_id"]}, {"$set": {**{k: v for k, v in e.items() if k != "_id"}, "updated_at": now},
+                                         **({} if e.get("links") else {"$unset": {"links": ""}})}, upsert=True)
+           for e in events]
     written = db.journey_events.bulk_write(ops, ordered=False).upserted_count if ops else 0
     stale = db.journey_events.delete_many({"asset": asset, "origin": "rule",
                                            "_id": {"$nin": [e["_id"] for e in events]}}).deleted_count

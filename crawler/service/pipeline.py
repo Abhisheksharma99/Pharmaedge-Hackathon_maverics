@@ -81,8 +81,9 @@ async def run_job(store: JobStore, job_id: str, steps: Dict[str, StepFn], load_a
             return
         m = _safe(lambda: measure(job["asset"]), "measure", job_id)
         if m:
-            store.update(job_id, {"records_by_coll": m["records_by_coll"], "record_years": m["record_years"],
-                                  "events_created": max(0, m["events"] - events_at_start)})
+            _safe(lambda: store.update(job_id, {"records_by_coll": m["records_by_coll"], "record_years": m["record_years"],
+                                               "events_created": max(0, m["events"] - events_at_start)}),
+                  "progress write", job_id)
 
     baseline = _safe(lambda: measure(job["asset"]), "measure", job_id) if measure else None
     events_at_start = (baseline or {}).get("events", 0)

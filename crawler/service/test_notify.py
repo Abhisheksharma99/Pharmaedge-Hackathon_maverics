@@ -59,3 +59,11 @@ def test_high_event_preference_off(db):
     db.user_prefs.insert_one({"user": "u1", "notify": {"highEvents": False}})
     assert notify.job_ended(db, job(), {"_id": "trep", "name": "T", "status": "ready", "kind": "primary"},
                             [{"_id": "e1", "title": "A"}]) == 0
+
+
+def test_focus_link_url_encodes_ids_with_reserved_characters(db):
+    users(db, "u1")
+    asset = {"_id": "trep", "name": "Treprostinil", "status": "ready", "kind": "primary"}
+    notify.job_ended(db, job(), asset, [{"_id": "ai:trep:https://x.com/a?b=1&c=2#d:0", "title": "X"}])
+    assert db.notifications.docs[-1]["link"] == (
+        "/assets/trep/overview?focus=ai%3Atrep%3Ahttps%3A%2F%2Fx.com%2Fa%3Fb%3D1%26c%3D2%23d%3A0")

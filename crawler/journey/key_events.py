@@ -23,7 +23,13 @@ MINOR_STUDY = re.compile(r"\b(extension|substudy|sub-study|OLE|long-term follow)
 
 
 def _dated(e: Dict[str, Any]) -> bool:
-    return bool(ISO_DAY.match(e.get("date") or ""))
+    if not ISO_DAY.match(e.get("date") or ""):
+        return False
+    try:
+        date.fromisoformat(e["date"])
+    except ValueError:
+        return False
+    return True
 
 
 def _company_relevant(e: Dict[str, Any]) -> bool:

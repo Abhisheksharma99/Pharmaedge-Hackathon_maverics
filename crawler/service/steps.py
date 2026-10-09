@@ -6,6 +6,7 @@ refreshes incremental.
 """
 
 import asyncio
+import logging
 from collections import Counter
 from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -24,12 +25,13 @@ from integrations import newsroom
 from integrations import patents as patent_crawler
 from journey.derive import derive_journey
 from journey.rules import build_rule_events
-from journey.store import replace_rule_events
+from journey.store import bump_asset_version, replace_rule_events
 from regulatory import clinicaltrials, ema, fda
 from storage.mongo_storage import get_content_hash, get_db, insert_article, upsert_records
 
 from .pipeline import StepContext, StepSkipped
 
+log = logging.getLogger("crawl.steps")
 StepResult = Dict[str, Any]
 
 
@@ -122,9 +124,12 @@ def _high_ids(db, asset_id: str) -> set:
 def _log_new_events(ctx: StepContext, db, before: set, cap: int = 40) -> None:
     """One feed line per new High event (the live build pops them on its timeline)."""
     new = [e for e in db.journey_events.find({"asset": ctx.asset_id, "significance": "High"},
-                                             {"title": 1, "date": 1, "sources": 1, "merged_sources": 1})
+                                             {"title": 1, "date": 1, "key": 1, "sources": 1, "merged_sources": 1})
            if e["_id"] not in before]
-    for e in sorted(new, key=lambda e: e.get("date") or "")[:cap]:
+    # key events first, then newest first, so an onboarding build shows what matters instead of the oldest events
+    new.sort(key=lambda e: e.get("date") or "", reverse=True)
+    new.sort(key=lambda e: not e.get("key"))
+    for e in new[:cap]:
         ctx.log("event", e.get("title") or e["_id"], event_id=e["_id"],
                 merged=len(e.get("sources") or []) + len(e.get("merged_sources") or []))
 
@@ -328,6 +333,8 @@ def finalize(ctx: StepContext) -> StepResult:
     now = datetime.now(timezone.utc)
     db.assets.update_one({"_id": ctx.asset_id}, {"$set": {"status": "ready", "suggested_questions": questions,
                                                           "last_crawled_at": now, "updated_at": now}})
+    if not bump_asset_version(ctx.asset_id):  # the asset is ready now: clients refetching must not read the old view
+        log.warning("cache version bump failed for %s after finalize", ctx.asset_id)
     return {**counts, **derived, "suggested_questions": len(questions),
             "summary": f"Asset ready · {derived.get('key_events', 0)} key events · {derived.get('branches', 0)} branches"}
 

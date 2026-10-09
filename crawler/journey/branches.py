@@ -17,6 +17,8 @@ from pymongo import UpdateOne
 
 from ai import llm
 
+from .companies import is_company_sponsor
+
 PALETTE = ["#2347d9", "#0b7a6f", "#6941c6", "#e0620f", "#0e7490", "#b54708"]
 # Beyond the design palette (assets with many programmes): muted tones, handed out after the active branches.
 EXTRA_COLORS = ["#7a5af8", "#c11574", "#4e5ba6", "#667085", "#93370d", "#3e4784", "#099250", "#a15c07"]
@@ -26,6 +28,7 @@ REGULATORY_TYPES = sorted(APPROVAL_TYPES | FILED_TYPES | {"application_withdrawn
 STOPPED = {"TERMINATED", "WITHDRAWN", "SUSPENDED"}
 ACTIVE_WORDS = {"RECRUITING": "recruiting", "ACTIVE_NOT_RECRUITING": "active", "NOT_YET_RECRUITING": "starting",
                 "ENROLLING_BY_INVITATION": "enrolling"}
+_DASHES = re.compile(r"[‐-―−]")
 REGIONS = {"us": "US", "usa": "US", "united states": "US", "eu": "EU", "europe": "EU", "european union": "EU"}
 
 SYSTEM = """You map ONE drug asset's development into indication branches for a journey chart.
@@ -44,6 +47,8 @@ Rules:
   "" for the first branch. why: one line (max 15 words) on why the programme moved into this indication.
 - partner: the company running this programme if it is a partner or licensee rather than the asset's company,
   else "".
+- existing_branches in the input are the programmes already on the chart: reuse the id (and full name) of the
+  existing branch for the same programme instead of inventing a new one.
 - aliases: 3-8 lowercase phrases that identify this indication in free text, abbreviations included."""
 
 SCHEMA = {
@@ -65,12 +70,12 @@ def _phase_rank(phases: List[str]) -> int:
 
 def candidate_trials(db, asset: Dict[str, Any], today: str) -> List[Dict[str, Any]]:
     """Company-sponsored Phase 2+ trials that actually started (withdrawn trials never did)."""
-    company = ((asset.get("company") or {}).get("name") or "").lower()
+    company = (asset.get("company") or {}).get("name") or ""
     out = []
     for r in db.trial_records.find({"assets": asset["_id"]}, {"study": 0}):
         rank = _phase_rank(r.get("phases"))
         start = r.get("start_date") or ""
-        if (not company or company not in (r.get("lead_sponsor") or "").lower() or rank < 2
+        if (not company or not is_company_sponsor(r.get("lead_sponsor") or "", company) or rank < 2
                 or r.get("overall_status") == "WITHDRAWN" or not start or start > today):
             continue
         out.append({"id": r["nct_id"], "acronym": r.get("acronym") or "", "phase": f"Phase {rank}", "phase_rank": rank,
@@ -93,10 +98,13 @@ def candidate_events(db, asset_id: str, cap: int = 80) -> List[Dict[str, Any]]:
     return sorted(out, key=lambda e: e["date"])[:cap]
 
 
-def propose(asset: Dict[str, Any], trials: List[Dict[str, Any]], events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def propose(asset: Dict[str, Any], trials: List[Dict[str, Any]], events: List[Dict[str, Any]],
+            existing: Optional[List[Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
     tags = asset.get("tags") or {}
     payload = {"asset": asset["name"], "company": (asset.get("company") or {}).get("name"),
                "indications": tags.get("indications", []), "investigational": tags.get("investigational_indications", []),
+               "existing_branches": [{"id": b["id"], "full": b.get("full") or ""} for b in existing or []
+                                     if b.get("origin") != "user"],
                "trials": [{k: t[k] for k in ("id", "acronym", "phase", "status", "start", "conditions")} for t in trials],
                "regulatory_events": [{k: e[k] for k in ("id", "date", "type", "region", "title", "indication")}
                                      for e in events]}
@@ -138,8 +146,7 @@ def _partner_of(d: Dict[str, Any], company: Optional[str]) -> str:
     holders = {a.get("holder") for a in d["approvals"]}
     if not partner and len(holders) == 1 and next(iter(holders)):
         partner = next(iter(holders))
-    company_l = (company or "").lower()
-    if partner and company_l and (partner.lower() in company_l or company_l in partner.lower()):
+    if partner and company and is_company_sponsor(partner, company):
         return ""
     return partner
 
@@ -147,17 +154,20 @@ def _partner_of(d: Dict[str, Any], company: Optional[str]) -> str:
 def build(proposed: List[Dict[str, Any]], trials: List[Dict[str, Any]], events: List[Dict[str, Any]],
           company: Optional[str], existing: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Rule-based branch docs from the LLM's grouping (pure). Trunk first, then by fork date; user branches last."""
-    trial_by = {t["id"]: t for t in trials}
-    event_by = {e["id"]: e for e in events}
+    trial_by = {t["id"].strip().casefold(): t for t in trials}
+    event_by = {e["id"].strip().casefold(): e for e in events}
     user = [b for b in existing if b.get("origin") == "user"]
     taken, claimed = {b["id"] for b in user}, set()
     drafts: List[Dict[str, Any]] = []
     for p in proposed:
-        bid = re.sub(r"\s+", " ", p.get("id") or "").strip()[:24]
+        bid = re.sub(r"\s+", " ", _DASHES.sub("-", p.get("id") or "")).strip()[:24]
         if not bid or bid in taken or any(d["id"] == bid for d in drafts):
             continue
-        ts = sorted((trial_by[m] for m in p["members"] if m in trial_by and m not in claimed), key=lambda t: t["start"])
-        es = sorted((event_by[m] for m in p["members"] if m in event_by and m not in claimed), key=lambda e: e["date"])
+        keys = [m.strip().casefold() for m in p["members"]]
+        ts = sorted((trial_by[m] for m in dict.fromkeys(keys) if m in trial_by and trial_by[m]["id"] not in claimed),
+                    key=lambda t: t["start"])
+        es = sorted((event_by[m] for m in dict.fromkeys(keys) if m in event_by and event_by[m]["id"] not in claimed),
+                    key=lambda e: e["date"])
         approvals = [e for e in es if e["type"] in APPROVAL_TYPES and e["date"]]
         if not approvals and not ts:
             continue
@@ -178,10 +188,20 @@ def build(proposed: List[Dict[str, Any]], trials: List[Dict[str, Any]], events: 
     # get the design palette first, closed and partner ones after.
     used = {b.get("color") for b in user}
     kept_colors: Dict[str, str] = {}
-    for b in existing:
-        if b.get("color") and b.get("origin") != "user" and b["color"] not in used and b["id"] in {d["id"] for d in drafts}:
+    old = [b for b in existing if b.get("color") and b.get("origin") != "user"]
+    for b in old:  # same id: keep the colour
+        if b["color"] not in used and b["id"] in {d["id"] for d in drafts}:
             kept_colors[b["id"]] = b["color"]
             used.add(b["color"])
+    for d in drafts:  # renamed id: inherit from the old branch with the largest member overlap
+        if d["id"] in kept_colors:
+            continue
+        mine = {x["id"] for x in d["trials"] + d["events"]}
+        best = max((b for b in old if b["color"] not in used and b["id"] not in {x["id"] for x in drafts}),
+                   key=lambda b: len(mine & set(b.get("members") or [])), default=None)
+        if best and mine & set(best.get("members") or []):
+            kept_colors[d["id"]] = best["color"]
+            used.add(best["color"])
     by_priority = sorted(ordered, key=lambda d: (d is not trunk, bool(_is_closed(d)) or bool(_partner_of(d, company)), d["start"]))
     pool = [c for c in PALETTE + EXTRA_COLORS if c not in used]
     for d in by_priority:
@@ -194,8 +214,9 @@ def build(proposed: List[Dict[str, Any]], trials: List[Dict[str, Any]], events: 
         partner = _partner_of(d, company)
         parent = None
         if not is_trunk:
-            wanted = (p.get("parent") or "").strip()
-            ok = next((x for x in drafts if x["id"] == wanted and x is not d and x["start"] <= d["start"]), None)
+            wanted = _DASHES.sub("-", p.get("parent") or "").strip()
+            earlier = ordered[:ordered.index(d)]  # only an earlier branch can be the parent: no same-day cycles
+            ok = next((x for x in earlier if x["id"] == wanted and x["start"] <= d["start"]), None)
             parent = ok["id"] if ok else trunk["id"]
         if is_trunk:
             off = 0
@@ -234,14 +255,16 @@ def refresh(db, asset: Dict[str, Any], today: Optional[str] = None) -> List[Dict
     today = today or date.today().isoformat()
     trials = candidate_trials(db, asset, today)
     events = candidate_events(db, asset["_id"])
-    proposed = propose(asset, trials, events) if trials or events else []
     existing = list(db.asset_branches.find({"asset": asset["_id"]}))
+    proposed = propose(asset, trials, events, existing) if trials or events else []
     out = build(proposed, trials, events, (asset.get("company") or {}).get("name"), existing)
+    if (trials or events) and any(b.get("origin") != "user" for b in existing) \
+            and not any(b.get("origin") != "user" for b in out):
+        # none of the grouping matched the inputs: keep the previous branches (derive logs this and carries on)
+        raise RuntimeError("branch grouping matched no candidate trial or event")
     save(db, asset["_id"], out)
     return out
 
-
-_DASHES = re.compile(r"[‐-―−]")
 
 
 def match_branches(texts: List[str], branches: List[Dict[str, Any]]) -> List[str]:

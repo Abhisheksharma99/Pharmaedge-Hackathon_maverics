@@ -48,3 +48,28 @@ def test_an_event_the_model_skipped_is_retried_next_time(db, monkeypatch):
     by_id = {d["_id"]: d for d in db.journey_events.docs}
     assert by_id["e0"]["impact"] is None and "product" not in by_id["e0"] and "indications" not in by_id["e0"]
     assert "enriched_at" not in by_id["e1"]
+
+
+def test_impact_written_at_extraction_is_kept(db, monkeypatch):
+    seed(db, 2)
+    db.journey_events.docs[0]["impact"] = "Extracted impact."
+    monkeypatch.setattr(enrich.llm, "structured", lambda m, s, user, *a, **k: {"events": [
+        {"id": i, "indications": [], "product": "", "impact": "Enriched impact.", "links": []} for i in batch_ids(user)]})
+    assert enrich.enrich_events(db, ASSET) == 2
+    by_id = {d["_id"]: d for d in db.journey_events.docs}
+    assert by_id["e0"]["impact"] == "Extracted impact." and by_id["e1"]["impact"] == "Enriched impact."
+
+
+def test_a_failing_batch_does_not_stop_the_next_ones(db, monkeypatch):
+    seed(db, 25)
+    calls = []
+
+    def fake(model, system, user, *a, **k):
+        calls.append(1)
+        if len(calls) == 1:
+            raise RuntimeError("boom")
+        return {"events": [{"id": i, "indications": [], "product": "", "impact": "ok.", "links": []}
+                           for i in batch_ids(user)]}
+
+    monkeypatch.setattr(enrich.llm, "structured", fake)
+    assert enrich.enrich_events(db, ASSET) == 5 and len(calls) == 2

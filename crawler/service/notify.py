@@ -6,6 +6,7 @@ High-significance events on primary assets. Fanned out to active users whose pre
 
 from datetime import datetime, timezone
 from typing import Any, Dict, List
+from urllib.parse import quote
 
 DEFAULT_PREFS = {"highEvents": True, "crawls": True, "weeklyDigest": False}
 
@@ -28,7 +29,7 @@ def push(db, pref: str, kind: str, title: str, sub: str, link: str) -> int:
 
 def job_ended(db, job: Dict[str, Any], asset: Dict[str, Any], new_high: List[Dict[str, Any]]) -> int:
     name, asset_id = asset.get("name") or job["asset"], job["asset"]
-    overview = f"/assets/{asset_id}/overview"
+    overview = f"/assets/{quote(asset_id, safe='')}/overview"
     failed = [s for s in job["steps"] if s["status"] == "failed"]
     sent = 0
     if job["status"] == "failed" or failed:
@@ -41,7 +42,7 @@ def job_ended(db, job: Dict[str, Any], asset: Dict[str, Any], new_high: List[Dic
         sent += push(db, "crawls", "onboarding_finished", f"{name} journey is ready", f"{events} journey events", overview)
     elif job["type"] != "onboard" and job["status"] != "cancelled" and new_high and asset.get("kind") == "primary":
         if len(new_high) == 1:
-            title, sub, link = new_high[0]["title"], name, f"{overview}?focus={new_high[0]['_id']}"
+            title, sub, link = new_high[0]["title"], name, f"{overview}?focus={quote(new_high[0]['_id'], safe='')}"
         else:
             title = f"{len(new_high)} new high-significance events for {name}"
             sub, link = "; ".join(e["title"] for e in new_high[:2]), overview

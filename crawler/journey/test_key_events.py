@@ -99,3 +99,13 @@ def test_extension_study_readouts_are_not_key_milestones():
                 sponsor_is_company=True, title="Phase 3 primary completion expected: An Open-Label Extension Study"),
               *HIGHS]
     assert "ole" not in select(events, TODAY)
+
+
+def test_impossible_calendar_dates_are_not_dated():
+    assert select([e("bad", "2021-02-30"), e("ok", "2021-03-31")], TODAY) == ["ok"]
+
+
+def test_trial_events_match_the_company_sponsor_loosely():
+    from journey.rules import trial_events
+    rec = {"record_key": "k", "nct_id": "NCT1", "phases": ["PHASE3"], "start_date": "2010-01-01", "lead_sponsor": "Biogen"}
+    assert trial_events("nat", [rec], "Biogen Inc.")[0]["sponsor_is_company"] is True

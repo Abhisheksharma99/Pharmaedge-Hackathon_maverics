@@ -28,6 +28,7 @@ def journey(monkeypatch, db):
     monkeypatch.setattr(steps, "replace_rule_events", lambda db, asset_id, events: {"events": len(events), "new": 1,
                                                                                      "removed": 0})
     monkeypatch.setattr(steps, "derive_journey", lambda db, asset, log: {"branches": 6, "key_events": 41, "enriched": 3})
+    monkeypatch.setattr(steps, "bump_asset_version", lambda asset_id: True)
     return db
 
 
@@ -155,3 +156,86 @@ def test_worker_fails_onboarding_assets_whose_job_never_finalized(monkeypatch, d
     worker._finished(job)
     asset = db.assets.find_one({"_id": "treprostinil"})
     assert asset["status"] == expected and asset["last_crawled_at"]
+
+
+def test_finalize_bumps_the_cache_version_after_marking_the_asset_ready(journey, monkeypatch):
+    journey.assets.insert_one(dict(ASSET))
+    seen = []
+    monkeypatch.setattr(steps, "bump_asset_version",
+                        lambda asset_id: seen.append((asset_id, journey.assets.find_one({"_id": asset_id})["status"])) or True)
+    steps.finalize(ctx())
+    assert seen == [("treprostinil", "ready")]
+
+
+def _finish(monkeypatch, db, job, high_before, calls=None):
+    monkeypatch.setattr(worker, "get_db", lambda: db)
+    monkeypatch.setattr(worker, "bump_asset_version", lambda asset_id: (calls is not None and calls.append("bump")) or True)
+    worker._finished(job, high_before)
+
+
+def _refresh_job():
+    job = new_job("treprostinil", "refresh", steps.PLANS["refresh"], None)
+    for s in job["steps"]:
+        s["status"] = "done"
+    return job
+
+
+def test_worker_bumps_the_cache_version_before_notifying(monkeypatch, db):
+    db.assets.insert_one({"_id": "treprostinil", "name": "Treprostinil", "status": "ready", "kind": "primary"})
+    calls = []
+    monkeypatch.setattr(worker.notify, "job_ended", lambda *a, **k: calls.append("notify") or 0)
+    _finish(monkeypatch, db, _refresh_job(), set(), calls)
+    assert calls == ["bump", "notify"]
+
+
+def test_worker_logs_when_the_cache_bump_fails(monkeypatch, db, caplog):
+    db.assets.insert_one({"_id": "treprostinil", "name": "Treprostinil", "status": "ready", "kind": "primary"})
+    monkeypatch.setattr(worker, "get_db", lambda: db)
+    monkeypatch.setattr(worker, "bump_asset_version", lambda asset_id: False)
+    with caplog.at_level("WARNING", logger="crawl.worker"):
+        worker._finished(_refresh_job(), set())
+    assert "cache version" in caplog.text
+
+
+def test_only_recent_key_high_events_notify(monkeypatch, db):
+    db.assets.insert_one({"_id": "treprostinil", "name": "Treprostinil", "status": "ready", "kind": "primary"})
+    db.user_prefs.insert_one({"user": "u1", "notify": {}})
+    db.users.insert_one({"_id": "u1", "active": True})
+    job = _refresh_job()
+    day = date.today()
+    ev = lambda i, **kw: db.journey_events.insert_one({"_id": i, "asset": "treprostinil", "significance": "High",
+                                                       "title": i, "key": True, "date": day.isoformat(), **kw})
+    ev("old2015", date="2015-03-01")                               # moved between assets: not news
+    ev("fresh", title="FDA approves Tyvaso DPI")                   # recent key High
+    ev("notkey", key=False)                                        # not a key event
+    ev("future", date=future(60), is_milestone=True, title="PDUFA date")
+    ev("dup", title="FDA approves Tyvaso DPI")                     # near-duplicate title
+    _finish(monkeypatch, db, job, set())
+    [doc] = db.notifications.docs
+    assert doc["title"] == "2 new high-significance events for Treprostinil"  # old, non-key and duplicate dropped
+    assert sorted(doc["sub"].split("; ")) == ["FDA approves Tyvaso DPI", "PDUFA date"]
+
+
+def test_a_reappearing_old_high_event_does_not_notify(monkeypatch, db):
+    db.assets.insert_one({"_id": "treprostinil", "name": "Treprostinil", "status": "ready", "kind": "primary"})
+    db.users.insert_one({"_id": "u1", "active": True})
+    db.journey_events.insert_one({"_id": "old", "asset": "treprostinil", "significance": "High", "title": "TRANSIT-1",
+                                  "key": True, "date": "2015-03-01"})
+    _finish(monkeypatch, db, _refresh_job(), set())
+    assert db.notifications.docs == []
+
+
+def _event_lines(db, n):
+    for i in range(n):
+        db.journey_events.insert_one({"_id": f"e{i:02d}", "asset": "treprostinil", "significance": "High",
+                                      "title": f"t{i:02d}", "date": f"2020-01-{i + 1:02d}"})
+
+
+def test_log_new_events_shows_key_events_first_then_newest(db):
+    _event_lines(db, 5)
+    db.journey_events.docs[0]["key"] = True   # oldest, but key
+    lines = []
+    ctx_ = StepContext(asset=ASSET, is_cancelled=lambda: False, log=lambda kind, text, **x: lines.append((text, x["event_id"])))
+    steps._log_new_events(ctx_, db, set(), cap=3)
+    assert [i for _, i in lines] == ["e00", "e04", "e03"]
+    assert lines[0][0] == "t00"

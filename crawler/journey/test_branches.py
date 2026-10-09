@@ -1,5 +1,7 @@
 """Indication branches (offline: the LLM grouping is a fixture). Run: cd crawler && ../.venv/bin/python -m pytest journey -q"""
 
+import pytest
+
 from journey import branches as B
 
 CO = "United Therapeutics"
@@ -187,3 +189,75 @@ def test_colours_stay_distinct_beyond_the_palette_and_active_branches_get_it_fir
     out = {b["id"]: b for b in B.build(proposed, TRIALS + extra, EVENTS, CO, dup)}
     assert len({b["color"] for b in out.values()}) == len(out) == 10
     assert {out[i]["color"] for i in ("PAH", "PH-ILD", "IPF", "PPF")} <= set(B.PALETTE)
+
+
+def test_company_sponsor_matching_is_shared_with_the_trial_candidates(db):
+    asset = {"_id": "nat", "name": "Natalizumab", "company": {"name": "Biogen Inc."}}
+    db.trial_records.insert_one({"record_key": "k", "nct_id": "NCT1", "assets": ["nat"], "lead_sponsor": "Biogen",
+                                 "phases": ["PHASE3"], "overall_status": "COMPLETED", "start_date": "2010-01-01"})
+    assert [t["id"] for t in B.candidate_trials(db, asset, "2026-10-09")] == ["NCT1"]
+
+
+def test_case_mangled_member_ids_still_match():
+    proposed = [{**PROPOSED[0], "members": [" nct_triumph ", "REMODULIN"]}]
+    out = B.build(proposed, TRIALS, EVENTS, CO, [])
+    assert out[0]["members"] == ["NCT_TRIUMPH", "remodulin"]
+
+
+def _refresh_db(db):
+    db.trial_records.insert_one({"record_key": "ctgov:NCT_TETON1", "nct_id": "NCT_TETON1", "assets": ["trep"],
+                                 "lead_sponsor": CO, "phases": ["PHASE3"], "overall_status": "COMPLETED",
+                                 "start_date": "2021-06-01", "conditions": ["IPF"]})
+    db.asset_branches.insert_one({"_id": "trep:IPF", "asset": "trep", "id": "IPF", "origin": "ai", "color": "#0b7a6f",
+                                  "members": ["NCT_TETON1"]})
+    db.journey_events.insert_one({"_id": "e", "asset": "trep", "title": "x", "branch": "IPF"})
+    return {"_id": "trep", "name": "Treprostinil", "company": {"name": CO}, "tags": {}}
+
+
+def test_a_junk_grouping_keeps_the_previous_branches(db, monkeypatch):
+    from journey import derive
+    asset = _refresh_db(db)
+    junk = {"branches": [{"id": "X", "full": "x", "members": ["nothing"], "parent": "", "why": "", "partner": "",
+                          "aliases": []}]}
+    monkeypatch.setattr(B.llm, "structured", lambda *a, **k: junk)
+    monkeypatch.setattr(derive.enrich, "enrich_events", lambda *a, **k: 0)
+    with pytest.raises(RuntimeError):
+        B.refresh(db, asset, today="2026-10-09")
+    assert [b["id"] for b in db.asset_branches.docs] == ["IPF"]
+    counts = derive.derive_journey(db, asset)
+    assert counts["branch_errors"] == 1 and db.journey_events.docs[0]["branch"] == "IPF"
+
+
+def test_the_grouping_call_is_told_the_existing_branches(db, monkeypatch):
+    asset = _refresh_db(db)
+    seen = {}
+
+    def fake(model, system, user, name, schema, **kw):
+        seen["user"] = user
+        return {"branches": [PROPOSED[2]]}
+
+    monkeypatch.setattr(B.llm, "structured", fake)
+    B.refresh(db, asset, today="2026-10-09")
+    assert '"existing_branches"' in seen["user"] and '"IPF"' in seen["user"]
+
+
+def test_a_renamed_branch_inherits_the_colour_of_the_one_it_overlaps():
+    old = [{"id": "IPF-OLD", "color": "#e0620f", "origin": "ai", "members": ["NCT_TETON1", "ipf_snda"]}]
+    out = {b["id"]: b for b in B.build(PROPOSED, TRIALS, EVENTS, CO, old)}
+    assert out["IPF"]["color"] == "#e0620f" and out["IPF"]["origin"] == "ai"
+    assert len({b["color"] for b in out.values()}) == len(out)
+
+
+def test_branch_ids_are_normalised_to_ascii_dashes():
+    proposed = [{**PROPOSED[0]}, {**PROPOSED[1], "id": " PH‑ILD "}]
+    assert [b["id"] for b in B.build(proposed, TRIALS, EVENTS, CO, [])] == ["PAH", "PH-ILD"]
+
+
+def test_same_day_branches_naming_each_other_cannot_form_a_cycle():
+    trials = [trial("NCT_A", "2020-01-01", ["A"]), trial("NCT_B", "2020-01-01", ["B"])]
+    proposed = [PROPOSED[0],
+                {"id": "A", "full": "a", "members": ["NCT_A"], "parent": "B", "why": "", "partner": "", "aliases": []},
+                {"id": "B", "full": "b", "members": ["NCT_B"], "parent": "A", "why": "", "partner": "", "aliases": []}]
+    out = {b["id"]: b for b in B.build(proposed, TRIALS[:1] + trials, EVENTS[:1], CO, [])}
+    assert not (out["A"]["from"] == "B" and out["B"]["from"] == "A")
+    assert "PAH" in (out["A"]["from"], out["B"]["from"])

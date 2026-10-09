@@ -14,6 +14,8 @@ import re
 from datetime import date, timedelta
 from typing import Any, Dict, Iterable, List, Optional
 
+from .companies import is_company_sponsor
+
 SIGNIFICANCE_BY_PHASE = {"PHASE3": "High", "PHASE2": "Medium", "PHASE4": "Low", "PHASE1": "Low", "EARLY_PHASE1": "Low"}
 ACTIVE_TRIAL_STATUSES = {"RECRUITING", "ACTIVE_NOT_RECRUITING", "NOT_YET_RECRUITING", "ENROLLING_BY_INVITATION"}
 
@@ -254,7 +256,6 @@ def _phase(record: Dict[str, Any]) -> str:
 def trial_events(asset: str, records: Iterable[Dict[str, Any]], company: Optional[str],
                  today: Optional[str] = None) -> List[Dict[str, Any]]:
     today = today or date.today().isoformat()
-    company_l = (company or "").lower()
     events = []
     for r in records:
         phase = _phase(r)
@@ -264,7 +265,7 @@ def trial_events(asset: str, records: Iterable[Dict[str, Any]], company: Optiona
         common = dict(category="clinical", phase=phase or None, nct_id=r.get("nct_id"),
                       indication=", ".join((r.get("conditions") or [])[:2]),
                       sponsor=r.get("lead_sponsor"),
-                      sponsor_is_company=bool(company_l) and company_l in (r.get("lead_sponsor") or "").lower(),
+                      sponsor_is_company=is_company_sponsor(r.get("lead_sponsor") or "", company or ""),
                       significance=significance, indications=(r.get("conditions") or [])[:3],
                       details=_facts(Trial=r.get("nct_id"), Phase=phase_label if phase else None,
                                      Enrollment=r.get("enrollment"),

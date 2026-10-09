@@ -5,6 +5,7 @@ deterministic fields from journey/rules.py; this fills what rules can't know). B
 """
 
 import json
+import logging
 from datetime import datetime, timezone
 from typing import Any, Dict
 
@@ -13,6 +14,8 @@ from pymongo import UpdateOne
 from . import llm
 from .events import clean_impact
 from .triage import asset_context
+
+logger = logging.getLogger("crawl.enrich")
 
 BATCH = 20
 
@@ -52,9 +55,13 @@ def enrich_events(db, asset: Dict[str, Any]) -> int:
         batch = todo[start:start + BATCH]
         payload = [{"id": e["_id"], "date": e.get("date"), "type": e.get("type"), "title": e.get("title"),
                     "summary": (e.get("summary") or "")[:400], "indication": e.get("indication") or ""} for e in batch]
-        result = llm.structured(llm.TRIAGE_MODEL, SYSTEM,
-                                f"Asset: {context}\nEvents: {json.dumps(payload)}\nAll key events: {json.dumps(catalog)}",
-                                "enrich", SCHEMA)
+        try:
+            result = llm.structured(llm.TRIAGE_MODEL, SYSTEM,
+                                    f"Asset: {context}\nEvents: {json.dumps(payload)}\nAll key events: {json.dumps(catalog)}",
+                                    "enrich", SCHEMA)
+        except Exception:  # noqa: BLE001 - this batch is retried on the next finalize; the others still run
+            logger.warning("enrichment batch failed for %s", asset_id, exc_info=True)
+            continue
         answers = {r["id"]: r for r in result["events"]}
         now = datetime.now(timezone.utc)
         ops = []
@@ -62,8 +69,10 @@ def enrich_events(db, asset: Dict[str, Any]) -> int:
             r = answers.get(e["_id"])
             if r is None:
                 continue  # skipped by the model: retried on the next finalize
-            fields: Dict[str, Any] = {"enriched_at": now, "impact": clean_impact(r["impact"]),
+            fields: Dict[str, Any] = {"enriched_at": now,
                                       "ai_links": [i for i in dict.fromkeys(r["links"]) if i in known and i != e["_id"]][:3]}
+            if not e.get("impact"):  # AI events already carry the one written at extraction
+                fields["impact"] = clean_impact(r["impact"])
             if not e.get("product") and r["product"].strip():
                 fields["product"] = r["product"].strip()[:60]
             indications = [i.strip()[:40] for i in r["indications"] if i.strip()][:3]

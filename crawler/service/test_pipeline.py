@@ -179,3 +179,20 @@ def test_mongo_store_numbers_feed_lines_with_the_job_cursor(db):
     store.feed(job_id, {"step": "a", "kind": "done", "text": "Done"})
     assert [(d["id"], d["text"]) for d in db.job_feed.docs] == [(1, "Planning"), (2, "Done")]
     assert db.jobs.docs[0]["feed_cursor"] == 2
+
+
+def test_a_failing_progress_write_does_not_fail_the_job():
+    job = new_job("trep", "refresh", PLAN, None)
+    store = MemoryJobStore(job)
+    real = store.update
+
+    def update(job_id, fields):
+        if "records_by_coll" in fields:
+            raise ConnectionError("mongo blip")
+        return real(job_id, fields)
+
+    store.update = update
+    measure = lambda asset_id: {"records_by_coll": {}, "record_years": [], "events": 1}
+    status = asyncio.run(run_job(store, job["_id"], {n: (lambda c: {}) for n in "abc"}, load_asset=lambda _: ASSET,
+                                 measure=measure))
+    assert status == "completed" and store.get(job["_id"])["status"] == "completed"
