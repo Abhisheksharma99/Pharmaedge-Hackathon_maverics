@@ -64,12 +64,12 @@ export function homeCounts(events: JourneyEventV3[], today: string): HomeCounts 
   return counts
 }
 
-/** Dated events of competitor assets, newest first. */
-export function competitorMoves(events: JourneyEventV3[], isCompetitor: (assetId: string) => boolean, limit = 8): JourneyEventV3[] {
-  return events
-    .filter((e) => isCompetitor(e.asset) && /^\d{4}/.test(e.date))
-    .sort((a, b) => b.date.localeCompare(a.date))
-    .slice(0, limit)
+/** Competitor moves: key events of the last 12 months (newest first), then milestones due in the next 12 months (soonest first). */
+export function competitorMoves(events: JourneyEventV3[], isCompetitor: (assetId: string) => boolean, today: string, limit = 8): JourneyEventV3[] {
+  const mine = events.filter((e) => isCompetitor(e.asset)).map((e) => ({ e, d: offset(e, today) }))
+  const recent = mine.filter(({ e, d }) => !e.is_milestone && d <= 0 && d >= -365).sort((a, b) => b.d - a.d)
+  const upcoming = mine.filter(({ e, d }) => e.is_milestone && d >= 0 && d <= 365).sort((a, b) => a.d - b.d)
+  return [...recent, ...upcoming].slice(0, limit).map((r) => r.e)
 }
 
 /** Width (%) of a milestone's proximity bar: full today, 4% at 18 months or more. */

@@ -120,10 +120,12 @@ export function AssetCard({
         {variant === 'search' && asset.kind === 'competitor' && rivals.length > 0 && <Tag>vs {rivals.join(', ')}</Tag>}
       </span>
       <Sparkline events={events} thisYear={Number(today.slice(0, 4))} />
-      <span className="flex min-w-0 gap-2 text-[12.5px] text-secondary-foreground">
-        <span className="shrink-0 text-muted-foreground">Latest</span>
-        <span className="truncate">{asset.latestEvent?.title ?? (progress !== null ? 'Collecting records…' : '—')}</span>
-      </span>
+      {(variant !== 'home' || asset.latestEvent || progress !== null) && (
+        <span className="flex min-w-0 gap-2 text-[12.5px] text-secondary-foreground">
+          <span className="shrink-0 text-muted-foreground">Latest</span>
+          <span className="truncate">{asset.latestEvent?.title ?? (progress !== null ? 'Collecting records…' : '—')}</span>
+        </span>
+      )}
       {variant === 'home' && (
         <span className="flex flex-wrap gap-x-3 gap-y-1 border-t border-hair pt-2.5 text-[12px] text-muted-foreground">
           <span>

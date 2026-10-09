@@ -1,7 +1,7 @@
 import { AssetTile } from '@/features/assets/components/asset-tile'
 import { SignificanceBadge } from '@/features/assets/components/badges'
 import { EmptyState, Panel } from '@/features/assets/components/panel'
-import { formatDay, formatMonth } from '@/lib/dates'
+import { formatDay, formatMonth, todayIso } from '@/lib/dates'
 import { useEventSheet } from '@/stores/event-sheet-store'
 import { usePortfolioTimeline } from '../api'
 import { competitorMoves } from '../home-data'
@@ -12,7 +12,7 @@ export function CompetitiveSignals() {
   const portfolio = usePortfolioTimeline()
   const openEvent = useEventSheet((s) => s.openEvent)
   const assets = new Map((portfolio.data?.assets ?? []).map((a) => [a.id, a]))
-  const moves = portfolio.data ? competitorMoves(portfolio.data.events, (id) => assets.get(id)?.kind === 'competitor') : []
+  const moves = portfolio.data ? competitorMoves(portfolio.data.events, (id) => assets.get(id)?.kind === 'competitor', todayIso()) : []
 
   return (
     <Panel title="Competitive signals" description="Moves by competitors of your assets" bodyClassName="py-1">

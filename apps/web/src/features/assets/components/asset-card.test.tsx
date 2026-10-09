@@ -90,6 +90,11 @@ describe('AssetCard', () => {
     expect(card).toHaveTextContent('Ready')
     expect(card).toHaveTextContent('Latest—')
   })
+
+  it('home: hides the Latest line when there is no latest event', () => {
+    wrap(<AssetCard asset={NINT} events={[]} progress={null} variant="home" />)
+    expect(screen.getByRole('link', { name: /Nintedanib/ })).not.toHaveTextContent('Latest')
+  })
 })
 
 describe('AssetStatusPill', () => {

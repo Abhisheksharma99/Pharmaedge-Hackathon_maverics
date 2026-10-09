@@ -48,8 +48,18 @@ describe('home data', () => {
     expect(homeCounts(EVENTS, TODAY)).toEqual({ new30: 4, high30: 2, new90: 5, next6m: 2, next12m: 2 })
   })
 
-  it('lists competitor moves newest first', () => {
-    expect(competitorMoves(EVENTS, (id) => id === 'nint').map((e) => e.id)).toEqual(['m3', 'd3'])
+  it('lists competitor moves: last 12 months newest first, then next 12 months soonest first', () => {
+    const more = [
+      ...EVENTS,
+      ev('p1', 'nint', '2026-10-01'),
+      ev('far', 'nint', '2042-12-01', { is_milestone: true }),
+      ev('ancient', 'nint', '2024-01-01'),
+      ev('soon', 'nint', '2027-02-01', { is_milestone: true }),
+      ev('partial', 'nint', '2026', { is_milestone: true }),
+      ev('undated', 'nint', ''),
+    ]
+    const ids = competitorMoves(more, (id) => id === 'nint', TODAY).map((e) => e.id)
+    expect(ids).toEqual(['p1', 'd3', 'soon'])
   })
 
   it('turns days to go into a proximity bar width', () => {

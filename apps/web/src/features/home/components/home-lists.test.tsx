@@ -43,6 +43,7 @@ const PORTFOLIO: PortfolioTimeline = {
     ev('m1', 'trep', '2026-12-01', { title: 'TETON-2 readout', is_milestone: true, significance: 'Medium', category: 'clinical' }),
     ev('m2', 'sota', '2027-03-31', { title: 'EU decision expected', is_milestone: true }),
     ev('m3', 'nint', '2028-01-01', { title: 'Ofev patent expiry', is_milestone: true, category: 'ip' }),
+    ev('m4', 'nint', '2027-02-01', { title: 'Ofev label update expected', is_milestone: true }),
   ],
 }
 
@@ -111,13 +112,15 @@ describe('NextMilestones', () => {
 })
 
 describe('CompetitiveSignals', () => {
-  it('lists competitor moves newest first with the primaries they compete with', async () => {
+  it('lists recent competitor moves, then near-term milestones, skipping far-future ones', async () => {
     renderWith(<CompetitiveSignals />)
     const rows = await screen.findAllByRole('button', { name: /Ofev/ })
-    expect(rows[0]).toHaveTextContent('Ofev patent expiry')
-    expect(rows[0]).toHaveTextContent('expected Jan 2028')
-    expect(rows[1]).toHaveTextContent('Ofev included in Medicare negotiation')
-    expect(rows[1]).toHaveTextContent('vs Treprostinil')
-    expect(rows[1]).toHaveTextContent('Aug 1, 2026')
+    expect(rows).toHaveLength(2)
+    expect(rows[0]).toHaveTextContent('Ofev included in Medicare negotiation')
+    expect(rows[0]).toHaveTextContent('vs Treprostinil')
+    expect(rows[0]).toHaveTextContent('Aug 1, 2026')
+    expect(rows[1]).toHaveTextContent('Ofev label update expected')
+    expect(rows[1]).toHaveTextContent('expected Feb 2027')
+    expect(screen.queryByText('Ofev patent expiry')).not.toBeInTheDocument()
   })
 })

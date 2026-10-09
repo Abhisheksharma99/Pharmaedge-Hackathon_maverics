@@ -45,6 +45,9 @@ function renderCard(running: Job[]) {
       if (url === '/api/jobs/j1') {
         return json(200, { ...RUNNING, records: [{ coll: 'fda_records', count: 1000 }, { coll: 'trial_records', count: 234 }], events_created: 7, feed_cursor: 0, record_years: [] })
       }
+      if (url === '/api/jobs/j2') {
+        return json(200, { ...RECENT[1], steps: [step('regulatory', 'done'), step('finalize', 'done')], records: [{ coll: 'fda_records', count: 2000 }, { coll: 'x', count: 345 }], events_created: 12, feed_cursor: 0, record_years: [] })
+      }
       return json(404, { code: 'NOT_FOUND', message: url })
     }),
   )
@@ -98,6 +101,17 @@ describe('CrawlsCard', () => {
     renderCard([])
     expect(await screen.findByText('Nothing running right now')).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /Watch the live build/ })).not.toBeInTheDocument()
+  })
+
+  it('when idle, keeps the last finished crawl as a card linking to the journey', async () => {
+    renderCard([])
+    const card = await screen.findByRole('link', { name: /Explore the journey/ })
+    expect(card).toHaveAttribute('href', '/assets/sota/overview')
+    expect(card).toHaveTextContent('Sotatercept · refresh')
+    expect(await within(card).findByText('Finished · 12 events from 2,345 records')).toBeInTheDocument()
+    expect(card).toHaveTextContent('100%')
+    expect(within(card).getByRole('progressbar', { name: 'Crawl steps' })).toHaveAttribute('aria-valuenow', '2')
+    expect(screen.getByRole('link', { name: /Ensifentrine/ })).toHaveAttribute('href', '/jobs/j3')
   })
 })
 
