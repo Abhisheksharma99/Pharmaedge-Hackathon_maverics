@@ -7,6 +7,8 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Protocol
 
+from pymongo import ReturnDocument
+
 ACTIVE = ("queued", "running")
 
 
@@ -23,6 +25,10 @@ def new_job(asset_id: str, job_type: str, steps: List[Dict[str, str]], requested
         "steps": [{**s, "status": "pending", "counts": {}, "error": None, "started_at": None, "finished_at": None}
                   for s in steps],
         "cancel_requested": False,
+        "feed_cursor": 0,
+        "records_by_coll": {},
+        "record_years": [],
+        "events_created": 0,
         "requested_by": requested_by,
         "created_at": now(),
         "started_at": None,
@@ -54,11 +60,14 @@ class JobStore(Protocol):
     def get(self, job_id: str) -> Optional[Dict[str, Any]]: ...
     def update(self, job_id: str, fields: Dict[str, Any]) -> None: ...
     def update_step(self, job_id: str, index: int, fields: Dict[str, Any]) -> None: ...
+    def feed(self, job_id: str, item: Dict[str, Any]) -> None: ...
 
 
 class MongoJobStore:
     def __init__(self, db):
         self.jobs = db.jobs
+        self.job_feed = db.job_feed
+        self.job_feed.create_index([("job", 1), ("id", 1)], unique=True)
 
     def get(self, job_id):
         return self.jobs.find_one({"_id": job_id})
@@ -69,12 +78,20 @@ class MongoJobStore:
     def update_step(self, job_id, index, fields):
         self.jobs.update_one({"_id": job_id}, {"$set": {f"steps.{index}.{k}": v for k, v in fields.items()}})
 
+    def feed(self, job_id, item):
+        """Append one live-build log line, numbered by the job's monotonic feed cursor (the API's `since`)."""
+        job = self.jobs.find_one_and_update({"_id": job_id}, {"$inc": {"feed_cursor": 1}}, projection={"feed_cursor": 1},
+                                            return_document=ReturnDocument.AFTER)
+        if job:
+            self.job_feed.insert_one({"job": job_id, "id": job["feed_cursor"], "t": now(), **item})
+
 
 class MemoryJobStore:
     """In-process store for tests."""
 
     def __init__(self, *jobs: Dict[str, Any]):
         self.jobs = {j["_id"]: j for j in jobs}
+        self.feeds: Dict[str, List[Dict[str, Any]]] = {}
 
     def get(self, job_id):
         return self.jobs.get(job_id)
@@ -84,3 +101,7 @@ class MemoryJobStore:
 
     def update_step(self, job_id, index, fields):
         self.jobs[job_id]["steps"][index].update(fields)
+
+    def feed(self, job_id, item):
+        lines = self.feeds.setdefault(job_id, [])
+        lines.append({"id": len(lines) + 1, **item})

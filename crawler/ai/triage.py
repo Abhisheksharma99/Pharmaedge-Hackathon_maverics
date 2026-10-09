@@ -13,7 +13,7 @@ never re-judged on refresh, and the reason for every drop is on record.
 import hashlib
 import json
 from datetime import datetime, timezone
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, Iterable, List, Optional
 
 from pymongo import UpdateOne
 
@@ -116,7 +116,7 @@ TRIAGED_SOURCES = {
 }
 
 
-def triage_stored(asset: Dict[str, Any]) -> Dict[str, int]:
+def triage_stored(asset: Dict[str, Any], notable: Optional[List[Any]] = None) -> Dict[str, int]:
     """Triage records already stored for the asset that haven't been judged yet; store the verdict on them."""
     db, asset_id, counts = get_db(), asset["_id"], {}
     for coll, (key_field, extra, text_field) in TRIAGED_SOURCES.items():
@@ -129,6 +129,9 @@ def triage_stored(asset: Dict[str, Any]) -> Dict[str, int]:
                   "snippet": (r.get(text_field) or "")[:400], "source": r.get("company") or r.get("source"),
                   "date": r.get("date"), "collection": coll} for r in records]
         decisions = judge(asset, items)
+        if notable is not None:
+            titles = {i["key"]: i.get("title") or i["key"] for i in items}
+            notable.extend((titles[k], d["decision"]) for k, d in decisions.items())
         db[coll].bulk_write([UpdateOne({key_field: k}, {"$set": {f"triage.{asset_id}": d}})
                              for k, d in decisions.items()], ordered=False)
         for d in decisions.values():

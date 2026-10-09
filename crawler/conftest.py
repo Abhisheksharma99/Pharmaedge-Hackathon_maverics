@@ -13,6 +13,10 @@ def _matches(doc, flt):
                 return False
             if "$nin" in cond and value in cond["$nin"]:
                 return False
+            if "$ne" in cond and value == cond["$ne"]:
+                return False
+            if "$exists" in cond and (key in doc) != cond["$exists"]:
+                return False
             if "$gte" in cond and (value is None or value < cond["$gte"]):
                 return False
         elif isinstance(value, list):
@@ -25,6 +29,10 @@ def _matches(doc, flt):
 
 def _apply(doc, update):
     doc.update(update.get("$set", {}))
+    for key in update.get("$unset", {}):
+        doc.pop(key, None)
+    for key, value in update.get("$inc", {}).items():
+        doc[key] = doc.get(key, 0) + value
     for key, value in update.get("$addToSet", {}).items():
         if value not in doc.setdefault(key, []):
             doc[key].append(value)
@@ -68,6 +76,26 @@ class FakeCollection:
     def update_many(self, flt, update):
         for doc in self.find(flt):
             _apply(doc, update)
+
+    def find_one_and_update(self, flt, update, projection=None, return_document=None, upsert=False):
+        doc = self.find_one(flt)
+        if doc is None:
+            return None
+        _apply(doc, update)
+        return dict(doc)
+
+    def insert_many(self, docs):
+        self.docs.extend(dict(d) for d in docs)
+
+    def delete_many(self, flt):
+        before = len(self.docs)
+        self.docs = [d for d in self.docs if not _matches(d, flt)]
+        return SimpleNamespace(deleted_count=before - len(self.docs))
+
+    def bulk_write(self, ops, ordered=True):
+        for op in ops:  # pymongo UpdateOne
+            self.update_one(op._filter, op._doc, upsert=op._upsert)
+        return SimpleNamespace(upserted_count=0, modified_count=len(ops))
 
     def create_index(self, *args, **kwargs):
         pass

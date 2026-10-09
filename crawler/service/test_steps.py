@@ -27,6 +27,7 @@ def journey(monkeypatch, db):
     monkeypatch.setattr(steps, "build_rule_events", lambda db, asset_id, company: [{"_id": "rule:patent_expiry"}])
     monkeypatch.setattr(steps, "replace_rule_events", lambda db, asset_id, events: {"events": len(events), "new": 1,
                                                                                      "removed": 0})
+    monkeypatch.setattr(steps, "derive_journey", lambda db, asset, log: {"branches": 6, "key_events": 41, "enriched": 3})
     return db
 
 
@@ -38,11 +39,45 @@ def test_finalize_rebuilds_the_journey_and_marks_the_asset_ready(journey):
                                        "type": "expected_readout"})
     journey.journey_events.insert_one({"asset": "treprostinil", "is_milestone": True, "date": future(400),
                                        "type": "patent_expiry"})
-    assert steps.finalize(ctx()) == {"events": 1, "new": 1, "removed": 0, "suggested_questions": 4}
+    assert steps.finalize(ctx()) == {"events": 1, "new": 1, "removed": 0, "branches": 6, "key_events": 41,
+                                     "enriched": 3, "suggested_questions": 4,
+                                     "summary": "Asset ready · 41 key events · 6 branches"}
     asset = journey.assets.find_one({"_id": "treprostinil"})
     assert asset["status"] == "ready" and asset["last_crawled_at"]
     assert asset["suggested_questions"][1] == "What is expected from Treprostinil's next trial readout, and when?"
     assert asset["suggested_questions"][2] == "How does Treprostinil compare with Sotatercept?"
+
+
+def test_journey_step_logs_new_high_events(journey, monkeypatch):
+    lines = []
+    c = StepContext(asset=ASSET, is_cancelled=lambda: False, log=lambda kind, text, **kw: lines.append((kind, text, kw)))
+    journey.journey_events.insert_one({"_id": "old", "asset": "treprostinil", "significance": "High", "title": "Old"})
+
+    def rebuild(db, asset_id, events):
+        db.journey_events.insert_one({"_id": "new", "asset": "treprostinil", "significance": "High", "date": "2021-03-31",
+                                      "title": "FDA approves efficacy supplement for Tyvaso",
+                                      "sources": [{}], "merged_sources": [{}, {}]})
+        db.journey_events.insert_one({"_id": "low", "asset": "treprostinil", "significance": "Low", "title": "Label"})
+        return {"events": 3, "new": 2, "removed": 0}
+
+    monkeypatch.setattr(steps, "replace_rule_events", rebuild)
+    out = steps.journey(c)
+    assert out["summary"] == "3 events from structured sources"
+    assert lines == [("event", "FDA approves efficacy supplement for Tyvaso", {"event_id": "new", "merged": 3})]
+
+
+def test_ai_triage_logs_a_sample_of_verdicts(monkeypatch):
+    def triage(asset, notable=None):
+        notable.extend([("FDA accepts sNDA", "ingest"), ("Market report", "skip"), ("Webinar", "headline")])
+        return {"articles_ingest": 1, "articles_skip": 1, "articles_headline": 1}
+
+    monkeypatch.setattr(steps, "triage_stored", triage)
+    lines = []
+    c = StepContext(asset=ASSET, is_cancelled=lambda: False, log=lambda kind, text, **kw: lines.append((kind, text, kw)))
+    out = steps.ai_triage(c)
+    assert lines[0] == ("ai", "“FDA accepts sNDA”", {"verdict": "Ingest"})
+    assert {kw["verdict"] for _, _, kw in lines} == {"Ingest", "Skip", "Headline"}
+    assert out["summary"] == "1 relevant · 1 dropped"
 
 
 def test_questions_without_milestones_or_competitors_stay_generic(db):

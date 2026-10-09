@@ -96,3 +96,86 @@ def test_steps_see_the_job_type():
     seen = []
     assert run(MemoryJobStore(job), job["_id"], {"a": lambda ctx: seen.append(ctx.job_type)}) == "completed"
     assert seen == ["competitor"]
+
+
+from service.jobs import MongoJobStore
+
+
+def test_the_feed_logs_plan_steps_and_outcomes_in_order():
+    job = new_job("trep", "refresh", PLAN, None)
+    store = MemoryJobStore(job)
+
+    def b(ctx):
+        ctx.log("ai", "“FDA accepts sNDA”", verdict="Ingest")
+        return {"triaged": 3, "summary": "3 relevant · 0 dropped"}
+
+    def c(ctx):
+        raise StepSkipped("No newsroom crawler")
+
+    run(store, job["_id"], {"a": lambda ctx: {"fda_new": 2, "ema_new": 1}, "b": b, "c": c})
+    feed = store.feeds[job["_id"]]
+    assert [(f["step"], f["kind"]) for f in feed] == [
+        ("plan", "info"), ("a", "info"), ("a", "done"), ("b", "info"), ("b", "ai"), ("b", "done"),
+        ("c", "info"), ("c", "warn")]
+    assert feed[0]["text"] == "Planning refresh for Treprostinil · 3 steps"
+    assert feed[2]["text"] == "fda new 2 · ema new 1"
+    assert feed[4]["verdict"] == "Ingest"
+    assert feed[5]["text"] == "3 relevant · 0 dropped"
+    assert store.get(job["_id"])["steps"][1]["counts"] == {"triaged": 3}  # the summary is not a count
+    assert feed[7]["text"] == "Skipped: No newsroom crawler"
+    assert [f["id"] for f in feed] == list(range(1, 9))
+
+
+def test_failed_steps_are_logged_as_warnings():
+    job = new_job("trep", "refresh", PLAN, None)
+    store = MemoryJobStore(job)
+
+    def boom(ctx):
+        raise RuntimeError("FDA API down")
+
+    run(store, job["_id"], {"a": boom, "b": lambda c: {}, "c": lambda c: {}})
+    assert store.feeds[job["_id"]][2] == {"id": 3, "step": "a", "kind": "warn", "text": "Failed: RuntimeError: FDA API down"}
+
+
+def test_progress_is_measured_after_each_step():
+    job = new_job("trep", "refresh", PLAN, None)
+    store, calls = MemoryJobStore(job), []
+
+    def measure(asset_id):
+        calls.append(asset_id)
+        return {"records_by_coll": {"fda_records": 10 * len(calls)}, "record_years": [{"coll": "fda_records", "year": 2021, "n": 1}],
+                "events": 100 + len(calls)}
+
+    asyncio.run(run_job(store, job["_id"], {n: (lambda c: {}) for n in "abc"}, load_asset=lambda _: ASSET, measure=measure))
+    saved = store.get(job["_id"])
+    assert calls == ["trep"] * 4  # baseline + one per step
+    assert saved["records_by_coll"] == {"fda_records": 40}
+    assert saved["events_created"] == 3
+    assert saved["record_years"] == [{"coll": "fda_records", "year": 2021, "n": 1}]
+
+
+def test_a_broken_feed_or_measure_never_fails_the_job():
+    job = new_job("trep", "refresh", PLAN, None)
+    store = MemoryJobStore(job)
+
+    def bad_feed(job_id, item):
+        raise ConnectionError("mongo blip")
+
+    store.feed = bad_feed
+
+    def bad_measure(asset_id):
+        raise ConnectionError("mongo blip")
+
+    status = asyncio.run(run_job(store, job["_id"], {n: (lambda c: {}) for n in "abc"}, load_asset=lambda _: ASSET,
+                                 measure=bad_measure))
+    assert status == "completed"
+
+
+def test_mongo_store_numbers_feed_lines_with_the_job_cursor(db):
+    db.jobs.insert_one(new_job("trep", "refresh", PLAN, None))
+    job_id = db.jobs.docs[0]["_id"]
+    store = MongoJobStore(db)
+    store.feed(job_id, {"step": "plan", "kind": "info", "text": "Planning"})
+    store.feed(job_id, {"step": "a", "kind": "done", "text": "Done"})
+    assert [(d["id"], d["text"]) for d in db.job_feed.docs] == [(1, "Planning"), (2, "Done")]
+    assert db.jobs.docs[0]["feed_cursor"] == 2

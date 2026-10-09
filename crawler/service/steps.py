@@ -8,7 +8,7 @@ refreshes incremental.
 import asyncio
 from collections import Counter
 from datetime import date, datetime, timezone
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
 from pymongo import UpdateOne
@@ -22,6 +22,7 @@ from integrations import conferences as conference_corpus
 from integrations import fda_calendar as fda_calendar_source
 from integrations import newsroom
 from integrations import patents as patent_crawler
+from journey.derive import derive_journey
 from journey.rules import build_rule_events
 from journey.store import replace_rule_events
 from regulatory import clinicaltrials, ema, fda
@@ -36,7 +37,9 @@ def regulatory(ctx: StepContext) -> StepResult:
     fda_counts = upsert_records("fda_records", fda.fetch_all(ctx.asset_id, ctx.names), ctx.asset_id)
     ema_counts = upsert_records("ema_records", ema.fetch_all(ctx.names), ctx.asset_id)
     return {"fda_new": fda_counts["inserted"], "fda_updated": fda_counts["updated"],
-            "ema_new": ema_counts["inserted"], "ema_updated": ema_counts["updated"]}
+            "ema_new": ema_counts["inserted"], "ema_updated": ema_counts["updated"],
+            "summary": f"Stored {fda_counts['inserted'] + fda_counts['updated']} FDA and "
+                       f"{ema_counts['inserted'] + ema_counts['updated']} EMA records"}
 
 
 async def fda_calendar(ctx: StepContext) -> StepResult:
@@ -59,7 +62,8 @@ def ema_chmp(ctx: StepContext) -> StepResult:
 
 def clinical(ctx: StepContext) -> StepResult:
     counts = upsert_records("trial_records", clinicaltrials.fetch_all(ctx.names), ctx.asset_id)
-    return {"trials_new": counts["inserted"], "trials_updated": counts["updated"]}
+    return {"trials_new": counts["inserted"], "trials_updated": counts["updated"],
+            "summary": f"Stored {counts['inserted'] + counts['updated']} studies ({counts['inserted']} new)"}
 
 
 def _domain(url: str) -> str:
@@ -109,6 +113,34 @@ def _tokens(before: Dict[str, int]) -> Dict[str, int]:
     return {"llm_calls": after["calls"] - before["calls"], "cache_hits": after["cache_hits"] - before["cache_hits"],
             "tokens": (after["prompt_tokens"] + after["completion_tokens"])
             - (before["prompt_tokens"] + before["completion_tokens"])}
+
+
+def _high_ids(db, asset_id: str) -> set:
+    return {e["_id"] for e in db.journey_events.find({"asset": asset_id, "significance": "High"}, {"_id": 1})}
+
+
+def _log_new_events(ctx: StepContext, db, before: set, cap: int = 40) -> None:
+    """One feed line per new High event (the live build pops them on its timeline)."""
+    new = [e for e in db.journey_events.find({"asset": ctx.asset_id, "significance": "High"},
+                                             {"title": 1, "date": 1, "sources": 1, "merged_sources": 1})
+           if e["_id"] not in before]
+    for e in sorted(new, key=lambda e: e.get("date") or "")[:cap]:
+        ctx.log("event", e.get("title") or e["_id"], event_id=e["_id"],
+                merged=len(e.get("sources") or []) + len(e.get("merged_sources") or []))
+
+
+VERDICTS = {"ingest": "Ingest", "headline": "Headline", "skip": "Skip"}
+
+
+def _sample_verdicts(decisions: List[Any], per: Optional[Dict[str, int]] = None) -> List[Any]:
+    per = per or {"ingest": 6, "headline": 3, "skip": 3}
+    taken: Dict[str, int] = {}
+    out = []
+    for title, decision in decisions:
+        if taken.get(decision, 0) < per.get(decision, 0):
+            taken[decision] = taken.get(decision, 0) + 1
+            out.append((title, decision))
+    return out
 
 
 def publications(ctx: StepContext) -> StepResult:
@@ -204,13 +236,23 @@ async def patents(ctx: StepContext) -> StepResult:
 
 def ai_triage(ctx: StepContext) -> StepResult:
     before = llm.usage_snapshot()
-    return {**triage_stored(ctx.asset), **_tokens(before)}
+    notable: List[Any] = []
+    counts = triage_stored(ctx.asset, notable=notable)
+    for title, decision in _sample_verdicts(notable):
+        ctx.log("ai", f"“{str(title)[:110]}”", verdict=VERDICTS[decision])
+    relevant = sum(v for k, v in counts.items() if k.endswith("_ingest"))
+    dropped = sum(v for k, v in counts.items() if k.endswith("_skip"))
+    return {**counts, **_tokens(before), "summary": f"{relevant} relevant · {dropped} dropped"}
 
 
 def ai_events(ctx: StepContext) -> StepResult:
-    before = llm.usage_snapshot()
+    before, db = llm.usage_snapshot(), get_db()
+    high_before = _high_ids(db, ctx.asset_id)
     counts = extract_events(ctx.asset)
-    return {**counts, **consolidate(ctx.asset_id), **_tokens(before)}
+    merged = consolidate(ctx.asset_id)
+    _log_new_events(ctx, db, high_before)
+    return {**counts, **merged, **_tokens(before),
+            "summary": f"{counts['documents']} documents · {counts['events']} events extracted · {merged['merged']} merged"}
 
 
 def index(ctx: StepContext) -> StepResult:
@@ -219,8 +261,12 @@ def index(ctx: StepContext) -> StepResult:
 
 
 def journey(ctx: StepContext) -> StepResult:
-    events = build_rule_events(get_db(), ctx.asset_id, ctx.asset.get("company", {}).get("name"))
-    return replace_rule_events(get_db(), ctx.asset_id, events)
+    db = get_db()
+    before = _high_ids(db, ctx.asset_id)
+    counts = replace_rule_events(db, ctx.asset_id, build_rule_events(db, ctx.asset_id,
+                                                                    ctx.asset.get("company", {}).get("name")))
+    _log_new_events(ctx, db, before)
+    return {**counts, "summary": f"{counts['events']} events from structured sources"}
 
 
 async def competitors(ctx: StepContext) -> StepResult:
@@ -270,17 +316,20 @@ def suggested_questions(db, asset: Dict[str, Any]) -> List[str]:
 
 
 def finalize(ctx: StepContext) -> StepResult:
-    """Rebuild rule events (patents found late belong in the journey too), then mark the asset ready with its
-    suggested questions. The worker bumps the cache version when the job ends."""
+    """Rebuild rule events (patents found late belong in the journey too), derive branches / key events /
+    enrichment, then mark the asset ready with its suggested questions. The worker bumps the cache version when
+    the job ends."""
     db = get_db()
     counts = replace_rule_events(db, ctx.asset_id, build_rule_events(db, ctx.asset_id,
                                                                      ctx.asset.get("company", {}).get("name")))
+    derived = derive_journey(db, ctx.asset, log=ctx.log)
     asset = db.assets.find_one({"_id": ctx.asset_id})  # fresh: competitors were written during this job
     questions = suggested_questions(db, asset)
     now = datetime.now(timezone.utc)
     db.assets.update_one({"_id": ctx.asset_id}, {"$set": {"status": "ready", "suggested_questions": questions,
                                                           "last_crawled_at": now, "updated_at": now}})
-    return {**counts, "suggested_questions": len(questions)}
+    return {**counts, **derived, "suggested_questions": len(questions),
+            "summary": f"Asset ready · {derived.get('key_events', 0)} key events · {derived.get('branches', 0)} branches"}
 
 
 STEPS = {"regulatory": regulatory, "fda_calendar": fda_calendar, "ema_chmp": ema_chmp, "clinical": clinical,

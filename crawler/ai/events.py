@@ -12,7 +12,7 @@ sources. Rule events (from FDA/EMA/trials) are authoritative and always kept.
 import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timezone
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from pymongo import ReplaceOne
 
@@ -47,6 +47,10 @@ return none if the document has no concrete event. Rules:
   outcomes; Medium = submissions/acceptances, phase 2 data, launches, enrollment completion, guidance;
   Low = everything else.
 - title: one line, factual, under 100 characters. summary: at most two sentences with the key numbers.
+- indications: the indication(s) the event concerns as short standard names or abbreviations (e.g. PAH,
+  PH-ILD, IPF); [] if the text names none. product: the brand or product name it concerns, "" if none.
+- impact: one factual sentence (max 25 words) on why the event matters for this asset's journey, only if the
+  text supports it; "" otherwise.
 - Never invent facts not in the text. Use "" for unknown strings."""
 
 EVENT_SCHEMA = {
@@ -59,9 +63,11 @@ EVENT_SCHEMA = {
             "significance": {"type": "string", "enum": ["High", "Medium", "Low"]},
             "is_milestone": {"type": "boolean"}, "expected_date": {"type": "string"},
             "phase": {"type": "string"}, "indication": {"type": "string"}, "region": {"type": "string"},
+            "indications": {"type": "array", "items": {"type": "string"}},
+            "product": {"type": "string"}, "impact": {"type": "string"},
         },
         "required": ["type", "date", "title", "summary", "significance", "is_milestone", "expected_date",
-                     "phase", "indication", "region"],
+                     "phase", "indication", "region", "indications", "product", "impact"],
         "additionalProperties": False}}},
     "required": ["events"], "additionalProperties": False,
 }
@@ -74,6 +80,12 @@ def _valid_date(value: str) -> str:
         return ""
 
 
+def clean_impact(text: str) -> Optional[str]:
+    """'Why it matters': one short factual sentence, or nothing (over-long answers are rejected, not cut)."""
+    text = " ".join((text or "").split())
+    return text if text and len(text.split()) <= 30 else None
+
+
 def _extract_one(asset: Dict[str, Any], coll: str, key_field: str, text_field: str, record: Dict[str, Any]) -> List[Dict[str, Any]]:
     text = (record.get(text_field) or "")[:8000]
     doc = (f"Asset: {json.dumps(asset_context(asset))}\nSource: {coll}\nPublished: {record.get('date', '')}\n"
@@ -84,7 +96,7 @@ def _extract_one(asset: Dict[str, Any], coll: str, key_field: str, text_field: s
         when = _valid_date(e["expected_date"] if e["is_milestone"] else e["date"]) or _valid_date(record.get("date", ""))
         if not when:
             continue
-        events.append({
+        event = {
             "_id": f"ai:{asset['_id']}:{record[key_field]}:{n}", "asset": asset["_id"], "origin": "ai",
             "confidence": 0.8, "type": e["type"], "category": CATEGORY_OF[e["type"]], "date": when,
             "title": e["title"], "summary": e["summary"], "significance": e["significance"],
@@ -92,7 +104,14 @@ def _extract_one(asset: Dict[str, Any], coll: str, key_field: str, text_field: s
             "expected_date": when if e["is_milestone"] else None, "phase": e["phase"] or None,
             "indication": e["indication"] or None, "region": e["region"] or None,
             "sources": [{"collection": coll, "record_key": record[key_field]}],
-        })
+        }
+        indications = [i.strip()[:40] for i in e.get("indications") or [] if i.strip()][:3]
+        if indications:
+            event["indications"] = indications
+        if (e.get("product") or "").strip():
+            event["product"] = e["product"].strip()[:60]
+        event["impact"] = clean_impact(e.get("impact", ""))
+        events.append(event)
     return events
 
 

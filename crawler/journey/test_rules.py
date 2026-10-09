@@ -191,3 +191,82 @@ def test_patent_rules_grants_history_and_expiry_milestones():
     # Stable ids: re-running updates rather than duplicates.
     again = patent_events(A, [patent("US1B2"), patent("US2B2"), patent("US3B1", expires="2034-01-20")], today="2026-10-08")
     assert {e["_id"] for e in again} <= {e["_id"] for e in events}
+
+
+from journey.rules import build_rule_events, link_events, patent_events, short_indication
+
+
+def test_short_indication_prefers_the_disease_abbreviation():
+    text = ("Treatment of adult patients with WHO Functional Class (FC) III or IV and: inoperable chronic "
+            "thromboembolic pulmonary hypertension (CTEPH), or persistent CTEPH after surgery.")
+    assert short_indication(text) == "CTEPH"
+    assert short_indication("Treatment of pulmonary arterial hypertension; to improve exercise") == \
+        "Treatment of pulmonary arterial hypertension"
+    assert short_indication("") == ""
+
+
+def test_trial_events_carry_indications_and_details():
+    record = {"record_key": "ctgov:NCT04708782", "nct_id": "NCT04708782", "acronym": "TETON-1", "phases": ["PHASE3"],
+              "overall_status": "COMPLETED", "start_date": "2021-06-01", "primary_completion_date": "2026-02-02",
+              "conditions": ["Idiopathic Pulmonary Fibrosis", "Interstitial Lung Disease"], "enrollment": 598,
+              "lead_sponsor": "United Therapeutics", "title": "Inhaled treprostinil in IPF"}
+    start, done = trial_events(A, [record], "United Therapeutics", today="2026-10-09")
+    assert start["indications"] == ["Idiopathic Pulmonary Fibrosis", "Interstitial Lung Disease"]
+    assert start["details"] == {"Trial": "NCT04708782", "Phase": "Phase 3", "Enrollment": "598",
+                                "Status": "Completed", "Sponsor": "United Therapeutics"}
+    assert "product" not in start
+
+
+def test_fda_events_carry_product_and_details():
+    record = {**sub("k3", "NDA022387", "SUPPL", "AP", "Efficacy"), "submission_number": "17",
+              "products": [{"route": "INHALATION"}, {"route": "INHALATION"}]}
+    e = fda_events(A, [record])[0]
+    assert e["product"] == "Tyvaso"
+    assert e["details"] == {"Application": "NDA022387 S-17", "Class": "Efficacy", "Route": "Inhalation",
+                            "Sponsor": "United Therap"}
+
+
+def test_rule_events_omit_unknown_indications_and_product():
+    e = fda_events(A, [sub("k1", "NDA022387", "ORIG", "AP", None)])[0]
+    assert "indications" not in e  # left for AI enrichment, which a rebuild must not wipe
+    p = patent_events(A, [{"record_key": "patent:US1", "country": "US", "kind": "B2", "legal_status": "Active",
+                           "grant_date": "2015-01-27", "expiry_date": "2032-04-20", "publication_number": "US1",
+                           "assignees": ["United Therapeutics Corp"], "title": "Treprostinil production"}],
+                      today="2026-10-09")
+    assert all("product" not in x and "indications" not in x for x in p)
+    assert p[0]["details"]["Patent"] == "US1"
+
+
+def test_ema_approval_gets_its_label_indication():
+    events = ema_events(A, [{"record_key": "e1", "record_type": "ema_epar", "medicine_status": "Authorised",
+                             "date": "2020-04-03", "name_of_medicine": "Trepulmix",
+                             "marketing_authorisation_developer_applicant_holder": "SciPharm Sàrl",
+                             "ema_product_number": "EMEA/H/C/005207",
+                             "therapeutic_indication": "inoperable chronic thromboembolic pulmonary hypertension (CTEPH)"}])
+    assert events[0]["indications"] == ["CTEPH"]
+    assert events[0]["product"] == "Trepulmix"
+    assert events[0]["details"]["Holder"] == "SciPharm Sàrl"
+
+
+def test_link_events_joins_the_same_trial_and_application():
+    events = [
+        {"_id": "start", "nct_id": "NCT1", "date": "2017-02-01"},
+        {"_id": "done", "nct_id": "NCT1", "date": "2019-12-26"},
+        {"_id": "approval", "application_number": "NDA022387", "product": "Tyvaso", "date": "2009-07-30"},
+        {"_id": "suppl", "application_number": "NDA022387", "product": "Tyvaso", "date": "2021-03-31"},
+        {"_id": "other", "product": "Tyvaso", "date": "2010-01-01"},
+        {"_id": "lonely", "date": ""},
+    ]
+    linked = {e["_id"]: e.get("links") for e in link_events(events)}
+    assert linked["start"] == ["done"]
+    assert linked["suppl"] == ["approval"]
+    assert linked["approval"] == ["other", "suppl"]  # same product within 5 years first (nearest), then the application
+    assert linked["lonely"] is None
+
+
+def test_build_rule_events_links_across_sources(db):
+    db.trial_records.insert_one({"record_key": "ctgov:NCT1", "nct_id": "NCT1", "assets": [A], "phases": ["PHASE3"],
+                                 "overall_status": "COMPLETED", "start_date": "2017-02-01",
+                                 "primary_completion_date": "2019-12-26", "conditions": ["PH-ILD"], "title": "INCREASE"})
+    events = {e["type"]: e for e in build_rule_events(db, A, "United Therapeutics")}
+    assert events["trial_start"]["links"] == [events["trial_completion"]["_id"]]

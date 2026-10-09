@@ -44,6 +44,33 @@ def _brand(record: Dict[str, Any]) -> str:
     return " ".join(w if w in _ACRONYMS else w.title() for w in names[0].split())
 
 
+_ABBREVIATION = re.compile(r"\(([A-Z][A-Za-z0-9-]{1,12})\)")
+_NOT_INDICATIONS = {"FC", "WHO", "NYHA", "EU", "US", "SC", "IV", "PI"}
+
+
+def short_indication(text: Optional[str]) -> str:
+    """Display form of a label indication: the disease abbreviation the text gives ("... (CTEPH)"), else its
+    first clause, at most 60 characters."""
+    text = re.sub(r"\s+", " ", text or "").strip()
+    if not text:
+        return ""
+    for abbr in _ABBREVIATION.findall(text):
+        if abbr not in _NOT_INDICATIONS:
+            return abbr
+    first = re.split(r"[;:.]", text)[0].strip()
+    return first if len(first) <= 60 else first[:57].rstrip() + "…"
+
+
+def _routes(record: Dict[str, Any]) -> str:
+    routes = dict.fromkeys((p.get("route") or "").strip().title() for p in record.get("products") or [])
+    return ", ".join(r for r in routes if r)
+
+
+def _facts(**facts: Any) -> Dict[str, str]:
+    """Ordered display facts for the event card, without empty values."""
+    return {k.replace("_", " "): str(v) for k, v in facts.items() if v not in (None, "", [])}
+
+
 CALENDAR_URL = re.compile(r"https?://\S+")
 
 
@@ -59,7 +86,9 @@ def fda_calendar_event(asset: str, group: List[Dict[str, Any]], today: str) -> D
     common = dict(category="regulatory", region="US", date=r["date"], significance="High", is_milestone=upcoming,
                   expected_date=r["date"] if upcoming else None, sponsor=r.get("company"),
                   sponsor_is_company=r.get("sponsor_is_company"),
-                  summary=re.sub(r"\s+", " ", CALENDAR_URL.sub("", r.get("description") or "")).strip()[:400])
+                  summary=re.sub(r"\s+", " ", CALENDAR_URL.sub("", r.get("description") or "")).strip()[:400],
+                  details=_facts(Type="PDUFA date" if r.get("event_type") == "pdufa" else "Advisory committee",
+                                 Company=r.get("company")))
     if r.get("event_type") != "pdufa":
         kind = "advisory_committee"
         title = f"FDA advisory committee {'meeting scheduled' if upcoming else 'meeting'}: {drugs}"
@@ -83,14 +112,19 @@ def fda_events(asset: str, records: Iterable[Dict[str, Any]], today: Optional[st
         if r.get("record_type") == "fda_recall":
             events.append(_event(asset, r, "fda_records", "recall", category="safety", region="US", date=r.get("date", ""),
                                  title=f"FDA recall: {r.get('product_description', '')[:90]}",
-                                 summary=r.get("reason_for_recall", ""), significance="High"))
+                                 summary=r.get("reason_for_recall", ""), significance="High",
+                                 details=_facts(Reason=(r.get("reason_for_recall") or "")[:90],
+                                                Classification=r.get("classification"))))
             continue
         if r.get("record_type") != "fda_submission" or not r.get("date"):
             continue
         status, sub_type, cls = r.get("submission_status"), r.get("submission_type"), r.get("submission_class") or ""
         brand, app_no = _brand(r), r.get("application_number", "")
         sponsor = (r.get("sponsor_name") or "").title()
-        common = dict(category="regulatory", region="US", date=r["date"], application_number=app_no)
+        suffix = f" S-{r.get('submission_number')}" if sub_type == "SUPPL" and r.get("submission_number") else ""
+        common = dict(category="regulatory", region="US", date=r["date"], application_number=app_no,
+                      product=brand or None,
+                      details=_facts(Application=f"{app_no}{suffix}", Class=cls, Route=_routes(r), Sponsor=sponsor))
         if status == "TA":
             events.append(_event(asset, r, "fda_records", "tentative_approval", **common, significance="Medium",
                                  title=f"FDA tentative approval: {brand} ({sponsor})", summary=f"{app_no}"))
@@ -148,7 +182,10 @@ def chmp_events(asset: str, r: Dict[str, Any], known: List[Dict[str, Any]], toda
         summary = " · ".join(v for v in (r.get("therapeutic_indication"), r.get("company"), r.get("status")) if v)
         events.append(_event(asset, r, "ema_records", kind, category="regulatory", region="EU", date=r["date"],
                              significance=significance, title=r.get("title") or f"CHMP opinion: {name}",
-                             summary=summary or r.get("section") or "", indication=r.get("therapeutic_indication")))
+                             summary=summary or r.get("section") or "", indication=r.get("therapeutic_indication"),
+                             product=r.get("name_of_medicine") or None,
+                             indications=[short_indication(r.get("therapeutic_indication"))],
+                             details=_facts(Opinion=opinion, Procedure=procedure)))
     decision = (date.fromisoformat(r["date"][:10]) + timedelta(days=EC_DECISION_DAYS)).isoformat()
     decided = any(e["medicine"] == name and e["event"]["type"] == "approval" and e["event"]["date"] >= r["date"]
                   for e in known)  # the EPAR already shows the Commission's authorisation
@@ -157,6 +194,8 @@ def chmp_events(asset: str, r: Dict[str, Any], known: List[Dict[str, Any]], toda
         events.append(_event(asset, r, "ema_records", "regulatory_decision_expected", category="regulatory",
                              region="EU", date=decision, expected_date=decision, is_milestone=True,
                              significance="High", indication=r.get("therapeutic_indication"),
+                             product=r.get("name_of_medicine") or None,
+                             indications=[short_indication(r.get("therapeutic_indication"))],
                              title=f"European Commission decision expected: {r.get('name_of_medicine')}",
                              summary=f"CHMP positive opinion adopted {r['date']}; the Commission decides within "
                                      f"{EC_DECISION_DAYS} days."))
@@ -175,7 +214,10 @@ def ema_events(asset: str, records: Iterable[Dict[str, Any]], today: Optional[st
         if r.get("record_type") == "ema_chmp_highlight":
             continue  # narrative only: AI event extraction reads it
         rt, name = r.get("record_type"), r.get("name_of_medicine") or r.get("medicine_name") or "medicine"
-        common = dict(category="regulatory", region="EU", date=r["date"])
+        holder = r.get("marketing_authorisation_developer_applicant_holder")
+        common = dict(category="regulatory", region="EU", date=r["date"], product=r.get("name_of_medicine") or None,
+                      indications=[short_indication(r.get("therapeutic_indication"))],
+                      details=_facts(Procedure=r.get("ema_product_number"), Holder=holder, Status=r.get("medicine_status")))
         if rt == "ema_epar" and r.get("medicine_status") == "Authorised":
             events.append(_event(asset, r, "ema_records", "approval", **common, significance="High",
                                  title=f"EU marketing authorisation: {name}",
@@ -194,8 +236,8 @@ def ema_events(asset: str, records: Iterable[Dict[str, Any]], today: Optional[st
                                  title=f"CHMP {r.get('post_authorisation_opinion_status', '').lower()} opinion: {name}",
                                  summary="Post-authorisation procedure (e.g. new indication or variation)"))
         elif rt == "ema_dhpc":
-            events.append(_event(asset, r, "ema_records", "safety_communication", category="safety", region="EU",
-                                 date=r["date"], significance="High", title=f"Safety communication: {name}",
+            events.append(_event(asset, r, "ema_records", "safety_communication", **{**common, "category": "safety"},
+                                 significance="High", title=f"Safety communication: {name}",
                                  summary=r.get("dhpc_type", "")))
         if events and events[-1]["sources"][0]["record_key"] == r["record_key"]:
             known.append({"medicine": name.lower(), "event": events[-1]})
@@ -223,7 +265,11 @@ def trial_events(asset: str, records: Iterable[Dict[str, Any]], company: Optiona
                       indication=", ".join((r.get("conditions") or [])[:2]),
                       sponsor=r.get("lead_sponsor"),
                       sponsor_is_company=bool(company_l) and company_l in (r.get("lead_sponsor") or "").lower(),
-                      significance=significance)
+                      significance=significance, indications=(r.get("conditions") or [])[:3],
+                      details=_facts(Trial=r.get("nct_id"), Phase=phase_label if phase else None,
+                                     Enrollment=r.get("enrollment"),
+                                     Status=(r.get("overall_status") or "").replace("_", " ").capitalize(),
+                                     Sponsor=r.get("lead_sponsor")))
         status = r.get("overall_status")
         if r.get("start_date") and r["start_date"] <= today:
             events.append(_event(asset, r, "trial_records", "trial_start", date=r["start_date"], **common,
@@ -265,7 +311,10 @@ def patent_events(asset: str, records: Iterable[Dict[str, Any]], today: Optional
         if r.get("grant_date"):
             events.append(_event(asset, r, "patent_records", "patent_grant", category="ip", date=r["grant_date"],
                                  significance="Low", title=f"US patent granted: {r.get('title')}",
-                                 summary=f"{r['publication_number']} ({', '.join(r.get('assignees') or [])})"))
+                                 summary=f"{r['publication_number']} ({', '.join(r.get('assignees') or [])})",
+                                 details=_facts(Patent=r.get("publication_number"),
+                                                Assignee=(r.get("assignees") or [None])[0], Granted=r.get("grant_date"),
+                                                Expiry=r.get("expiry_date"), Status=r.get("legal_status"))))
         if (r.get("expiry_date") or "") > today:
             expiring.setdefault(r["expiry_date"], []).append(r)
     last = max(expiring, default=None)
@@ -280,13 +329,53 @@ def patent_events(asset: str, records: Iterable[Dict[str, Any]], today: Optional
             "summary": ("Last in-force US patent; loss of exclusivity unless extended. " if when == last else "")
                        + ", ".join(numbers),
             "sources": [{"collection": "patent_records", "record_key": g["record_key"]} for g in group],
+            "details": _facts(Patents=", ".join(numbers), Expiry=when),
         })
+    return events
+
+
+def _clean(event: Dict[str, Any]) -> Dict[str, Any]:
+    """Unknown product / indications are left out (not null), so AI enrichment survives rule rebuilds."""
+    if not event.get("product"):
+        event.pop("product", None)
+    inds = [i for i in event.get("indications") or [] if i]
+    if inds:
+        event["indications"] = inds
+    else:
+        event.pop("indications", None)
+    return event
+
+
+def _gap(a: Dict[str, Any], b: Dict[str, Any]) -> int:
+    try:
+        return _days_apart(a["date"], b["date"])
+    except (KeyError, ValueError):
+        return 10 ** 6
+
+
+def link_events(events: List[Dict[str, Any]], years: int = 5, cap: int = 6) -> List[Dict[str, Any]]:
+    """`links`: other rule events about the same trial, the same application, or the same product within ±5
+    years (nearest first). Product neighbours come before application neighbours of the same distance."""
+    by_nct: Dict[str, List[Dict[str, Any]]] = {}
+    by_app: Dict[str, List[Dict[str, Any]]] = {}
+    by_product: Dict[str, List[Dict[str, Any]]] = {}
+    for e in events:
+        for index, key in ((by_nct, e.get("nct_id")), (by_app, e.get("application_number")), (by_product, e.get("product"))):
+            if key:
+                index.setdefault(key, []).append(e)
+    for e in events:
+        same = by_nct.get(e.get("nct_id"), []) + by_app.get(e.get("application_number"), [])
+        near = [x for x in by_product.get(e.get("product"), []) if _gap(x, e) <= years * 365]
+        related = {x["_id"]: x for x in near + same if x is not e}
+        if related:
+            e["links"] = [x["_id"] for x in sorted(related.values(), key=lambda x: _gap(x, e))][:cap]
     return events
 
 
 def build_rule_events(db, asset_id: str, company: Optional[str]) -> List[Dict[str, Any]]:
     q = {"assets": asset_id}
-    return (fda_events(asset_id, db.fda_records.find(q))
-            + ema_events(asset_id, db.ema_records.find(q))
-            + trial_events(asset_id, db.trial_records.find(q, {"study": 0}), company)
-            + patent_events(asset_id, db.patent_records.find(q, {"abstract": 0, "events": 0})))
+    events = (fda_events(asset_id, db.fda_records.find(q))
+              + ema_events(asset_id, db.ema_records.find(q))
+              + trial_events(asset_id, db.trial_records.find(q, {"study": 0}), company)
+              + patent_events(asset_id, db.patent_records.find(q, {"abstract": 0, "events": 0})))
+    return link_events([_clean(e) for e in events])

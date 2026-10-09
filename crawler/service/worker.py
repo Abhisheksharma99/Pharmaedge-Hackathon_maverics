@@ -6,7 +6,7 @@ Crawl worker: runs queued jobs from Valkey.
 
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from dotenv import load_dotenv
 
@@ -15,30 +15,48 @@ load_dotenv()
 from journey.store import bump_asset_version  # noqa: E402
 from storage.mongo_storage import get_db  # noqa: E402
 
+from . import notify  # noqa: E402
 from .api import redis_settings  # noqa: E402
 from .jobs import MongoJobStore  # noqa: E402
 from .pipeline import run_job  # noqa: E402
+from .progress import measure  # noqa: E402
 from .steps import STEPS  # noqa: E402
 
 logging.basicConfig(level=logging.INFO)
+log = logging.getLogger("crawl.worker")
 
 
-def _finished(job: Dict[str, Any]) -> None:
+def _high_ids(db, asset_id: str) -> set:
+    return {e["_id"] for e in db.journey_events.find({"asset": asset_id, "significance": "High"}, {"_id": 1})}
+
+
+def _finished(job: Dict[str, Any], high_before: Optional[set] = None) -> None:
     db, asset_id = get_db(), job["asset"]
     db.assets.update_one({"_id": asset_id}, {"$set": {"last_crawled_at": datetime.now(timezone.utc)}})
     # finalize marks the asset ready; a job that ended without it (cancelled, or finalize failed / not planned)
     # leaves a new asset unusable, so say so instead of showing "onboarding" forever.
     if not any(s["name"] == "finalize" and s["status"] == "done" for s in job["steps"]):
         db.assets.update_one({"_id": asset_id, "status": "onboarding"}, {"$set": {"status": "failed"}})
+    try:
+        asset = db.assets.find_one({"_id": asset_id}) or {"_id": asset_id}
+        new_high = ([{"_id": e["_id"], "title": e.get("title") or e["_id"]}
+                     for e in db.journey_events.find({"asset": asset_id, "significance": "High"}, {"title": 1})
+                     if e["_id"] not in high_before] if high_before is not None else [])
+        notify.job_ended(db, job, asset, new_high)
+    except Exception:  # noqa: BLE001 - notifications are best effort
+        log.warning("notifications failed for job %s", job.get("_id"), exc_info=True)
     bump_asset_version(asset_id)
 
 
 async def run_job_task(ctx, job_id: str) -> str:
     db = get_db()
     store = MongoJobStore(db)
+    job = store.get(job_id)
+    high_before = _high_ids(db, job["asset"]) if job else set()
     return await run_job(store, job_id, STEPS,
                          load_asset=lambda asset_id: db.assets.find_one({"_id": asset_id}),
-                         on_finished=lambda asset_id: _finished(store.get(job_id)))
+                         on_finished=lambda asset_id: _finished(store.get(job_id), high_before),
+                         measure=lambda asset_id: measure(db, asset_id))
 
 
 class WorkerSettings:
