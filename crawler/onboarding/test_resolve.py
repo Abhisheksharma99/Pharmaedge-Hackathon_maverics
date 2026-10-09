@@ -130,3 +130,17 @@ def test_trial_facts_fall_back_to_full_text_for_names_only_in_trial_text(monkeyp
     count, facts = resolve._trial_facts("fipaxalparant")
     assert [("query.intr" in c, "query.term" in c) for c in calls] == [(True, False), (False, True)]
     assert count == 1 and facts["lead_sponsors"] == ["Amgen"] and facts["intervention_names"] == ["HZN-825 BID"]
+
+
+def test_parked_domains_do_not_verify(monkeypatch):
+    class Resp:
+        def __init__(self, url, text, status=200):
+            self.url, self.text, self.status_code = url, text, status
+
+    pages = {"https://www.endeavorbio.com": Resp("https://www.hugedomains.com/domain_profile.cfm?d=endeavorbio.com",
+                                                 "<title>EndeavorBio.com is for sale | HugeDomains</title>"),
+             "https://www.endeavorbiomedicines.com": Resp("https://www.endeavorbiomedicines.com/",
+                                                          "<title>Endeavor BioMedicines</title>")}
+    monkeypatch.setattr(resolve.requests, "get", lambda url, **kw: pages[url])
+    assert resolve._fetch("https://www.endeavorbio.com", 5) is None
+    assert resolve._fetch("https://www.endeavorbiomedicines.com", 5)[0] == "https://www.endeavorbiomedicines.com/"

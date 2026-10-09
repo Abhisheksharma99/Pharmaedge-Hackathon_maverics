@@ -1,6 +1,6 @@
 # Asset journey platform. MongoDB is self-hosted (mongo + mongot); first run infra/mongo/setup.sh,
 # see infra/mongo/README.md.
-#   Dev:  docker compose up -d valkey mongo mongot   (then npm run dev:api / npm run dev:web)
+#   Dev:  docker compose up -d valkey mongo mongot crawler-api crawler-worker   (then npm run dev:api / npm run dev:web)
 #   Full: docker compose up -d --build               (app at http://localhost:8080)
 services:
   # Single-node replica set; auth and TLS required. Published on loopback unless MONGO_PUBLISH is set
@@ -85,7 +85,8 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # Internal crawl service: never published to the host; only `api` calls it.
+  # Internal crawl service: only the api calls it (service key). Published on loopback for `npm run dev:api`
+  # (CRAWLER_API_URL=http://localhost:8100); never reachable from other machines.
   crawler-api:
     build:
       context: .
@@ -97,6 +98,8 @@ services:
       - ./infra/mongo/secrets/ca.pem:/etc/mongo/ca.pem:ro
     environment:
       VALKEY_URL: redis://valkey:6379
+    ports:
+      - "127.0.0.1:8100:8100"
     depends_on:
       valkey:
         condition: service_healthy

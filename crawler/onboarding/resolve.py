@@ -222,14 +222,21 @@ def merge(query: str, facts: Dict[str, Any], sources: Dict[str, int]) -> Tuple[O
 
 # --- verification ------------------------------------------------------------------------------------------
 
+# Parked / for-sale domains: they answer and even repeat the company's name (endeavorbio.com -> hugedomains.com).
+PARKED = re.compile(r"domain (?:name )?(?:is |may be )?for sale|buy this domain|hugedomains|sedo\.com|afternic|"
+                    r"dan\.com|parkingcrew|bodis\.com|domain parking", re.I)
+
+
 def _fetch(url: str, timeout: int) -> Optional[Tuple[str, str]]:
     """(final URL, HTML) when the page answers, else None. Not just 200: some sites answer a redirect without a
-    Location and the page as its body (unither.com)."""
+    Location and the page as its body (unither.com). A parked domain counts as not answering."""
     try:
         resp = requests.get(url, impersonate="chrome", timeout=timeout, allow_redirects=True)
     except Exception:
         return None
-    return (str(resp.url), resp.text) if resp.status_code < 400 else None
+    if resp.status_code >= 400 or PARKED.search(str(resp.url)) or PARKED.search(resp.text[:20000]):
+        return None
+    return str(resp.url), resp.text
 
 
 def _domain(url: str) -> str:

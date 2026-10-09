@@ -21,13 +21,17 @@ added in the app under **Settings → Users** (there is no self-signup).
 
 ## Run
 
-**Development** (hot reload; Valkey on host port 6380 and MongoDB on 27017, both in Docker):
+**Development** (hot reload; Valkey on host port 6380, MongoDB on 27017 and the crawl service on 8100, all in
+Docker and bound to 127.0.0.1):
 
 ```bash
-docker compose up -d valkey mongo mongot
+docker compose up -d valkey mongo mongot crawler-api crawler-worker
 npm run dev:api          # http://localhost:3000/api, Swagger at /api/docs
 npm run dev:web          # http://localhost:5173 (proxies /api to :3000)
 ```
+
+Without `crawler-api` / `crawler-worker`, adding an asset and "Refresh data" fail with "data collection service
+unavailable". `npm run dev:api` restarts on every file change under `apps/api/src`.
 
 **Full stack in Docker** (nginx serves the app and proxies `/api`):
 
