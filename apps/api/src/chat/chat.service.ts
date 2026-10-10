@@ -192,6 +192,7 @@ export class ChatService implements OnModuleInit {
     };
     let answer = '';
     let calls = 0;
+    let rounds = 0;
     let failure: { code: string; message: string } | null = null;
 
     try {
@@ -223,7 +224,8 @@ export class ChatService implements OnModuleInit {
         }
         send(true);
         answer += (answer && roundText ? '\n\n' : '') + roundText;
-        if (!requested.length) break;
+        // Hard stop even if the model keeps asking for tools after they were withdrawn.
+        if (!requested.length || ++rounds > MAX_TOOL_CALLS + 1) break;
 
         conversation.push({
           role: 'assistant',

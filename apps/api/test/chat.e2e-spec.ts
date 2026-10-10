@@ -369,6 +369,16 @@ describe('Asset AI chat', () => {
     turn = events((await req('POST', `/api/chat/sessions/${id}/turn`, { message: 'annotate' })).body);
     expect(turn.find((e) => e.type === 'story_layer')).toMatchObject({ storyId, layer: 'notes', data: { notes: [expect.objectContaining({ eventIds: ['ai:trep:phild', 'rule:trep:approval:remo'] })], chapterNames: { 'ch-1': 'PAH era' } } });
 
+    // A story compared with another asset may cite that asset's events too; other assets' events stay refused.
+    await db.collection('journey_events').insertOne({ _id: 'rule:nint:approval' as any, asset: 'nint', date: '2014-10-15', title: 'FDA approves Ofev', type: 'approval', category: 'regulatory', significance: 'High', is_milestone: false, origin: 'rule', sources: [] });
+    await db.collection('stories').updateOne({ _id: storyId }, { $set: { 'spec.compare': 'nint' } });
+    script = [{ toolCalls: [{ name: 'annotate_story', args: { story_id: storyId, notes: [{ text: 'Ofev reached the FDA first.', event_ids: ['rule:nint:approval'] }] } }] }, { text: 'ok' }];
+    turn = events((await req('POST', `/api/chat/sessions/${id}/turn`, { message: 'annotate' })).body);
+    expect(turn.find((e) => e.type === 'tool_result').summary).toBe('1 note');
+    await db.collection('stories').updateOne({ _id: storyId }, { $unset: { 'spec.compare': '' } });
+    script = [{ toolCalls: [{ name: 'annotate_story', args: { story_id: storyId, notes: [{ text: 'One source misdates the PH-ILD approval.', event_ids: ['ai:trep:phild', 'rule:trep:approval:remo'] }], chapter_names: [{ id: 'ch-1', name: 'PAH era' }] } }] }, { text: 'Done.' }];
+    await req('POST', `/api/chat/sessions/${id}/turn`, { message: 'annotate' });
+
     const saved = (await req('GET', `/api/stories/${storyId}`)).json();
     expect(saved).toMatchObject({ id: storyId, assetId: 'trep', notes: [expect.objectContaining({ text: 'One source misdates the PH-ILD approval.' })], story: { asset: { id: 'trep' }, changes: { since: '2025-09-01' } } });
     expect(saved.story.approvals.map((a: any) => a.product)).toContain('Remodulin');

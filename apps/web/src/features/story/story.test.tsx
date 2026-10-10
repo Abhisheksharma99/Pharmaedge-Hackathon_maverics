@@ -48,7 +48,7 @@ const SAVED: SavedStory = {
       { id: 'ch-2', name: 'Since Sep 2025', from: '2025-09-01', to: '2026-10-10', focus: true, events: 2, byCategory: { clinical: 1, regulatory: 1 }, highlights: ['teton1'] },
     ],
     compare: null,
-    counts: { events: 120, shown: 4, byCategory: { regulatory: 3, clinical: 9 } },
+    counts: { events: 120, shown: 40, byCategory: { regulatory: 3, clinical: 9 } },
   },
 }
 
@@ -148,5 +148,17 @@ describe('journey story', () => {
     const x = (d: string) => Number(d.slice(8, 10)) * 5 // day of month × 5 px
     const groups = clusterEvents([ev('a', '2026-01-01'), ev('b', '2026-01-02'), ev('c', '2026-01-03'), ev('d', '2026-01-20')], x)
     expect(groups.map((g) => g.events.map((e) => e.id))).toEqual([['a', 'b', 'c'], ['d']])
+  })
+
+  it('opens on Key events when Highlights would leave too little to read', async () => {
+    fetchMock = vi.fn(async () => json(200, { ...SAVED, story: { ...SAVED.story, counts: { ...SAVED.story.counts, shown: 4 } } }))
+    vi.stubGlobal('fetch', fetchMock)
+    const router = createMemoryRouter(
+      [{ path: '/assets/:assetId', element: <Outlet context={ASSET} />, children: [{ path: 'canvas/story/:storyId', element: <StoryPanel storyId="s1" /> }] }],
+      { initialEntries: ['/assets/trep/canvas/story/s1'] },
+    )
+    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><RouterProvider router={router} /></QueryClientProvider>)
+    await waitFor(() => expect(lastUrl()).not.toContain('significance='))
+    expect(screen.getByRole('button', { name: 'Key events' })).toHaveAttribute('aria-pressed', 'true')
   })
 })

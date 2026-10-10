@@ -16,6 +16,8 @@ export const STORY_COLLECTION = 'stories';
 const MAX_NOTES = 12;
 const NOTE_MAX = 400;
 const NAME_MAX = 60;
+/** Stories kept per user: the oldest beyond this are dropped, so a chat loop cannot grow the collection unbounded. */
+const MAX_STORIES = 200;
 
 export interface StoryNote {
   id: string;
@@ -65,6 +67,8 @@ export class StoryStore implements OnModuleInit {
       spec: input.spec, notes: [], chapter_names: {}, created_at: now, updated_at: now,
     };
     await this.coll.insertOne(doc);
+    const old = await this.coll.find({ user_id: userId }, { projection: { _id: 1 } }).sort({ updated_at: -1 }).skip(MAX_STORIES).toArray();
+    if (old.length) await this.coll.deleteMany({ _id: { $in: old.map((s) => s._id) } });
     return doc;
   }
 
@@ -86,8 +90,8 @@ export class StoryStore implements OnModuleInit {
   }
 
   /**
-   * Pin the model's notes to journey events of the story's asset and name its chapters. Notes are replaced as a
-   * set (the model writes them once per answer); event ids that are not the asset's are refused.
+   * Pin the model's notes to journey events of the story (its asset, and the asset it is compared with) and name its
+   * chapters. Notes are replaced as a set (the model writes them once per answer); any other event id is refused.
    */
   async annotate(userId: string, id: string, input: { notes: { text: string; event_ids: string[] }[]; chapterNames?: Record<string, string> }): Promise<StoryDoc> {
     const story = await this.get(userId, id);
@@ -97,10 +101,13 @@ export class StoryStore implements OnModuleInit {
     if (input.notes.length > MAX_NOTES) bad(`At most ${MAX_NOTES} notes`);
     const wanted = [...new Set(input.notes.flatMap((n) => n.event_ids))];
     const known = new Set(
-      (await this.db.collection('journey_events').find({ asset: story.asset_id, _id: { $in: wanted as never[] } }, { projection: { _id: 1 } }).toArray()).map((e) => String(e._id)),
+      (await this.db
+        .collection('journey_events')
+        .find({ asset: { $in: [story.asset_id, ...(story.spec.compare ? [story.spec.compare] : [])] }, _id: { $in: wanted as never[] } }, { projection: { _id: 1 } })
+        .toArray()).map((e) => String(e._id)),
     );
     const unknown = wanted.filter((e) => !known.has(e));
-    if (unknown.length) bad(`Not events of this asset: ${unknown.slice(0, 5).join(', ')}`);
+    if (unknown.length) bad(`Not events of this story's assets: ${unknown.slice(0, 5).join(', ')}`);
     const notes: StoryNote[] = input.notes.map((n) => {
       const text = n.text.trim();
       if (!text || text.length > NOTE_MAX) bad(`A note needs 1-${NOTE_MAX} characters`);

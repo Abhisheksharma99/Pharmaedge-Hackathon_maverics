@@ -32,6 +32,7 @@ describe('tool argument validation', () => {
       'arguments.category[1] must be one of regulatory, clinical', 'arguments.from has an invalid format', 'arguments.extra is not allowed',
     ]));
     expect(validate({}, schema)).toEqual(['arguments.asset_id is required']);
+    expect(validate({ asset_id: null }, schema)).toEqual(['arguments.asset_id is required']); // null does not satisfy required
     expect(validate({ asset_id: 'a', limit: 41 }, schema)).toEqual(['arguments.limit must be ≤ 40']);
     expect(validate({ asset_id: { $ne: null } }, schema)).toEqual(['arguments.asset_id must be a string']); // operator injection
   });

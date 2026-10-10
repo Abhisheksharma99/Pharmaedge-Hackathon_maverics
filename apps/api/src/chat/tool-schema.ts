@@ -29,7 +29,7 @@ export function validate(value: unknown, schema: Schema, path = 'arguments'): st
   if (t === 'object') {
     if (typeof value !== 'object' || value === null || Array.isArray(value)) return [`${path} must be an object`];
     const obj = value as Record<string, unknown>;
-    for (const key of schema.required ?? []) if (obj[key] === undefined) errors.push(`${path}.${key} is required`);
+    for (const key of schema.required ?? []) if (obj[key] === undefined || obj[key] === null) errors.push(`${path}.${key} is required`);
     for (const [key, v] of Object.entries(obj)) {
       const sub = schema.properties?.[key];
       if (!sub) {

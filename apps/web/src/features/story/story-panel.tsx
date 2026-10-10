@@ -171,6 +171,16 @@ export function StoryPanel({ storyId }: { storyId: string }) {
     setFilters((f) => ({ ...f, from: shift(since, -365), to: shift(today0, 730) }))
   }, [since, building, today0])
 
+  // Highlights first; when that leaves too little to read (or hides what the notes point at), Key events instead.
+  const autoKey = useRef(false)
+  const shown = saved.data?.story.counts.shown
+  useEffect(() => {
+    if (autoKey.current || building || shown === undefined || saved.isPlaceholderData || filters.significance?.join() !== 'High') return
+    if (since && !filters.from) return // judge the view the story opens on: after the zoom to its focus window
+    autoKey.current = true
+    if (shown < 12) setFilters((f) => ({ ...f, significance: undefined }))
+  }, [shown, building, filters.significance, filters.from, since, saved.isPlaceholderData])
+
   const byId = useMemo(() => {
     const m = new Map<string, StoryEvent>()
     if (!story) return m
@@ -195,6 +205,8 @@ export function StoryPanel({ storyId }: { storyId: string }) {
       return { ...f, category: next.length === CATEGORIES.length || !next.length ? undefined : next }
     })
   const compareOptions = [
+    // the asset the story itself compares with, even when it is not a listed competitor (e.g. a sibling product)
+    ...(story?.compare ? [{ id: story.compare.asset.id, name: story.compare.asset.name }] : []),
     ...asset.competitors.map((c) => ({ id: c.id, name: c.name })),
     ...(asset.competitorOf ?? []).map((c) => ({ id: c.id, name: c.name })),
   ].filter((c, i, all) => c.id !== asset.id && all.findIndex((x) => x.id === c.id) === i)

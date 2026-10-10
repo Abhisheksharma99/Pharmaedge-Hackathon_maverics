@@ -84,7 +84,7 @@ export class AssetsService {
   }
 
   private tab(name: string): SourceTab {
-    const tab = SOURCE_TABS[name];
+    const tab = Object.hasOwn(SOURCE_TABS, name) ? SOURCE_TABS[name] : undefined; // not "constructor" & co.
     if (!tab) throw new NotFoundException({ code: 'TAB_NOT_FOUND', message: `No tab "${name}"` });
     return tab;
   }
@@ -306,7 +306,7 @@ export class AssetsService {
     for (const coll of tab.collections) {
       const doc = await this.db
         .collection(coll)
-        .findOne({ assets: id, ...tab.match, [tab.keyField]: key }, { projection: { _id: 0 } });
+        .findOne({ assets: id, ...tab.match, [tab.keyField]: key }, { projection: { _id: 0, embedding: 0, triage: 0 } });
       if (doc) {
         // The journey events this document is evidence for (rules and AI extraction), so the panel shows its impact.
         const journeyEvents = await this.db
