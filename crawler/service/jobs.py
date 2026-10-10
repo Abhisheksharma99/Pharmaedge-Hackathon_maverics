@@ -36,6 +36,24 @@ def new_job(asset_id: str, job_type: str, steps: List[Dict[str, str]], requested
     }
 
 
+INTERRUPTED = "Interrupted: the crawl worker restarted"
+
+
+def fail_interrupted(db) -> List[str]:
+    """Jobs left running by a worker that stopped (restart, deploy, crash) never finish and keep their asset locked:
+    mark them failed, their running step failed and the steps after it skipped. Returns their asset ids.
+    Call at worker startup, before it takes jobs (one crawl worker; see worker.py)."""
+    assets = []
+    for job in db.jobs.find({"status": "running"}):
+        steps = [{**s, "status": "failed", "error": INTERRUPTED, "finished_at": now()} if s["status"] == "running"
+                 else {**s, "status": "skipped", "error": INTERRUPTED} if s["status"] == "pending" else s
+                 for s in job["steps"]]
+        db.jobs.update_one({"_id": job["_id"], "status": "running"},
+                           {"$set": {"status": "failed", "steps": steps, "finished_at": now()}})
+        assets.append(job["asset"])
+    return assets
+
+
 class JobAlreadyRunning(Exception):
     def __init__(self, job_id: str):
         super().__init__(f"Job {job_id} is already running for this asset")

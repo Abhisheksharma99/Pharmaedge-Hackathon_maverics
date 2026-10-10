@@ -15,19 +15,27 @@ from urllib.parse import urlparse
 from pymongo import UpdateOne
 
 from ai import llm
-from ai.events import consolidate, extract_events
+from ai.events import UNTRIAGED_SOURCES, consolidate, extract_events
 from ai.index import index_asset
-from ai.triage import ledger_id, triage_entries, triage_stored
+from ai.triage import TRIAGED_SOURCES, ingest_query, ledger_id, pending_query, triage_entries, triage_stored
+from corpus import company_pr as pr_corpus
+from corpus import complete as corpus_complete
+from corpus import ema as ema_corpus
 from integrations import chmp
 from integrations import conferences as conference_corpus
+from integrations import designations as designation_corpus
 from integrations import fda_calendar as fda_calendar_source
+from integrations import market as market_source
 from integrations import newsroom
 from integrations import patents as patent_crawler
+from integrations import presentations as presentation_source
+from integrations import sec_regulatory
+from journey.checks import apply_checks, fold_confirmed
 from journey.derive import derive_journey
 from journey.feedback import recheck as recheck_feedback
 from journey.rules import build_rule_events
 from journey.store import bump_asset_version, replace_rule_events
-from regulatory import clinicaltrials, ema, fda
+from regulatory import clinicaltrials, fda
 from storage.mongo_storage import get_content_hash, get_db, insert_article, upsert_records
 
 from .pipeline import StepContext, StepSkipped
@@ -37,10 +45,15 @@ StepResult = Dict[str, Any]
 
 
 def regulatory(ctx: StepContext) -> StepResult:
+    """openFDA, EMA's reports (EPAR, post-authorisation, DHPC, referrals, orphan designations: from the EMA corpus once
+    it holds them, corpus/ema.py, else downloaded from EMA) and FDA expedited-program approvals (designations corpus)."""
     fda_counts = upsert_records("fda_records", fda.fetch_all(ctx.asset_id, ctx.names), ctx.asset_id)
-    ema_counts = upsert_records("ema_records", ema.fetch_all(ctx.names), ctx.asset_id)
+    ema_counts = upsert_records("ema_records", ema_corpus.for_asset(get_db(), ctx.names), ctx.asset_id)
+    # FDA expedited-program approvals (designations corpus): the journey rules attach them to the approval events.
+    designation_counts = upsert_records("fda_records", designation_corpus.for_asset(get_db(), ctx.names), ctx.asset_id)
     return {"fda_new": fda_counts["inserted"], "fda_updated": fda_counts["updated"],
             "ema_new": ema_counts["inserted"], "ema_updated": ema_counts["updated"],
+            "expedited_programs": designation_counts["inserted"] + designation_counts["updated"],
             "summary": f"Stored {fda_counts['inserted'] + fda_counts['updated']} FDA and "
                        f"{ema_counts['inserted'] + ema_counts['updated']} EMA records"}
 
@@ -53,14 +66,61 @@ async def fda_calendar(ctx: StepContext) -> StepResult:
             "blocked_hosts": len(report["blocked_hosts"])}
 
 
-def ema_chmp(ctx: StepContext) -> StepResult:
-    """CHMP opinions and meeting highlights naming the asset (team crawler ema/chmp_highlights.py). The meetings
-    corpus is refreshed at most daily, by whichever job gets there first."""
+async def sec_regulatory_step(ctx: StepContext) -> StepResult:
+    """PDUFA target dates and complete response letters the asset's company reported to the SEC (team crawler
+    patent_intel/regulatory.py, SEC EDGAR only). Skipped without SEC_USER_AGENT."""
+    records, report = await sec_regulatory.fetch(ctx.asset, ctx.names)
+    if "skipped" in report:
+        raise StepSkipped(report["skipped"])
+    counts = upsert_records("fda_records", records, ctx.asset_id)
+    return {**Counter(r["event_type"] for r in records), "new": counts["inserted"],
+            "filings_read": report.get("filings_read", 0), "errors": len(report.get("errors") or [])}
+
+
+def presentations(ctx: StepContext) -> StepResult:
+    """Slides of the asset company's investor presentations that name the asset, from the presentation subsystem's
+    database (patent_intel/presentations; read-only): text, claims and metrics with page provenance."""
+    records = list(presentation_source.fetch(get_db(), ctx.asset, ctx.names))
+    if not records:
+        raise StepSkipped("No investor-presentation slide names this asset")
+    counts = upsert_records("company_records", records, ctx.asset_id)
+    return {"slides": len(records), "decks": len({r["presentation_id"] for r in records}), "slides_new": counts["inserted"]}
+
+
+async def market(ctx: StepContext) -> StepResult:
+    """The asset company's listing and daily share prices (team module patent_intel/market): for Asset AI's share-price
+    reaction around journey events. Prices the patent_intel run already stored (same cluster) are reused when fresh."""
     db = get_db()
-    refresh = chmp.refresh_corpus(db)
+    calendar = list(db.fda_records.find({"assets": ctx.asset_id, "record_type": "fda_calendar_event"}, {"ticker": 1, "company": 1}))
+    team = db.client[presentation_source.PRESENTATIONS_DB]
+
+    def stored(ticker):
+        return db.market_prices.find_one({"_id": ticker}) or team.market_prices.find_one({"_id": ticker})
+
+    listings, price_docs, report = await market_source.fetch(ctx.asset, calendar, stored)
+    if not listings:
+        raise StepSkipped(f"No listed company found for {(ctx.asset.get('company') or {}).get('name') or 'this asset'}")
+    now = datetime.now(timezone.utc)
+    db.market_listings.bulk_write([UpdateOne({"_id": d["_id"]}, {"$set": d}, upsert=True) for d in listings], ordered=False)
+    db.market_listings.update_many({"asset": ctx.asset_id, "_id": {"$nin": [d["_id"] for d in listings]}, "stale": {"$ne": True}},
+                                   {"$set": {"stale": True, "stale_since": now}})
+    db.market_listings.create_index("asset")
+    for doc in price_docs:
+        db.market_prices.replace_one({"_id": doc["_id"]}, doc, upsert=True)
+    return {"listings": ", ".join(d["ticker"] for d in listings), "priced": len(price_docs),
+            "reused": len(report.get("reused", [])), "unlisted": len(report["unlisted"]),
+            "errors": len(report["errors"]) + sum("error" in v for v in report["prices"].values())}
+
+
+def ema_chmp(ctx: StepContext) -> StepResult:
+    """CHMP opinions and meeting highlights naming the asset (team crawler ema/chmp_highlights.py), from the
+    meetings corpus the corpus worker crawls. Never crawled here: a full CHMP crawl takes 30+ min under EMA's rate
+    limit. While the corpus is still being built, the asset gets what is in it, and the rest on its next refresh."""
+    db = get_db()
     records = list(chmp.fetch(db, ctx.names))
     counts = upsert_records("ema_records", records, ctx.asset_id)
-    return {**refresh, **Counter(r["record_type"] for r in records), "new": counts["inserted"]}
+    building = {} if corpus_complete(db, "ema_chmp") else {"corpus": "still being crawled"}
+    return {**Counter(r["record_type"] for r in records), "new": counts["inserted"], **building}
 
 
 def clinical(ctx: StepContext) -> StepResult:
@@ -96,26 +156,26 @@ def company_site(ctx: StepContext) -> StepResult:
 
 def company_news(ctx: StepContext) -> StepResult:
     """Press releases from the company's newsroom spider(s) (team crawler company_pr/), picked by website
-    domain. Releases already stored are skipped; the first crawl takes the full history."""
+    domain: from the company_pr corpus for spiders whose full history is in it (corpus/company_pr.py), else
+    crawled here (releases already stored are skipped; the first crawl takes the full history)."""
     company = ctx.asset.get("company", {})
     spiders = newsroom.spiders_for_domain(_domain(company.get("website", "")))
     if not spiders:
         raise StepSkipped(f"No newsroom crawler for {company.get('name') or 'this company'} yet")
-    known = [r["url"] for r in get_db().company_records.find(
-        {"record_type": "press_release", "source": {"$in": spiders}}, {"url": 1})]
-    items, summary = newsroom.run(spiders, known_urls=known, limit=50 if known else 0,
-                                  timeout_min=15 if known else 60, is_cancelled=ctx.is_cancelled)
+    db = get_db()
+    stored = pr_corpus.stored_spiders(db)
+    from_corpus, live = [s for s in spiders if s in stored], [s for s in spiders if s not in stored]
+    items, summary = list(pr_corpus.items(db, from_corpus)) if from_corpus else [], []
+    if live:
+        known = [r["url"] for r in db.company_records.find(
+            {"record_type": "press_release", "source": {"$in": live}}, {"url": 1})]
+        crawled, summary = newsroom.run(live, known_urls=known, limit=50 if known else 0,
+                                        timeout_min=15 if known else 60, is_cancelled=ctx.is_cancelled)
+        items += crawled
     counts = upsert_records("company_records", [newsroom.press_release(i, company.get("name"), ctx.names)
                                                 for i in items], ctx.asset_id)
-    return {"spiders": ", ".join(spiders), "press_releases_new": counts["inserted"],
+    return {"spiders": ", ".join(spiders), "from_corpus": len(from_corpus), "press_releases_new": counts["inserted"],
             "spider_errors": sum(s["errors"] for s in summary)}
-
-
-def _tokens(before: Dict[str, int]) -> Dict[str, int]:
-    after = llm.usage_snapshot()
-    return {"llm_calls": after["calls"] - before["calls"], "cache_hits": after["cache_hits"] - before["cache_hits"],
-            "tokens": (after["prompt_tokens"] + after["completion_tokens"])
-            - (before["prompt_tokens"] + before["completion_tokens"])}
 
 
 def _high_ids(db, asset_id: str) -> set:
@@ -192,18 +252,25 @@ async def news(ctx: StepContext) -> StepResult:
         saved += result.get("articles_saved", 0)
         duplicates += result.get("articles_duplicate", 0)
     return {"articles_new": saved, "already_had": duplicates,
-            **{f"triaged_{k}": v for k, v in decisions.items()}, **_tokens(before)}
+            **{f"triaged_{k}": v for k, v in decisions.items()}, **llm.usage_delta(before)}
 
 
 def industry_news(ctx: StepContext) -> StepResult:
     """Fierce, Reuters, BioSpace, EMA, Google News, ... (team crawler company_pr/). Only articles that mention
-    the asset are kept; the rest are logged in crawl_ledger so the next refresh doesn't fetch them again."""
+    the asset are kept. Spiders whose full history is in the company_pr corpus are matched there; the others
+    (always Google News, which searches the asset's names) are crawled, and their articles that don't mention
+    the asset are logged in crawl_ledger so the next refresh doesn't fetch them again."""
     db = get_db()
-    known = {a["url"] for a in db.articles.find({}, {"url": 1})}
-    known |= {r["url"] for r in db.crawl_ledger.find({"asset": ctx.asset_id, "collection": "articles"}, {"url": 1})
-              if r.get("url")}
-    items, summary = newsroom.run(newsroom.news_spiders(), known_urls=known, keywords=ctx.names,
-                                  timeout_min=10, is_cancelled=ctx.is_cancelled)
+    spiders, stored = newsroom.news_spiders(), pr_corpus.stored_spiders(db)
+    from_corpus, live = [s for s in spiders if s in stored], [s for s in spiders if s not in stored]
+    items, summary = list(pr_corpus.items(db, from_corpus, ctx.names)) if from_corpus else [], []
+    if live:
+        known = {a["url"] for a in db.articles.find({}, {"url": 1})}
+        known |= {r["url"] for r in db.crawl_ledger.find({"asset": ctx.asset_id, "collection": "articles"},
+                                                         {"url": 1}) if r.get("url")}
+        crawled, summary = newsroom.run(live, known_urls=known, keywords=ctx.names, timeout_min=10,
+                                        is_cancelled=ctx.is_cancelled)
+        items += crawled
     new = kept = 0
     skipped: List[UpdateOne] = []
     now = datetime.now(timezone.utc)
@@ -221,8 +288,8 @@ def industry_news(ctx: StepContext) -> StepResult:
                 "reason": "Does not mention the asset", "model": "name-filter", "decided_at": now}}, upsert=True))
     if skipped:
         db.crawl_ledger.bulk_write(skipped, ordered=False)
-    return {"spiders": len(summary), "articles_seen": len(items), "mentioning_asset": kept, "articles_new": new,
-            "spider_errors": sum(s["errors"] for s in summary)}
+    return {"spiders": len(spiders), "from_corpus": len(from_corpus), "articles_seen": len(items),
+            "mentioning_asset": kept, "articles_new": new, "spider_errors": sum(s["errors"] for s in summary)}
 
 
 def conferences(ctx: StepContext) -> StepResult:
@@ -248,7 +315,7 @@ def ai_triage(ctx: StepContext) -> StepResult:
         ctx.log("ai", f"“{str(title)[:110]}”", verdict=VERDICTS[decision])
     relevant = sum(v for k, v in counts.items() if k.endswith("_ingest"))
     dropped = sum(v for k, v in counts.items() if k.endswith("_skip"))
-    return {**counts, **_tokens(before), "summary": f"{relevant} relevant · {dropped} dropped"}
+    return {**counts, **llm.usage_delta(before), "summary": f"{relevant} relevant · {dropped} dropped"}
 
 
 def ai_events(ctx: StepContext) -> StepResult:
@@ -257,13 +324,13 @@ def ai_events(ctx: StepContext) -> StepResult:
     counts = extract_events(ctx.asset)
     merged = consolidate(ctx.asset_id)
     _log_new_events(ctx, db, high_before)
-    return {**counts, **merged, **_tokens(before),
+    return {**counts, **merged, **llm.usage_delta(before),
             "summary": f"{counts['documents']} documents · {counts['events']} events extracted · {merged['merged']} merged"}
 
 
 def index(ctx: StepContext) -> StepResult:
     before = llm.usage_snapshot()
-    return {**index_asset(ctx.asset_id), **_tokens(before)}
+    return {**index_asset(ctx.asset_id), **llm.usage_delta(before)}
 
 
 def journey(ctx: StepContext) -> StepResult:
@@ -321,11 +388,49 @@ def suggested_questions(db, asset: Dict[str, Any]) -> List[str]:
             f"What do the latest clinical trial results show for {name}?"]
 
 
+def leftovers(db, asset_id: str) -> Dict[str, int]:
+    """Records the AI steps have not seen yet: stored after they ran (a later step, another asset's job, the corpus
+    worker). Counted on the asset's own records only; nothing is called when there are none."""
+    untriaged = sum(db[c].count_documents({"assets": asset_id, **pending_query(asset_id), **extra})
+                    for c, (_key, extra, _text) in TRIAGED_SOURCES.items())
+    unread = sum(db[c].count_documents({**ingest_query(asset_id), f"events_done.{asset_id}": {"$exists": False}})
+                 for c in TRIAGED_SOURCES)
+    unread += sum(db[c].count_documents({"assets": asset_id, f"events_done.{asset_id}": {"$exists": False}, **extra})
+                  for c, (_key, extra, _text) in UNTRIAGED_SOURCES.items())
+    return {"untriaged": untriaged, "unread": unread}
+
+
+def catch_up(ctx: StepContext, db) -> StepResult:
+    """Run the AI steps on leftovers (see `leftovers`) so a finished job leaves nothing unread. A failure here is
+    reported, never fatal: the next job picks the records up again."""
+    left = leftovers(db, ctx.asset_id)
+    if not any(left.values()):
+        return {}
+    before = llm.usage_snapshot()
+    out: Dict[str, Any] = {f"catch_up_{k}": v for k, v in left.items()}
+    try:
+        triaged = triage_stored(ctx.asset) if left["untriaged"] else {}
+        kept = sum(v for k, v in triaged.items() if k.endswith("_ingest"))
+        extracted = extract_events(ctx.asset) if (kept or left["unread"]) else {"events": 0, "documents": 0}
+        if extracted.get("events"):
+            consolidate(ctx.asset_id)
+        if kept or extracted.get("documents"):
+            index_asset(ctx.asset_id)
+        out.update({"catch_up_kept": kept, "catch_up_events": extracted.get("events", 0)})
+    except Exception as e:  # noqa: BLE001 - leftovers stay for the next job; finalize must still finish
+        out["catch_up_error"] = f"{type(e).__name__}: {e}"[:200]
+    usage = llm.usage_delta(before)
+    if usage.get("cost_usd"):
+        out["catch_up_cost_usd"] = usage["cost_usd"]
+    return out
+
+
 def finalize(ctx: StepContext) -> StepResult:
-    """Rebuild rule events (patents found late belong in the journey too), derive branches / key events /
-    enrichment, then mark the asset ready with its suggested questions. The worker bumps the cache version when
-    the job ends."""
+    """Catch up on records the AI steps have not seen, rebuild rule events (patents found late belong in the journey
+    too), run the cross-source checks, derive branches / key events / enrichment, then mark the asset ready with its
+    suggested questions and bump the cache version."""
     db = get_db()
+    caught = catch_up(ctx, db)
     counts = replace_rule_events(db, ctx.asset_id, build_rule_events(db, ctx.asset_id,
                                                                      ctx.asset.get("company", {}).get("name")))
     try:  # notes marked "Missed by AI": events they resolve to are in place before branches / key events are derived
@@ -334,7 +439,9 @@ def finalize(ctx: StepContext) -> StepResult:
         log.warning("crawl_feedback re-check failed for %s", ctx.asset_id, exc_info=True)
         feedback = {}
         ctx.log("warn", f"Couldn't re-check notes marked ‘Missed by AI’ ({type(e).__name__}); they stay open")
-    derived = derive_journey(db, ctx.asset, log=ctx.log)
+    checks = apply_checks(db, ctx.asset_id)  # after the rebuild: compares the AI events with the fresh rule ones
+    folded = fold_confirmed(db, ctx.asset_id)  # duplicate reports of a confirmed approval join the regulator's event
+    derived = derive_journey(db, ctx.asset, log=ctx.log)  # after folding: branches / key events see the final events
     asset = db.assets.find_one({"_id": ctx.asset_id})  # fresh: competitors were written during this job
     questions = suggested_questions(db, asset)
     now = datetime.now(timezone.utc)
@@ -342,19 +449,25 @@ def finalize(ctx: StepContext) -> StepResult:
                                                           "last_crawled_at": now, "updated_at": now}})
     if not bump_asset_version(ctx.asset_id):  # the asset is ready now: clients refetching must not read the old view
         log.warning("cache version bump failed for %s after finalize", ctx.asset_id)
-    return {**counts, **feedback, **derived, "suggested_questions": len(questions),
+    return {**caught, **counts, **feedback, **{f"checks_{k}": v for k, v in checks.items()},
+            **({"folded": folded} if folded else {}), **derived, "suggested_questions": len(questions),
             "summary": f"Asset ready · {derived.get('key_events', 0)} key events · {derived.get('branches', 0)} branches"}
 
 
-STEPS = {"regulatory": regulatory, "fda_calendar": fda_calendar, "ema_chmp": ema_chmp, "clinical": clinical,
+STEPS = {"regulatory": regulatory, "fda_calendar": fda_calendar, "sec_regulatory": sec_regulatory_step,
+         "presentations": presentations, "market": market,
+         "ema_chmp": ema_chmp, "clinical": clinical,
          "publications": publications, "conferences": conferences, "patents": patents, "company_site": company_site,
          "company_news": company_news, "news": news, "industry_news": industry_news, "journey": journey,
          "ai_triage": ai_triage, "ai_events": ai_events, "index": index, "competitors": competitors,
          "finalize": finalize}
 
 LABELS = {
-    "regulatory": "Regulatory (FDA, EMA)",
+    "regulatory": "Regulatory (FDA, EMA reports)",
     "fda_calendar": "FDA calendar (PDUFA dates, advisory committees)",
+    "sec_regulatory": "SEC filings (PDUFA dates, complete response letters)",
+    "presentations": "Investor presentations (slides, claims, metrics)",
+    "market": "Share prices of the listed company",
     "ema_chmp": "EMA CHMP opinions (monthly meeting highlights)",
     "clinical": "Clinical trials (ClinicalTrials.gov)",
     "publications": "Publications (PubMed)",
@@ -369,7 +482,7 @@ LABELS = {
     "ai_events": "AI event extraction and consolidation",
     "index": "Search index for Asset AI",
     "competitors": "Competitors (top 5, each crawled lightly)",
-    "finalize": "Finalize (journey rebuild, suggested questions, ready)",
+    "finalize": "Finalize (AI catch-up, journey rebuild, checks, suggested questions, ready)",
 }
 
 
@@ -379,16 +492,18 @@ def _plan(*names: str) -> List[Dict[str, str]]:
 
 # Acquisition first, then the journey built from what was found. Onboarding runs the fast sources first so the
 # asset page fills progressively (patents take ~10 min, and the FDA calendar reads every event's source document
-# until its cache is warm, so both run after competitors; finalize puts their events in the journey). ema_chmp
+# until its cache is warm, so both run after competitors, with the SEC filings search; finalize puts their events
+# in the journey). ema_chmp
 # runs before ai_triage / ai_events, which extract events from its records. Competitor jobs are light:
 # no company site, newsroom, industry news or patents, and no competitors of their own.
 PLANS: Dict[str, List[Dict[str, str]]] = {
-    "refresh": _plan("regulatory", "fda_calendar", "ema_chmp", "clinical", "publications", "conferences", "patents",
-                     "company_site", "company_news", "news", "industry_news", "journey", "ai_triage", "ai_events",
-                     "index", "competitors", "finalize"),
+    "refresh": _plan("regulatory", "fda_calendar", "sec_regulatory", "market", "ema_chmp", "clinical", "publications",
+                     "conferences", "patents", "company_site", "company_news", "presentations", "news", "industry_news",
+                     "journey", "ai_triage", "ai_events", "index", "competitors", "finalize"),
     "onboard": _plan("regulatory", "ema_chmp", "clinical", "publications", "conferences", "company_site",
-                     "company_news", "news", "industry_news", "journey", "ai_triage", "ai_events", "index",
-                     "competitors", "fda_calendar", "patents", "finalize"),
-    "competitor": _plan("regulatory", "fda_calendar", "ema_chmp", "clinical", "publications", "conferences", "news",
-                        "patents", "journey", "ai_triage", "ai_events", "index", "finalize"),
+                     "company_news", "presentations", "news", "industry_news", "journey", "ai_triage", "ai_events", "index",
+                     "competitors", "fda_calendar", "sec_regulatory", "market", "patents", "finalize"),
+    "competitor": _plan("regulatory", "fda_calendar", "sec_regulatory", "market", "ema_chmp", "clinical", "publications",
+                        "conferences", "presentations", "news", "patents", "journey", "ai_triage", "ai_events", "index",
+                        "finalize"),
 }

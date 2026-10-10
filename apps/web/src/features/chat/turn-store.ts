@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Card, StreamEvent } from './api'
+import type { Card, NavTarget, StreamEvent } from './api'
 
 export interface ToolActivity {
   id: string
@@ -46,10 +46,15 @@ interface TurnState {
   start: (sessionId: string, userText: string, controller: AbortController) => void
   update: (sessionId: string, change: (turn: Turn) => Turn) => void
   clear: (sessionId: string) => void
+  /** A view Asset AI asked to open during a turn, until the chat panel follows it (navigation.ts). */
+  nav: { sessionId: string; to: NavTarget } | null
+  setNav: (nav: { sessionId: string; to: NavTarget } | null) => void
 }
 
 export const useTurnStore = create<TurnState>()((set) => ({
   turns: {},
+  nav: null,
+  setNav: (nav) => set({ nav }),
   start: (sessionId, userText, controller) =>
     set((s) => ({
       turns: {

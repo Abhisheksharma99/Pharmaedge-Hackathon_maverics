@@ -42,7 +42,7 @@ def test_fda_rules_map_submissions_to_journey_events():
 def test_events_keep_their_evidence_and_are_stable_across_runs():
     record = sub("fda:drugsfda:NDA022387:ORIG1", "NDA022387", "ORIG", "AP", None)
     first, second = fda_events(A, [record]), fda_events(A, [record])
-    assert first[0]["_id"] == second[0]["_id"] == "rule:approval:fda:drugsfda:NDA022387:ORIG1"
+    assert first[0]["_id"] == second[0]["_id"] == f"rule:{A}:approval:fda:drugsfda:NDA022387:ORIG1"
     assert first[0]["sources"] == [{"collection": "fda_records", "record_key": "fda:drugsfda:NDA022387:ORIG1"}]
 
 
@@ -84,7 +84,7 @@ def test_fda_calendar_listings_of_one_pdufa_date_make_one_event():
     partner = {**calendar("c9", "pdufa", "2020-04-27"), "company": "Correvio Pharma Corp", "sponsor_is_company": False,
                "drugs": ["Treprostinil", "Trevyent"]}
     [event] = fda_events(A, [partner, calendar("c8", "pdufa", "2020-04-27")], today="2026-01-01")
-    assert event["_id"] == "rule:pdufa_date:c8" and event["sponsor"] == "United Therapeutics Corporation"
+    assert event["_id"] == f"rule:{A}:pdufa_date:c8" and event["sponsor"] == "United Therapeutics Corporation"
     assert [s["record_key"] for s in event["sources"]] == ["c8", "c9"]
     assert event["title"] == "PDUFA goal date: Tyvaso DPI, Treprostinil, Trevyent"
 
@@ -270,3 +270,93 @@ def test_build_rule_events_links_across_sources(db):
                                  "primary_completion_date": "2019-12-26", "conditions": ["PH-ILD"], "title": "INCREASE"})
     events = {e["type"]: e for e in build_rule_events(db, A, "United Therapeutics")}
     assert events["trial_start"]["links"] == [events["trial_completion"]["_id"]]
+def sec(key, event_type, when, drugs=("Tyvaso DPI",), description="The FDA set a PDUFA target action date."):
+    return {"record_key": key, "record_type": "sec_fda_action", "event_type": event_type, "date": when,
+            "drugs": list(drugs), "company": "United Therapeutics Corporation", "sponsor_is_company": True,
+            "description": description}
+
+
+def test_sec_pdufa_date_and_calendar_listing_of_the_same_day_are_one_event():
+    events = fda_events(A, [calendar("fda_calendar:u1", "pdufa", "2026-05-24"), sec("sec:e1", "pdufa_date", "2026-05-24")],
+                        today="2026-01-01")
+    [ev] = events
+    assert ev["type"] == "regulatory_decision_expected" and ev["is_milestone"]
+    assert [s["record_key"] for s in ev["sources"]] == ["fda_calendar:u1", "sec:e1"]  # cites the filing too
+    assert ev["summary"] == "2026-05-24 The FDA set a PDUFA date"                       # worded from the calendar
+
+
+def test_sec_pdufa_date_alone_is_still_a_pdufa_event():
+    upcoming, past = fda_events(A, [sec("sec:e2", "pdufa_date", "2027-03-01"), sec("sec:e3", "pdufa_date", "2024-02-01")],
+                                today="2026-01-01")
+    assert upcoming["type"] == "regulatory_decision_expected" and upcoming["expected_date"] == "2027-03-01"
+    assert past["type"] == "pdufa_date" and past["significance"] == "Medium" and past["sources"][0]["record_key"] == "sec:e3"
+
+
+def test_complete_response_letter_from_sec_is_a_high_regulatory_event():
+    crl = sec("sec:e4", "complete_response_letter", "2021-11-08", drugs=("Tyvaso DPI",),
+              description="  We received a complete response\n letter from the FDA for Tyvaso DPI.  ")
+    [ev] = fda_events(A, [crl, sec("sec:e5", "complete_response_letter", "")], today="2026-01-01")  # undated: skipped
+    assert ev["type"] == "complete_response_letter" and ev["category"] == "regulatory" and ev["significance"] == "High"
+    assert ev["title"] == "FDA complete response letter: Tyvaso DPI" and ev["region"] == "US"
+    assert ev["summary"] == "We received a complete response letter from the FDA for Tyvaso DPI."
+    assert ev["_id"] == f"rule:{A}:complete_response_letter:sec:e4" and not ev["is_milestone"]
+
+
+def submission(key, app, sub_type, number, when, cls="Efficacy", brand="OFEV"):
+    return {"record_key": key, "record_type": "fda_submission", "application_number": app, "submission_type": sub_type,
+            "submission_number": number, "submission_status": "AP", "submission_class": cls, "date": when,
+            "brand_names": [brand], "sponsor_name": "BOEHRINGER"}
+
+
+def expedited(key, app, sub_type, number, when, program="Breakthrough Therapy", brand="OFEV"):
+    return {"record_key": key, "record_type": "fda_expedited_approval", "application_number": app,
+            "submission_type": sub_type, "submission_number": number, "date": when, "program_name": program,
+            "brand_names": [brand], "indication": "Chronic fibrosing ILD with a progressive phenotype"}
+
+
+def test_expedited_programs_annotate_their_approval_never_duplicate_it():
+    events = fda_events("nintedanib", [
+        submission("s13", "NDA205832", "SUPPL", "13", "2020-03-09"),
+        expedited("d1", "NDA205832", "SUPPL", 13, "2020-03-09"),
+        expedited("d2", "NDA205832", "SUPPL", 13, "2020-03-09", program="Priority Review"),
+        submission("s1", "NDA205832", "ORIG", "1", "2014-10-15", cls="Type 1 - New Molecular Entity"),
+        expedited("d3", "NDA205832", "ORIG", None, "2014-10-15"),
+    ], today="2026-01-01")
+    assert len(events) == 2  # one per approval, programs attached
+    supp = next(e for e in events if e["type"] == "label_expansion")
+    assert supp["expedited_programs"] == ["Breakthrough Therapy", "Priority Review"]
+    assert [s["record_key"] for s in supp["sources"]] == ["s13", "d1", "d2"] and "Priority Review" in supp["summary"]
+    orig = next(e for e in events if e["type"] == "approval")
+    assert orig["expedited_programs"] == ["Breakthrough Therapy"] and orig["indication"]
+
+
+def test_expedited_approval_missing_from_drugs_at_fda_still_appears_once():
+    [e] = fda_events("sotatercept", [expedited("d9", "BLA761363", "ORIG", None, "2024-03-26", brand="WINREVAIR"),
+                                     expedited("d10", "BLA761363", "ORIG", None, "2024-03-26", program="Priority Review",
+                                               brand="WINREVAIR")], today="2026-01-01")
+    assert e["type"] == "approval" and e["title"] == "FDA approves Winrevair" and e["significance"] == "High"
+    assert e["expedited_programs"] == ["Breakthrough Therapy", "Priority Review"] and len(e["sources"]) == 2
+
+
+def test_fda_events_tell_the_asset_company_from_other_sponsors_of_the_molecule():
+    from journey.rules import fda_events
+    recs = [
+        {"record_type": "fda_submission", "record_key": "fda:a", "date": "2009-07-30", "submission_status": "AP", "submission_type": "ORIG",
+         "application_number": "NDA022387", "sponsor_name": "UNITED THERAP", "brand_names": ["TYVASO"]},
+        {"record_type": "fda_submission", "record_key": "fda:b", "date": "2025-05-23", "submission_status": "AP", "submission_type": "ORIG",
+         "application_number": "NDA213005", "sponsor_name": "LIQUIDIA TECHNOLOGIES INC", "brand_names": ["YUTREPIA"]},
+    ]
+    by = {e["sources"][0]["record_key"]: e for e in fda_events("treprostinil", recs, company="United Therapeutics")}
+    assert by["fda:a"]["sponsor_is_company"] is True and by["fda:b"]["sponsor_is_company"] is False
+    assert by["fda:b"]["sponsor"] == "Liquidia Technologies Inc"
+    assert fda_events("treprostinil", recs)[0]["sponsor_is_company"] is None  # company unknown
+
+
+def test_a_divested_brand_is_unknown_not_another_company():
+    from journey.rules import fda_events
+    recs = [{"record_type": "fda_submission", "record_key": "fda:e", "date": "2017-01-11", "submission_status": "AP", "submission_type": "ORIG",
+             "application_number": "NDA208780", "sponsor_name": "LEGACY PHARMA", "brand_names": ["ESBRIET"]},
+            {"record_type": "fda_submission", "record_key": "fda:g", "date": "2022-05-01", "submission_status": "AP", "submission_type": "ORIG",
+             "application_number": "ANDA212345", "sponsor_name": "SANDOZ", "brand_names": ["PIRFENIDONE"]}]
+    by = {e["sources"][0]["record_key"]: e for e in fda_events("pirfenidone", recs, company="Hoffmann-La Roche")}
+    assert by["fda:e"]["sponsor_is_company"] is None and by["fda:g"]["sponsor_is_company"] is False

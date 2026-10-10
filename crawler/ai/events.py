@@ -16,10 +16,12 @@ from typing import Any, Dict, List, Optional
 
 from pymongo import ReplaceOne
 
+from journey.store import change_doc, write_changes
 from storage.mongo_storage import get_db
 
 from . import llm
 from .triage import TRIAGED_SOURCES, asset_context, ingest_query
+from .untrusted import fence, harden
 
 EVENT_TYPES = ["approval", "label_expansion", "regulatory_submission", "regulatory_opinion",
                "regulatory_decision_expected", "advisory_committee", "trial_start", "trial_readout",
@@ -33,10 +35,15 @@ CATEGORY_OF = {"approval": "regulatory", "label_expansion": "regulatory", "regul
                "guidance": "company"}
 
 EXTRACT_SYSTEM = """Extract journey events for ONE drug asset from a document (press release, news story,
-publication abstract or EMA CHMP meeting highlights). Return 0-3 events that are specifically about this asset;
+publication abstract, EMA CHMP meeting highlights, or an investor-presentation slide with the statements and figures
+the company presented). Return 0-3 events that are specifically about this asset;
 return none if the document has no concrete event. Rules:
 - date: when the event happened (YYYY-MM-DD), NOT the publication date unless they are the same. Use the
   publication date only when the event happened that day (e.g. "today announced FDA approval").
+- date_basis: "stated" when the text states the event's date (then date_quote = the few words stating it, e.g.
+  "approved on March 31, 2021"); "publication" when you used the publication date (date_quote = "").
+- Background is not an event: a paper or abstract that mentions an earlier approval, filing or deal is reporting
+  history - extract only what the document itself reports (its results, its publication).
 - Forward-looking statements (expected readouts, PDUFA dates, planned launches/filings) are milestones:
   is_milestone=true, expected_date at the end of the stated period (H1 2027 -> 2027-06-30, Q4 2026 ->
   2026-12-31, 2027 -> 2027-12-31), date = expected_date.
@@ -52,6 +59,7 @@ return none if the document has no concrete event. Rules:
 - impact: one factual sentence (max 25 words) on why the event matters for this asset's journey, only if the
   text supports it; "" otherwise.
 - Never invent facts not in the text. Use "" for unknown strings."""
+EXTRACT_SYSTEM = harden(EXTRACT_SYSTEM)
 
 EVENT_SCHEMA = {
     "type": "object",
@@ -65,12 +73,21 @@ EVENT_SCHEMA = {
             "phase": {"type": "string"}, "indication": {"type": "string"}, "region": {"type": "string"},
             "indications": {"type": "array", "items": {"type": "string"}},
             "product": {"type": "string"}, "impact": {"type": "string"},
+            "date_basis": {"type": "string", "enum": ["stated", "publication"]}, "date_quote": {"type": "string"},
         },
         "required": ["type", "date", "title", "summary", "significance", "is_milestone", "expected_date",
-                     "phase", "indication", "region", "indications", "product", "impact"],
+                     "phase", "indication", "region", "indications", "product", "impact", "date_basis", "date_quote"],
         "additionalProperties": False}}},
     "required": ["events"], "additionalProperties": False,
 }
+
+
+# Literature (papers, abstracts) restates history; only what the document itself reports is dated by it.
+LITERATURE = {"publication_records", "conference_records"}
+LITERATURE_OWN = {"publication", "trial_readout"}
+
+EARLIEST, HORIZON_YEARS = "1980-01-01", 15  # outside this window a model-read date is a misread, not an event
+TITLE_MAX = 120
 
 
 def _valid_date(value: str) -> str:
@@ -86,23 +103,48 @@ def clean_impact(text: str) -> Optional[str]:
     return text if text and len(text.split()) <= 30 else None
 
 
+def _plausible(when: str) -> bool:
+    latest = date.today().replace(year=date.today().year + HORIZON_YEARS).isoformat()
+    return EARLIEST <= when <= latest
+
+
 def _extract_one(asset: Dict[str, Any], coll: str, key_field: str, text_field: str, record: Dict[str, Any]) -> List[Dict[str, Any]]:
     text = (record.get(text_field) or "")[:8000]
     doc = (f"Asset: {json.dumps(asset_context(asset))}\nSource: {coll}\nPublished: {record.get('date', '')}\n"
-           f"Title: {record.get('title', '')}\n\n{text}")
-    result = llm.structured(llm.REASONING_MODEL, EXTRACT_SYSTEM, doc, "events", EVENT_SCHEMA)
+           + fence(f"Title: {record.get('title', '')}\n\n{text}"))
+    result = llm.structured(llm.REASONING_MODEL, EXTRACT_SYSTEM, doc, "events", EVENT_SCHEMA,
+                            reasoning_effort=llm.EXTRACT_EFFORT)
     events = []
-    for n, e in enumerate(result["events"]):
-        when = _valid_date(e["expected_date"] if e["is_milestone"] else e["date"]) or _valid_date(record.get("date", ""))
+    published = _valid_date(record.get("date", ""))
+    for n, e in enumerate(result["events"][:3]):  # the prompt allows 0-3; never trust a count
+        if not (e.get("title") or "").strip():
+            continue
+        read = _valid_date(e["expected_date"] if e["is_milestone"] else e["date"])
+        if read and not _plausible(read):
+            continue  # a misread date: re-dating it to the document would invent an event
+        when = read or published  # no usable date: the document's own
         if not when:
             continue
+        basis, quote = e.get("date_basis") or "", (e.get("date_quote") or "").strip()
+        if not e["is_milestone"]:
+            # A stated date must be in the words quoted for it: otherwise it is a misread.
+            if basis == "stated" and quote and when[:4] not in quote:
+                continue
+            # Dated by the paper itself, an approval / filing / deal in a paper is background, not news (a 2026 review
+            # mentioning the 2021 PH-ILD approval must not become a 2026 approval).
+            if (coll in LITERATURE and e["type"] not in LITERATURE_OWN
+                    and (basis == "publication" or not read or when == published)):
+                continue
+        # Dated after the document that reports it: a forward-looking statement, whatever the label says.
+        milestone = e["is_milestone"] or bool(published and when > published)
         event = {
             "_id": f"ai:{asset['_id']}:{record[key_field]}:{n}", "asset": asset["_id"], "origin": "ai",
             "confidence": 0.8, "type": e["type"], "category": CATEGORY_OF[e["type"]], "date": when,
-            "title": e["title"], "summary": e["summary"], "significance": e["significance"],
-            "is_milestone": e["is_milestone"] and when >= date.today().isoformat(),
-            "expected_date": when if e["is_milestone"] else None, "phase": e["phase"] or None,
+            "title": e["title"].strip()[:TITLE_MAX], "summary": e["summary"], "significance": e["significance"],
+            "is_milestone": milestone and when >= date.today().isoformat(),
+            "expected_date": when if milestone else None, "phase": e["phase"] or None,
             "indication": e["indication"] or None, "region": e["region"] or None,
+            **({"date_basis": basis} if basis else {}),
             "sources": [{"collection": coll, "record_key": record[key_field]}],
         }
         indications = [i.strip()[:40] for i in e.get("indications") or [] if i.strip()][:3]
@@ -115,6 +157,16 @@ def _extract_one(asset: Dict[str, Any], coll: str, key_field: str, text_field: s
     return events
 
 
+# Sources that skip triage (already selected for the asset) but carry events: investor-presentation slides state
+# planned filings, expected readouts and results (crawler step `presentations`; slide text + claims + figures).
+UNTRIAGED_SOURCES = {"company_records": ("record_key", {"record_type": "presentation_slide"}, "content")}
+
+
+def _pending(asset_id: str) -> List[tuple]:
+    triaged = [(c, k, {**ingest_query(asset_id), **extra}, t) for c, (k, extra, t) in TRIAGED_SOURCES.items()]
+    return triaged + [(c, k, {"assets": asset_id, **extra}, t) for c, (k, extra, t) in UNTRIAGED_SOURCES.items()]
+
+
 def extract_events(asset: Dict[str, Any], workers: int = 6) -> Dict[str, int]:
     """Run extraction on ingested records not yet processed for this asset. Each record's events are saved as
     soon as they arrive; a record whose call fails (network, API) is left for the next run, and the step only
@@ -122,6 +174,8 @@ def extract_events(asset: Dict[str, Any], workers: int = 6) -> Dict[str, int]:
     db, asset_id = get_db(), asset["_id"]
     counts = {"documents": 0, "events": 0, "failed": 0}
     error: Exception = None
+    # The asset's first extraction is the baseline for the change log: it is not a "change" to find them all.
+    baseline = next(iter(db.journey_events.find({"asset": asset_id, "origin": "ai"}, {"_id": 1})), None) is None
 
     def attempt(coll, key_field, text_field, record):
         try:
@@ -129,8 +183,8 @@ def extract_events(asset: Dict[str, Any], workers: int = 6) -> Dict[str, int]:
         except Exception as e:  # noqa: BLE001 - reported in counts; the record is retried next run
             return record, None, e
 
-    for coll, (key_field, extra, text_field) in TRIAGED_SOURCES.items():
-        records = list(db[coll].find({**ingest_query(asset_id), **extra, f"events_done.{asset_id}": {"$exists": False}},
+    for coll, key_field, query, text_field in _pending(asset_id):
+        records = list(db[coll].find({**query, f"events_done.{asset_id}": {"$exists": False}},
                                      {key_field: 1, "title": 1, "date": 1, text_field: 1}))
         if not records:
             continue
@@ -142,8 +196,15 @@ def extract_events(asset: Dict[str, Any], workers: int = 6) -> Dict[str, int]:
                     continue
                 now = datetime.now(timezone.utc)
                 if events:
-                    db.journey_events.bulk_write([ReplaceOne({"_id": e["_id"]}, {**e, "updated_at": now}, upsert=True)
-                                                  for e in events], ordered=False)
+                    known = {d["_id"]: d for d in db.journey_events.find({"_id": {"$in": [e["_id"] for e in events]}},
+                                                                         {"first_seen": 1})}
+                    # ReplaceOne drops fields, so an event seen before keeps its first_seen by copying it over.
+                    db.journey_events.bulk_write(
+                        [ReplaceOne({"_id": e["_id"]},
+                                    {**e, "first_seen": (known.get(e["_id"]) or {}).get("first_seen") or now,
+                                     "updated_at": now}, upsert=True) for e in events], ordered=False)
+                    write_changes(db, [change_doc(asset_id, e, "ai", "added", now, baseline)
+                                       for e in events if e["_id"] not in known])
                 db[coll].update_one({key_field: record[key_field]}, {"$set": {f"events_done.{asset_id}": now}})
                 counts["documents"] += 1
                 counts["events"] += len(events)
@@ -156,6 +217,7 @@ MERGE_SYSTEM = """You get journey events for one drug asset, close in date and i
 ones that describe the SAME real-world occurrence (e.g. one FDA approval reported by a press release and by news).
 Different occurrences (e.g. two separate trials, an approval and a later launch) stay in separate groups.
 Every index must appear in exactly one group."""
+MERGE_SYSTEM = harden(MERGE_SYSTEM)
 
 MERGE_SCHEMA = {"type": "object", "properties": {"groups": {"type": "array", "items": {"type": "array", "items": {"type": "integer"}}}},
                 "required": ["groups"], "additionalProperties": False}
@@ -172,7 +234,8 @@ def _merge_batch(db, batch: List[Dict[str, Any]], gone: set) -> int:
     """Ask the model which events in the batch are the same occurrence; fold each group into one survivor."""
     listing = [{"index": i, "type": e["type"], "date": e["date"], "title": e["title"], "summary": (e.get("summary") or "")[:200]}
                for i, e in enumerate(batch)]
-    result = llm.structured(llm.TRIAGE_MODEL, MERGE_SYSTEM, json.dumps(listing), "groups", MERGE_SCHEMA)
+    result = llm.structured(llm.TRIAGE_MODEL, MERGE_SYSTEM, fence(json.dumps(listing)), "groups", MERGE_SCHEMA,
+                            reasoning_effort=llm.TRIAGE_EFFORT)
     merged = 0
     for idx in result["groups"]:
         members = [batch[i] for i in idx if 0 <= i < len(batch)]

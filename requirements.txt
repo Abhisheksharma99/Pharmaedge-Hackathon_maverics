@@ -6,6 +6,16 @@ pydantic-settings>=2.10,<3
 pymongo>=4.13,<5
 certifi>=2024.2.2
 
+# httpcore: pinned explicitly - net.public_transport sets its connection pool's network backend
+httpcore>=1.0.9,<2
+
 # REST API
 fastapi>=0.120,<1
 uvicorn>=0.35,<1
+
+# Presentation intelligence (patent_intel.presentations) - permissive licenses only (BSD/Apache/MIT/HPND)
+pypdfium2>=5,<6
+pdfplumber>=0.11,<0.12
+pillow>=12.3,<13  # 12.3 fixes decoder heap-overflow/DoS advisories (untrusted slide images)
+zstandard>=0.23,<1
+psutil>=6,<8

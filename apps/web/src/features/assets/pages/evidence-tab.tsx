@@ -5,7 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatDay } from '@/lib/dates'
 import { formatNumber } from '@/lib/format'
-import { cn } from '@/lib/utils'
+import { cn, safeUrl } from '@/lib/utils'
 import { TAB_FOR_COLLECTION, type RecordTab, type SourceRecord } from '../api'
 import { useEvidenceSummary, useLedger, type Decision, type EvidenceSummary, type LedgerRow } from '../competitors-api'
 import { Chip } from '../components/badges'
@@ -58,7 +58,7 @@ function EvidencePanel({ assetId, triage }: { assetId: string; triage: EvidenceS
   const activate = (r: LedgerRow) => {
     const tab = TAB_FOR_COLLECTION[r.collection]
     if (tab && r.decision !== 'skip' && r.recordKey) setOpen({ tab, key: r.recordKey })
-    else if (r.url) window.open(r.url, '_blank', 'noopener,noreferrer')
+    else if (safeUrl(r.url)) window.open(safeUrl(r.url), '_blank', 'noopener,noreferrer')
   }
     const dist = triage
     ? DECISIONS.map((d) => ({ value: d.value, label: d.label, count: triage[d.value] }))
@@ -114,9 +114,9 @@ function EvidencePanel({ assetId, triage }: { assetId: string; triage: EvidenceS
                 >
                   <TableCell className={cn(TD, 'font-mono whitespace-nowrap text-muted-foreground')}>{formatDay(r.date)}</TableCell>
                   <TableCell className={cn(TD, 'max-w-[440px] min-w-[240px]')}>
-                    {r.url ? (
+                    {safeUrl(r.url) ? (
                       <a
-                        href={r.url}
+                        href={safeUrl(r.url)}
                         target="_blank"
                         rel="noreferrer"
                         onClick={(e) => e.stopPropagation()}

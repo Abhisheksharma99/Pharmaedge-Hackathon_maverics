@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     reg_max_filings: int = Field(300, ge=10, le=2000)
     # event-date window above; filings are searched from 2 years earlier (PDUFA dates are announced ~10 months ahead)
 
+    # stock-impact prices (patent_intel.market): Yahoo's keyless chart endpoint (unofficial - local testing only).
+    # History starts at REG_START, the same window as the events.
+    market_price_ttl_s: int = Field(21600, ge=300, le=604800)  # how long fetched daily prices are reused
+
     # crawl budgets (API requests may lower, never raise them)
     max_pages: int = Field(600, ge=10, le=5000)
     probe_pages: int = Field(150, ge=0, le=2000)

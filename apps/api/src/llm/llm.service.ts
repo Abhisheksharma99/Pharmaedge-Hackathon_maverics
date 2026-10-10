@@ -1,7 +1,12 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
-import type { ChatCompletionChunk, ChatCompletionMessageParam, ChatCompletionTool } from 'openai/resources/chat/completions';
+import type {
+  ChatCompletionChunk,
+  ChatCompletionCreateParamsNonStreaming,
+  ChatCompletionMessageParam,
+  ChatCompletionTool,
+} from 'openai/resources/chat/completions';
 import type { Env } from '../config/env.js';
 
 /**
@@ -60,14 +65,41 @@ export class LlmService {
     return res.data[0]!.embedding;
   }
 
-  /** One non-streamed call that must answer with JSON matching `schema` (strict structured output). */
+  /** One non-streamed call on the chat model that must answer with JSON matching `schema` (strict structured output). */
   async json<T>(system: string, user: string, name: string, schema: Record<string, unknown>): Promise<T> {
-    const res = await this.require().chat.completions.create({
+    return this.schemaCall<T>(this.require(), system, user, name, schema, {
       model: this.config.get('LLM_CHAT_MODEL', { infer: true }),
-      messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
-      response_format: { type: 'json_schema', json_schema: { name, strict: true, schema } },
       reasoning_effort: this.config.get('LLM_CHAT_REASONING_EFFORT', { infer: true }),
       max_completion_tokens: 16000,
+    });
+  }
+
+  /**
+   * One structured (JSON schema) call on the retrieval model: reranking, hypothetical passages (HyDE) and the
+   * evidence check of search_evidence. Throws on failure; callers fall back to plain retrieval.
+   */
+  async structured<T>(system: string, user: string, name: string, schema: Record<string, unknown>, maxTokens = 800): Promise<T> {
+    if (!this.client) throw new Error('LLM unavailable');
+    return this.schemaCall<T>(this.client, system, user, name, schema, {
+      model: this.config.get('LLM_RAG_MODEL', { infer: true }),
+      reasoning_effort: 'none',
+      max_completion_tokens: maxTokens,
+    });
+  }
+
+  /** Shared strict-JSON-schema completion behind json() and structured(); a cut-off answer is an error, not bad JSON. */
+  private async schemaCall<T>(
+    client: OpenAI,
+    system: string,
+    user: string,
+    name: string,
+    schema: Record<string, unknown>,
+    opts: Pick<ChatCompletionCreateParamsNonStreaming, 'model' | 'reasoning_effort' | 'max_completion_tokens'>,
+  ): Promise<T> {
+    const res = await client.chat.completions.create({
+      ...opts,
+      messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+      response_format: { type: 'json_schema', json_schema: { name, strict: true, schema } },
     });
     const choice = res.choices[0];
     if (!choice || choice.finish_reason === 'length') throw new Error('LLM answer was cut off');
@@ -80,6 +112,8 @@ export class LlmService {
     try {
       const res = await this.client.chat.completions.create({
         model: this.config.get('LLM_FOLLOWUP_MODEL', { infer: true }),
+        reasoning_effort: this.config.get('LLM_FOLLOWUP_REASONING_EFFORT', { infer: true }),
+        max_completion_tokens: 600,
         messages: [
           {
             role: 'system',

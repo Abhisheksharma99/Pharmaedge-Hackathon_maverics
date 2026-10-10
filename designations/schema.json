@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pharmaedge/designations/fda_expedited_program_approvals.schema.json",
+  "title": "FDA expedited-program approval",
+  "description": "One approval that used an FDA expedited program (Accelerated Approval, Breakthrough Therapy, Fast Track or Priority Review), parsed from one row of FDA's CDER or CBER approval lists (PDF). An application can have several records: one per program, and within a program one per supplement or indication. Stored as one document per record (_id = id).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "program", "program_name", "center", "application", "application_type", "application_number", "submission", "submission_type", "submission_number", "proprietary_name", "established_name", "applicant", "approval_date", "indication", "review_classification", "orphan", "approval_qualifier", "received_date", "months_to_approval", "conversion_status", "conversion_status_text", "conversion_date", "notes", "names", "source", "parser_version"],
+  "properties": {
+    "id": {"type": "string", "description": "Primary key: program, application, submission, approval date and a hash of the row's names and indication, e.g. 'breakthrough_therapy:BLA125486:ORIG-1:2013-11-01:f102c211be'. Unchanged across re-runs while the row's text is unchanged."},
+    "program": {"enum": ["accelerated_approval", "breakthrough_therapy", "fast_track", "priority_review"], "description": "The expedited program, read from the PDF's title."},
+    "program_name": {"enum": ["Accelerated Approval", "Breakthrough Therapy", "Fast Track", "Priority Review"]},
+    "center": {"enum": ["CDER", "CBER", null], "description": "FDA center that published the list."},
+    "application": {"type": "string", "pattern": "^(NDA|BLA) \\d{5,6}$", "description": "e.g. 'NDA 205552'. Joins records across programs, and with Drugs@FDA / openFDA application numbers."},
+    "application_type": {"enum": ["NDA", "BLA"]},
+    "application_number": {"type": "string", "pattern": "^\\d{5,6}$", "description": "Digits as printed, leading zeros kept, e.g. '020199'."},
+    "submission": {"type": ["string", "null"], "pattern": "^(ORIG|SUPPL)(-\\d+)?$", "description": "Normalized submission: 'ORIG-1', 'ORIG-2' (a further indication approved in the original application), 'SUPPL-12', or 'ORIG' when the list gives no number."},
+    "submission_type": {"enum": ["original", "supplement", null], "description": "Breakthrough and Fast Track lists give it per row. Accelerated Approval lists mark supplements ('Supplement 92', 'BLA 103661/1010'), so unmarked rows are originals. Priority lists cover original applications only."},
+    "submission_number": {"type": ["integer", "null"]},
+    "proprietary_name": {"type": ["string", "null"], "description": "Brand name as printed, sometimes 'BRAND (NAME)'. Null for unbranded products, e.g. PEPFAR generics."},
+    "established_name": {"type": ["string", "null"], "description": "Established name (proper name for biologics): the active ingredient(s) as printed, with wrapped lines re-joined, e.g. 'FAM-TRASTUZUMAB DERUXTECAN-NXKI'."},
+    "applicant": {"type": ["string", "null"], "description": "Applicant as printed; company names are not normalized."},
+    "approval_date": {"type": ["string", "null"], "format": "date", "description": "Approval date of this application or supplement. For accelerated_approval, the accelerated approval date."},
+    "indication": {"type": ["string", "null"], "description": "'Use' (Breakthrough, Fast Track) or 'Accelerated Approval Indication', as printed. Null for Priority lists, which have no indication column."},
+    "review_classification": {"type": ["array", "null"], "items": {"type": "string", "pattern": "^[A-Z]$"}, "description": "Priority lists only: review classification codes, e.g. ['P', 'O']. P = priority review, O = orphan designation (the legend is in manifest.json, sources[].legend)."},
+    "orphan": {"type": ["boolean", "null"], "description": "Review classification includes 'O' (Priority lists). Null when the list does not say."},
+    "approval_qualifier": {"enum": ["tentative", "tentative_or_pepfar", null], "description": "Priority lists' footnotes: (1) 'Application has been tentatively approved' -> tentative; (2) 'tentatively approved or approved under PEPFAR' -> tentative_or_pepfar. A tentative approval is not a US marketing approval."},
+    "received_date": {"type": ["string", "null"], "format": "date", "description": "Accelerated Approval only: date FDA (or CBER) received the submission."},
+    "months_to_approval": {"type": ["number", "null"], "description": "Accelerated Approval only: total time to accelerated approval, in months. A '†' note means FDA adjusted it."},
+    "conversion_status": {"enum": ["converted", "not_yet_converted", "application_withdrawn", "indication_withdrawn", "other", null], "description": "Accelerated Approval only: converted to traditional approval, not yet converted, or not converted because the application or the indication was withdrawn."},
+    "conversion_status_text": {"type": ["string", "null"], "description": "Status as printed, e.g. 'Not Converted - Application Withdrawn'."},
+    "conversion_date": {"type": ["string", "null"], "format": "date", "description": "Accelerated Approval only: date of conversion to traditional approval, or of withdrawal. A note may say it is a Federal Register date."},
+    "notes": {"type": "array", "items": {"$ref": "#/$defs/note"}, "description": "Footnotes marked on this row, resolved to their text, plus notes under the table that name this row."},
+    "names": {"type": "array", "items": {"type": "string"}, "description": "Every name to match an asset against: the proprietary and established names, both parts of 'BRAND (NAME)', and the established name without a trailing parenthetical and without FDA's ado-/fam- prefix and four-letter biologic suffix (FAM-TRASTUZUMAB DERUXTECAN-NXKI -> TRASTUZUMAB DERUXTECAN). Index this for asset lookups; match whole words, case-insensitive."},
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file", "title", "as_of", "page"],
+      "properties": {
+        "file": {"type": "string", "description": "PDF path relative to the data folder, e.g. 'AA approval/CDER AA Approvals as of 06-30-26.pdf'."},
+        "title": {"type": "string", "description": "The list's title, e.g. 'CDER Breakthrough Therapy Designation Approvals'."},
+        "as_of": {"type": ["string", "null"], "format": "date", "description": "The list's 'as of' date. When the same row is in two PDFs, the newer list's record is kept."},
+        "page": {"type": "integer", "minimum": 1}
+      }
+    },
+    "parser_version": {"type": "integer", "description": "Bumped when parsing changes; re-ingest all records when it does."}
+  },
+  "$defs": {
+    "note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref", "field", "text"],
+      "properties": {
+        "ref": {"type": ["string", "null"], "description": "Mark as printed: '1'-'5' and '†' (Accelerated Approval), '1' and '2' (Priority), '*' and '**' (Fast Track, no legend in the PDF). Null for a note under the table that names this row."},
+        "field": {"enum": ["application", "approval_date", "received_date", "months_to_approval", "conversion_date", null], "description": "Column the mark is attached to."},
+        "text": {"type": ["string", "null"], "description": "The footnote's text; null when the PDF does not define the mark."}
+      }
+    }
+  }
+}

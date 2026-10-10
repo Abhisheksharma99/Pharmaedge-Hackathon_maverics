@@ -4,6 +4,7 @@ POST /v1/crawls                     start a crawl job (202) -> poll GET /v1/craw
 GET  /v1/crawls/{job_id}            job status + coverage summary
 GET  /v1/drugs/{drug_id}            drug profile (Adis or name-based)
 GET  /v1/drugs/{drug_id}/patents    included (or uncertain) patents, paginated
+GET  /v1/market/...                 stock impact of a drug's events (see patent_intel/market/api.py); /market = chart page
 GET  /healthz                       liveness (no auth)
 
 Security: X-API-Key (constant-time compare, refuses to start without keys), CORS allow-list, strict input
@@ -27,7 +28,7 @@ from fastapi import Depends, FastAPI, HTTPException, Path, Query, Request, Respo
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security import APIKeyHeader
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationError, field_validator, model_validator
 
 from .adis import adis_id
 from .config import settings
@@ -56,6 +57,7 @@ class CrawlRequest(BaseModel):
     max_pages: int | None = Field(None, ge=10, description="page budget; capped by server MAX_PAGES")
     regulatory: bool = Field(True, description="also build the PDUFA/approval timeline (SEC EDGAR + openFDA)")
     fda_calendar: bool = Field(True, description="also match the FDA Tracker PDUFA/AdCom calendar to this drug")
+    market: bool = Field(True, description="also resolve the listed companies owning the drug's events + daily prices")
 
     @field_validator("adis")
     @classmethod
@@ -195,6 +197,18 @@ class BodyLimit:
 app.add_middleware(BodyLimit, limit=MAX_BODY)  # added last -> outermost
 
 
+try:  # JSON-only installs have no pymongo: nothing to map then
+    from pymongo.errors import PyMongoError
+
+    @app.exception_handler(PyMongoError)
+    async def database_unavailable(request: Request, exc: PyMongoError) -> JSONResponse:
+        """Outage / network partition / timeout: say so (503, retryable) instead of a generic 500; details stay in logs."""
+        log.warning("database error on %s %s: %s", request.method, request.url.path, type(exc).__name__)
+        return JSONResponse({"detail": "database unavailable, retry later"}, status_code=status.HTTP_503_SERVICE_UNAVAILABLE)
+except ImportError:
+    pass
+
+
 @app.middleware("http")
 async def harden(request: Request, call_next: Any) -> Response:
     resp: Response = await call_next(request)
@@ -230,13 +244,13 @@ async def _run_job(job: dict[str, Any], req: CrawlRequest) -> None:
                                      companies=req.companies, all_developers=req.all_developers,
                                      max_pages=min(req.max_pages or cfg.max_pages, cfg.max_pages),
                                      probe_budget=cfg.probe_pages, regulatory=req.regulatory,
-                                     fda_calendar=req.fda_calendar)
+                                     fda_calendar=req.fda_calendar, market=req.market)
             cov = run["coverage"]
             job.update(status="done", drug_id=run["drug_id"], summary={
                 k: cov[k] for k in ("included", "uncertain", "rejected", "families", "offices", "legal_status",
                                     "pages_fetched", "budget_exhausted", "pubchem_linked_publications")
             } | {"family_members_not_fetched": len(cov["family_members_not_fetched"]), "companies": run["companies"],
-                 "regulatory": run.get("regulatory"), "fda_calendar": run.get("fda_calendar")})
+                 "regulatory": run.get("regulatory"), "fda_calendar": run.get("fda_calendar"), "market": run.get("market")})
     except TimeoutError:
         job.update(status="failed", error=f"timed out after {cfg.job_timeout_s}s")
     except ValueError as e:  # input-level problems (bad Adis page, missing company) are safe to show
@@ -352,6 +366,25 @@ async def list_fda_calendar(drug_id: Annotated[str, Path(pattern=DRUG_ID)],
     items, total = await S.store.find("fda_calendar_events", {"drug_id": drug_id, "status": status, "stale": stale},
                                       skip, limit, sort="date")
     return EventPage(drug_id=drug_id, total=total, skip=skip, limit=limit, items=items)
+
+
+# Optional, isolated presentation subsystem: removing this block (and the package) removes it entirely. A missing
+# optional dependency or invalid PRESENTATION_* setting disables only these endpoints (logged), never the patent API.
+try:
+    from .presentations.api import router as presentations_router
+
+    app.include_router(presentations_router(Auth, lambda: S.store, lambda: settings().sec_user_agent, S.tasks))
+except (ImportError, ValidationError) as e:
+    log.error("presentation endpoints DISABLED: %s", e)
+
+# Optional, isolated stock-impact endpoints (+ the /market chart page): same removable pattern as presentations.
+try:
+    from .market.api import routers as market_routers
+
+    for _r in market_routers(Auth, lambda: S.store, lambda: S.http):
+        app.include_router(_r)
+except ImportError as e:
+    log.error("market endpoints DISABLED: %s", e)
 
 
 def _main() -> None:  # python -m patent_intel.api  (binds localhost by default; put a TLS proxy in front)

@@ -26,6 +26,7 @@ async def main() -> None:
     ap.add_argument("--probe", type=int, default=settings().probe_pages, help="max PubChem probe pages used to find seeds")
     ap.add_argument("--no-regulatory", action="store_true", help="skip the PDUFA/approval timeline (SEC EDGAR + openFDA)")
     ap.add_argument("--no-fda-calendar", action="store_true", help="skip the FDA Tracker PDUFA/AdCom calendar")
+    ap.add_argument("--no-market", action="store_true", help="skip listed companies + daily prices (stock impact)")
     a = ap.parse_args()
     if not a.drugs and not a.name:
         ap.error("give AdisInsight id(s) or --name")
@@ -41,10 +42,12 @@ async def main() -> None:
             try:
                 run = await run_drug(http=http, store=store, companies=a.company, all_developers=a.all_developers,
                                      terms=a.term, seeds=a.seed, max_pages=a.max_pages, probe_budget=a.probe,
-                                     regulatory=not a.no_regulatory, fda_calendar=not a.no_fda_calendar, **job)
+                                     regulatory=not a.no_regulatory, fda_calendar=not a.no_fda_calendar,
+                                     market=not a.no_market, **job)
                 cov = {**run["coverage"], "family_members_not_fetched": len(run["coverage"]["family_members_not_fetched"])}
                 print(json.dumps({"drug": run["drug_name"], "drug_id": run["drug_id"], **cov,
-                                  "regulatory": run.get("regulatory"), "fda_calendar": run.get("fda_calendar")},
+                                  "regulatory": run.get("regulatory"), "fda_calendar": run.get("fda_calendar"),
+                                  "market": run.get("market")},
                                  indent=1, default=str))
             except Exception as e:  # keep going with the next drug
                 logging.error("%s: %s: %s", job, type(e).__name__, e)

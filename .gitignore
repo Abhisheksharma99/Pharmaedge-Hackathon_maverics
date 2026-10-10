@@ -36,3 +36,8 @@ backups/
 
 # TypeScript incremental build info
 *.tsbuildinfo
+
+# Local tooling output (browser automation screenshots/logs, brainstorming mockups, linters)
+.playwright-mcp/
+.superpowers/
+.ruff_cache/

@@ -1,6 +1,6 @@
 # Asset journey platform. MongoDB is self-hosted (mongo + mongot); first run infra/mongo/setup.sh,
 # see infra/mongo/README.md.
-#   Dev:  docker compose up -d valkey mongo mongot crawler-api crawler-worker   (then npm run dev:api / npm run dev:web)
+#   Dev:  docker compose up -d valkey mongo mongot crawler-api crawler-worker crawler-corpus   (then npm run dev:api / npm run dev:web)
 #   Full: docker compose up -d --build               (app at http://localhost:8080)
 services:
   # Single-node replica set; auth and TLS required. Published on loopback unless MONGO_PUBLISH is set
@@ -118,6 +118,27 @@ services:
     volumes:
       - ./infra/mongo/secrets/ca.pem:/etc/mongo/ca.pem:ro
       - crawler-cache:/app/cache       # patent crawler's page cache: later refreshes re-fetch only stale pages
+    environment:
+      VALKEY_URL: redis://valkey:6379
+    depends_on:
+      valkey:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Shared corpora (company PR, EMA reports + designations + CHMP, conferences): crawled in full into mongo as
+  # soon as it starts, then daily; asset jobs read them (crawler/corpus/). Own queue, so it never blocks them.
+  crawler-corpus:
+    build:
+      context: .
+      dockerfile: crawler/Dockerfile
+    command: ["arq", "service.corpus_worker.WorkerSettings"]
+    env_file:
+      - crawler/.env
+      - infra/mongo/secrets/app.env   # MONGODB_URI for the self-hosted mongo (overrides the line above)
+    volumes:
+      - ./infra/mongo/secrets/ca.pem:/etc/mongo/ca.pem:ro
     environment:
       VALKEY_URL: redis://valkey:6379
     depends_on:

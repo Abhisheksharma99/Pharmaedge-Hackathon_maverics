@@ -218,3 +218,164 @@ def test_fda_calendar_skips_hosts_that_time_out(tmp_path, monkeypatch):
     assert len(calls) == 2 and "https://ok.com/1" in calls
     fresh = fda_calendar.RemembersFailures(fda_calendar.Cache(tmp_path), public_web=True)  # the next run
     assert asyncio.run(fresh.get_html("https://tarpit.com/9", 60)) == (0, "") and len(calls) == 2
+
+
+def test_sec_events_map_to_fda_records_with_evidence():
+    from integrations import sec_regulatory
+    event = {"_id": "abc123", "type": "complete_response_letter", "date": "2021-11-08",
+             "sponsor": "United Therapeutics Corp", "status": "past", "first_reported": "2021-11-09",
+             "last_reported": "2022-02-24", "evidence_count": 12,
+             "sources": [{"sentence": "We received a complete response letter for Tyvaso DPI.", "drug_terms": ["tyvaso dpi"],
+                          "source": {"url": "https://www.sec.gov/Archives/x.htm", "form": "8-K", "filed": "2021-11-09",
+                                     "cik": "1082554", "company": "United Therapeutics Corp"}}] * 12}
+    r = sec_regulatory.to_record(event, NAMES)
+    assert r["record_key"] == "sec:abc123" and r["record_type"] == "sec_fda_action" and r["source"] == "sec_edgar"
+    assert r["drugs"] == ["Tyvaso DPI"]                      # the asset's own spelling
+    assert r["title"] == "Complete response letter: Tyvaso DPI (United Therapeutics Corp)"
+    assert r["url"] == "https://www.sec.gov/Archives/x.htm" and r["evidence_count"] == 12
+    assert len(r["evidence"]) == sec_regulatory.MAX_EVIDENCE  # bounded document
+    assert r["evidence"][0] == {"sentence": "We received a complete response letter for Tyvaso DPI.",
+                                "url": "https://www.sec.gov/Archives/x.htm", "form": "8-K", "filed": "2021-11-09", "cik": "1082554"}
+
+
+def test_sec_step_reads_sec_only_and_skips_without_user_agent(monkeypatch):
+    from types import SimpleNamespace
+
+    from integrations import sec_regulatory
+    cfg = SimpleNamespace(sec_user_agent=None, reg_max_filings=300, reg_window=lambda: ("2013-01-01", "2027-12-31"))
+    monkeypatch.setattr(sec_regulatory, "settings", lambda: cfg)
+    asset = {"_id": "treprostinil", "name": "Treprostinil", "company": {"name": "United Therapeutics"}}
+    assert asyncio.run(sec_regulatory.fetch(asset, NAMES)) == ([], {"skipped": "SEC_USER_AGENT not configured"})
+    seen = {}
+
+    async def collect(http, **kw):
+        seen.update(kw)
+        return [], {"filings_read": 3}
+
+    async def no_others(http, name):
+        return ["treprostinil palmitil"]
+    monkeypatch.setattr(sec_regulatory.regulatory, "collect", collect)
+    monkeypatch.setattr(sec_regulatory, "other_products", no_others)
+    cfg.sec_user_agent = "Acme Research ops@acme.example"
+    assert asyncio.run(sec_regulatory.fetch(asset, NAMES)) == ([], {"filings_read": 3})
+    assert seen["openfda"] is False and seen["companies"] == ["United Therapeutics"]   # SEC only, own company only
+    assert seen["exclude"] == ["treprostinil palmitil"] and "Tyvaso" in seen["terms"]
+    no_company = {"_id": "x", "name": "X", "company": {}}
+    assert "skipped" in asyncio.run(sec_regulatory.fetch(no_company, ["X"]))[1]
+
+
+def test_patent_refresh_runs_patents_only(monkeypatch):
+    seen = {}
+
+    async def run_drug(**kw):
+        seen.update(kw)
+        return {"coverage": {}}
+    monkeypatch.setattr(patents, "run_drug", run_drug)
+    asyncio.run(patents.fetch({"_id": "t", "name": "Treprostinil", "ids": {"adis": "800010447"}}, NAMES))
+    assert (seen["regulatory"], seen["fda_calendar"], seen["market"]) == (False, False, False)
+
+
+# ---------------------------------------------------------------- presentations + market (patent_intel data -> platform)
+
+def test_presentation_slides_are_mapped_for_the_company_asset_only(mongo):
+    from integrations import presentations
+    src = mongo.client[presentations.PRESENTATIONS_DB]
+    src.presentations.insert_many([
+        {"_id": "pres_a", "company_id": "united-therapeutics", "status": "done", "title": "Q4 deck", "date": "2026-02-25",
+         "source_url": "https://ir.example/q4.pdf"},
+        {"_id": "pres_old", "company_id": "united-therapeutics", "status": "done", "superseded_by": "pres_a", "title": "old"},
+        {"_id": "pres_other", "company_id": "merck", "status": "done", "title": "Merck deck"},
+    ])
+    src.presentation_pages.insert_many([
+        {"_id": "pres_a:3", "presentation_id": "pres_a", "page": 3, "title": "TETON", "text": "Tyvaso in IPF\r\nTETON-2 met its endpoint"},
+        {"_id": "pres_a:4", "presentation_id": "pres_a", "page": 4, "title": "Pipeline", "text": "Other programmes"},
+        {"_id": "pres_a:5", "presentation_id": "pres_a", "page": 5, "title": "Financials", "text": "Revenue"},
+        {"_id": "pres_old:1", "presentation_id": "pres_old", "page": 1, "text": "Tyvaso"},
+        {"_id": "pres_other:1", "presentation_id": "pres_other", "page": 1, "text": "Tyvaso comparison"},
+    ])
+    src.presentation_claims.insert_many([
+        {"presentation_id": "pres_a", "page": 3, "statement": "TETON-2 met its primary endpoint", "category": "efficacy", "stale": False},
+        {"presentation_id": "pres_a", "page": 3, "statement": "retired claim", "stale": True},
+        {"presentation_id": "pres_a", "page": 5, "statement": "Tyvaso revenue grew", "drug": "Tyvaso", "stale": False},
+    ])
+    src.presentation_metrics.insert_one({"presentation_id": "pres_a", "page": 3, "metric": "FVC change", "value": 95.6, "unit": "mL",
+                                         "arm": "Tyvaso", "validation": {"status": "validated"}, "bbox": [0.1, 0.2, 0.3, 0.4], "stale": False})
+    asset = {"_id": "treprostinil", "name": "Treprostinil", "company": {"name": "United Therapeutics Corp"}}
+    records = {r["record_key"]: r for r in presentations.fetch(mongo, asset, ["Treprostinil", "Tyvaso"])}
+    # slide 3 (text) and 5 (a claim names it); not slide 4, the superseded deck or another company's deck
+    assert set(records) == {"presentation:pres_a:3", "presentation:pres_a:5"}
+    slide = records["presentation:pres_a:3"]
+    assert slide["record_type"] == "presentation_slide" and slide["url"] == "https://ir.example/q4.pdf" and slide["date"] == "2026-02-25"
+    assert "TETON-2 met its primary endpoint" in slide["content"] and "retired claim" not in slide["content"]
+    assert "- FVC change: 95.6 mL (Tyvaso) [validated]" in slide["content"]
+    # readable for the panel: deck/slide titles, the company's name, the slide's own text without the facts
+    assert (slide["deck_title"], slide["slide_title"], slide["title"]) == ("Q4 Deck", "TETON", "Q4 Deck, slide 3: TETON")
+    assert slide["company"] == "United Therapeutics Corp" and slide["company_id"] == "united-therapeutics"
+    assert slide["slide_text"] == "Tyvaso in IPF\nTETON-2 met its endpoint" and "Claims:" not in slide["slide_text"]
+    assert slide["mentions"] == ["Tyvaso"] and records["presentation:pres_a:5"]["mentions"] == ["Tyvaso"]  # Company IR filter
+
+    assert slide["metrics"][0]["bbox"] == [0.1, 0.2, 0.3, 0.4] and slide["evidence"]["page"] == 3
+    assert list(presentations.fetch(mongo, {"_id": "x", "name": "X"}, ["X"])) == []  # no company: nothing
+
+
+def test_market_reuses_fresh_stored_prices_and_never_matches_a_lookalike(monkeypatch):
+    from datetime import datetime, timezone
+
+    from integrations import market
+
+    class FakeHttp:
+        def __init__(self, cache): pass
+        async def aclose(self): pass
+
+    fetched = []
+
+    async def fake_search(http, query, ttl):
+        return [{"ticker": "UNH", "name": "UnitedHealth Group", "exchange": "NYSE"},
+                {"ticker": "UTHR", "name": "United Therapeutics Corporation", "exchange": "NASDAQ"}]
+
+    async def fake_closes(http, ticker, start, ttl):
+        fetched.append(ticker)
+        return {"ticker": ticker, "source": "test", "as_of": "2026-10-09", "bars": [{"date": "2026-10-09", "close": 1.0}],
+                "fetched_at": datetime.now(timezone.utc).isoformat()}
+
+    monkeypatch.setattr(market, "Http", FakeHttp)
+    monkeypatch.setattr(market, "Cache", lambda root: None)
+    monkeypatch.setattr(market.prices, "search", fake_search)
+    monkeypatch.setattr(market.prices, "daily_closes", fake_closes)
+    stored = {"UTHR": {"_id": "UTHR", "ticker": "UTHR", "source": "stored", "as_of": "2026-10-09", "bars": [{"date": "2026-10-09", "close": 2.0}],
+                       "fetched_at": datetime.now(timezone.utc).isoformat()}}
+    asset = {"_id": "treprostinil", "name": "Treprostinil", "company": {"name": "United Therapeutics"}}
+    calendar = [{"ticker": "LQDA", "company": "Liquidia"}, {"ticker": "not a ticker!"}]
+    listings, price_docs, report = asyncio.run(market.fetch(asset, calendar, stored.get))
+    by = {d["ticker"]: d for d in listings}
+    assert set(by) == {"UTHR", "LQDA"} and by["UTHR"]["roles"] == ["asset_company"] and by["LQDA"]["roles"] == ["fda_calendar_event"]
+    assert by["UTHR"]["_id"] == "treprostinil:UTHR" and by["UTHR"]["stale"] is False
+    assert fetched == ["LQDA"] and report["reused"] == ["UTHR"]  # fresh stored prices are not fetched again
+    assert {d["_id"]: d["source"] for d in price_docs} == {"UTHR": "stored", "LQDA": "test"}
+
+
+@pytest.mark.parametrize("raw,clean", [("q3 2025 presentation", "Q3 2025 Presentation"),
+                                       ("12 01 2026 jpm presentation", "JPM Presentation"),
+                                       ("2026 02 25 4q eps presentation", "4Q EPS Presentation"),
+                                       ("2026 03 02 advance outcomes presentation", "Advance Outcomes Presentation"),
+                                       ("R&D Day 2026", "R&D Day 2026"), ("", "Investor presentation")])
+def test_deck_titles_from_file_names_are_readable(raw, clean):
+    from integrations.presentations import deck_title
+    assert deck_title(raw) == clean
+
+
+def test_designations_match_the_asset_names_case_insensitively(mongo):
+    from integrations import designations
+    db_name, coll = designations.COLLECTION.split(".", 1)
+    mongo.client[db_name][coll].insert_many([
+        {"_id": "bt:1", "names": ["OFEV", "NINTEDANIB"], "approval_date": "2020-03-09", "program": "breakthrough_therapy",
+         "program_name": "Breakthrough Therapy", "application_type": "NDA", "application_number": "205832",
+         "submission_type": "supplement", "submission_number": 13, "proprietary_name": "OFEV", "established_name": "NINTEDANIB",
+         "applicant": "BOEHRINGER", "indication": "Chronic fibrosing ILD", "source": {"file": "x.pdf", "page": 11}},
+        {"_id": "pr:2", "names": ["OTHER"], "approval_date": "2020-01-01", "program": "priority_review"},
+        {"_id": "pr:3", "names": ["XR"], "approval_date": "2020-01-01", "program": "priority_review"},
+    ])
+    [r] = list(designations.for_asset(mongo, ["Nintedanib", "Ofev", "XR"]))  # "XR" too short to match on
+    assert r["record_key"] == "fda_designation:bt:1" and r["record_type"] == "fda_expedited_approval"
+    assert (r["application_number"], r["submission_type"], r["submission_number"]) == ("NDA205832", "SUPPL", 13)
+    assert r["title"] == "Breakthrough Therapy: OFEV (Chronic fibrosing ILD)" and r["date"] == "2020-03-09"

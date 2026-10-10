@@ -1,5 +1,5 @@
 import { Transform, Type } from 'class-transformer';
-import { IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
 
 const csv = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.split(',').map((v) => v.trim()).filter(Boolean) : value;
@@ -62,6 +62,75 @@ export class TimelineQueryDto {
   @Min(1)
   @Max(5000)
   limit = 500;
+}
+
+export class MarketQueryDto {
+  /** Other tracked drugs of the same listed company to include (asset ids; ones under another ticker are ignored). */
+  @IsOptional()
+  @Transform(csv)
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @MaxLength(100, { each: true })
+  drugs?: string[];
+
+  @IsOptional()
+  @Transform(csv)
+  @IsArray()
+  @IsIn(['regulatory', 'clinical', 'safety', 'company', 'ip'], { each: true })
+  category?: string[];
+
+  @IsOptional()
+  @Transform(csv)
+  @IsArray()
+  @IsIn(['High', 'Medium', 'Low'], { each: true })
+  significance?: string[];
+
+  @IsOptional()
+  @Matches(ISO_DATE)
+  from?: string;
+
+  @IsOptional()
+  @Matches(ISO_DATE)
+  to?: string;
+}
+
+export class StoryQueryDto {
+  @IsOptional()
+  @Matches(ISO_DATE)
+  from?: string;
+
+  @IsOptional()
+  @Matches(ISO_DATE)
+  to?: string;
+
+  /** Focus window: what changed since this date. */
+  @IsOptional()
+  @Matches(ISO_DATE)
+  since?: string;
+
+  @IsOptional()
+  @Transform(csv)
+  @IsArray()
+  @IsIn(['regulatory', 'clinical', 'safety', 'company', 'ip'], { each: true })
+  category?: string[];
+
+  @IsOptional()
+  @Transform(csv)
+  @IsArray()
+  @IsIn(['High', 'Medium', 'Low'], { each: true })
+  significance?: string[];
+
+  /** Another asset to compare journeys with. */
+  @IsOptional()
+  @Matches(/^[a-z0-9-]{1,80}$/)
+  compare?: string;
+}
+
+export class ChangesQueryDto {
+  @IsOptional()
+  @Matches(ISO_DATE)
+  since?: string;
 }
 
 export class RecordsQueryDto {

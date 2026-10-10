@@ -14,6 +14,13 @@ export const FASTIFY_OPTIONS = { trustProxy: true, routerOptions: { maxParamLeng
 /** Everything main.ts and the e2e tests both need, so tests run the real app. */
 export async function configureApp(app: NestFastifyApplication): Promise<void> {
   await app.register(fastifyCookie);
+  // JSON API: never sniffed, framed or cached by a shared cache (responses are per-user).
+  app.getHttpAdapter().getInstance().addHook('onSend', async (_req, reply) => {
+    reply.header('X-Content-Type-Options', 'nosniff');
+    reply.header('X-Frame-Options', 'DENY');
+    reply.header('Referrer-Policy', 'no-referrer');
+    if (!reply.hasHeader('Cache-Control')) reply.header('Cache-Control', 'no-store');
+  });
   app.setGlobalPrefix('api');
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
   app.useGlobalFilters(new HttpExceptionFilter());

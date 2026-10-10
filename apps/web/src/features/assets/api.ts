@@ -230,3 +230,72 @@ export function useAssetDetails(ids: string[]): Record<string, AssetDetail | und
     combine: (results) => Object.fromEntries(results.map((r, i) => [ids[i], r.data])) as Record<string, AssetDetail | undefined>,
   })
 }
+
+/** Share-price move after an event: % against the last close before day 0 (first trading day on/after the event). */
+export interface MarketImpact {
+  trading_day: string
+  base_close: number
+  days_measured: number
+  day0: number
+  day5: number | null
+  day20: number | null
+  dip: number | null
+  /** Trading days after day 0 of the deepest dip / highest peak, and that day's close. */
+  dip_day: number | null
+  dip_close: number | null
+  peak: number | null
+  peak_day: number | null
+  peak_close: number | null
+}
+
+export interface MarketEvent {
+  id: string
+  date: string
+  title: string
+  type: string
+  category: EventCategory
+  significance: Significance
+  /** The drug (tracked asset) the event belongs to. */
+  drug: { id: string; name: string }
+  source: { collection: string; record_key: string } | null
+  impact: MarketImpact | null
+  /** Why there is no impact: before price history, upcoming, ... */
+  note: string | null
+}
+
+export type AssetMarket =
+  | { listed: false; company: string | null; note: string }
+  | {
+      listed: true
+      ticker: string
+      company: string
+      listed_name: string | null
+      exchange: string | null
+      /** The asset's company is a subsidiary; this is its listed parent. */
+      via_parent: boolean
+      other_listings: string[]
+      source: string | null
+      currency: string | null
+      as_of: string | null
+      note: string
+      /** Tracked drugs of the same listed company; `selected` ones contribute events. */
+      drugs: { id: string; name: string; selected: boolean }[]
+      /** Events per category for the selected drugs, before the category filter. */
+      category_counts: Partial<Record<EventCategory, number>>
+      bars: { date: string; close: number }[]
+      events: MarketEvent[]
+    }
+
+export interface MarketFilters {
+  drugs?: string[]
+  category?: EventCategory[]
+  significance?: Significance[]
+}
+
+export function useMarket(id: string, filters: MarketFilters) {
+  return useQuery({
+    queryKey: ['asset', id, 'market', filters],
+    queryFn: () => apiFetch<AssetMarket>(`/assets/${encodeURIComponent(id)}/market${toQueryString(filters)}`),
+    placeholderData: keepPreviousData,
+  })
+}

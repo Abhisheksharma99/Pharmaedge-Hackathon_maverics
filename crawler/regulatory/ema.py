@@ -10,7 +10,7 @@ the backoff.
 import re
 import time
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import requests
 
@@ -72,24 +72,36 @@ def _iso(ddmmyyyy: str) -> str:
         return ""
 
 
-def fetch_report(report: str, names: List[str]) -> List[Dict[str, Any]]:
-    filename, record_type, key_fields, date_fields, name_fields = REPORTS[report]
+def name_patterns(names: List[str]) -> List[re.Pattern]:
+    return [re.compile(rf"\b{re.escape(n)}\b", re.I) for n in names]
+
+
+def matches(report: str, record: Dict[str, Any], patterns: List[re.Pattern]) -> bool:
+    """One of the names, as a whole word, in the report's name fields (medicine, substance, INN)."""
+    haystack = " ".join(record.get(f) or "" for f in REPORTS[report][4])
+    return any(p.search(haystack) for p in patterns)
+
+
+def to_record(report: str, row: Dict[str, Any]) -> Dict[str, Any]:
+    _, record_type, key_fields, date_fields, _ = REPORTS[report]
     if isinstance(date_fields, str):
         date_fields = (date_fields,)
-    patterns = [re.compile(rf"\b{re.escape(n)}\b", re.I) for n in names]
-    records = []
-    for row in _download(filename):
-        haystack = " ".join(row.get(f) or "" for f in name_fields)
-        if not any(p.search(haystack) for p in patterns):
-            continue
-        records.append({
-            "record_key": f"ema:{report}:" + ":".join(str(row.get(k, "")) for k in key_fields),
-            "record_type": record_type,
-            "source": "ema",
-            "date": next((d for d in (_iso(row.get(f, "")) for f in date_fields) if d), ""),
-            **row,
-        })
-    return records
+    return {
+        "record_key": f"ema:{report}:" + ":".join(str(row.get(k, "")) for k in key_fields),
+        "record_type": record_type,
+        "source": "ema",
+        "date": next((d for d in (_iso(row.get(f, "")) for f in date_fields) if d), ""),
+        **row,
+    }
+
+
+def fetch_report(report: str, names: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+    """The report's rows naming the asset, as records; every row when `names` is None (the corpus crawl)."""
+    records = [to_record(report, row) for row in _download(REPORTS[report][0])]
+    if names is None:
+        return records
+    patterns = name_patterns(names)
+    return [r for r in records if matches(report, r, patterns)]
 
 
 def fetch_all(names: List[str]) -> List[Dict[str, Any]]:

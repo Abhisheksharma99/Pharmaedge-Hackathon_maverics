@@ -266,6 +266,63 @@ describe('records', () => {
     expect((await get(`/api/assets/${A}/record/company-ir?key=uthr:pi:1`)).statusCode).toBe(404);
   });
 
+  it('returns the journey events a record is evidence for, and ?type= cannot leave the tab', async () => {
+    await db.collection('journey_events').insertOne({
+      _id: 'ai:pr-evidence' as never, asset: A, type: 'approval', category: 'regulatory', date: '2021-04-01', title: 'FDA approves Tyvaso for PH-ILD',
+      significance: 'High', is_milestone: false, sources: [{ collection: 'company_records', record_key: `uthr:press_release:${PR_URL}` }],
+    });
+    try {
+      const res = (await get(`/api/assets/${A}/record/company-ir?key=${encodeURIComponent(`uthr:press_release:${PR_URL}`)}`)).json();
+      expect(res.journeyEvents).toEqual([
+        { id: 'ai:pr-evidence', type: 'approval', category: 'regulatory', date: '2021-04-01', title: 'FDA approves Tyvaso for PH-ILD', significance: 'High', is_milestone: false },
+      ]);
+      expect((await get(`/api/assets/${A}/records/company-ir?type=prescribing_info`)).json().total).toBe(0);
+    } finally {
+      await db.collection('journey_events').deleteOne({ _id: 'ai:pr-evidence' as never });
+    }
+  });
+
+  it('serves the company share price with the move after each significant past event', async () => {
+    expect((await get(`/api/assets/${A}/market`)).json()).toMatchObject({ listed: false, company: 'United Therapeutics' });
+    await db.collection('market_listings').insertOne({ _id: 'trep:UTHR' as never, asset: A, ticker: 'UTHR', company: 'United Therapeutics', exchange: 'NASDAQ', roles: ['asset_company'], stale: false });
+    await db.collection('market_prices').insertOne({ _id: 'UTHR' as never, source: 'test prices', currency: 'USD', as_of: '2021-04-01',
+      bars: [{ date: '2021-03-30', close: 100 }, { date: '2021-03-31', close: 110 }, { date: '2021-04-01', close: 99 }] });
+    try {
+      const res = (await get(`/api/assets/${A}/market?category=regulatory`)).json();
+      expect(res).toMatchObject({ listed: true, ticker: 'UTHR', via_parent: false, currency: 'USD', source: 'test prices' });
+      expect(res.bars).toHaveLength(3);
+      // High/Medium past events only: the Low Japan approval and the upcoming milestone are left out.
+      expect(res.events.map((e: { id: string }) => e.id)).toEqual(['e1', 'e2']);
+      expect(res.events[0]).toMatchObject({ impact: null, note: 'before price history' });
+      expect(res.events[1].impact).toMatchObject({ trading_day: '2021-03-31', base_close: 100, day0: 10, dip: -1, dip_day: 1, dip_close: 99, peak: 10, peak_day: 0, peak_close: 110 });
+      expect((await get(`/api/assets/${A}/market?category=nope`)).statusCode).toBe(400);
+      expect(res.category_counts).toEqual({ regulatory: 2 });
+
+      // The company's other tracked drug (same ticker) can be added; a drug under another ticker cannot.
+      await db.collection('assets').insertMany([
+        { _id: 'ralin' as never, name: 'Ralinepag', aliases: [], company: { name: 'United Therapeutics' }, tags: {}, kind: 'primary', status: 'ready', competitors: [] },
+        { _id: 'other' as never, name: 'Other', aliases: [], company: { name: 'BMS' }, tags: {}, kind: 'primary', status: 'ready', competitors: [] },
+      ]);
+      await db.collection('market_listings').insertMany([
+        { _id: 'ralin:UTHR' as never, asset: 'ralin', ticker: 'UTHR', roles: ['asset_company'], stale: false },
+        { _id: 'other:BMY' as never, asset: 'other', ticker: 'BMY', roles: ['asset_company'], stale: false },
+      ]);
+      await db.collection('journey_events').insertMany([
+        { _id: 'r1' as never, asset: 'ralin', date: '2021-03-30', type: 'trial_start', category: 'clinical', significance: 'High', is_milestone: false, title: 'Ralinepag Phase 3' },
+        { _id: 'o1' as never, asset: 'other', date: '2021-03-30', type: 'approval', category: 'regulatory', significance: 'High', is_milestone: false, title: 'Other approval' },
+      ]);
+      const both = (await get(`/api/assets/${A}/market?drugs=ralin,other`)).json();
+      expect(both.drugs).toEqual([{ id: 'ralin', name: 'Ralinepag', selected: true }, { id: A, name: 'Treprostinil', selected: true }]);
+      expect(both.events.map((e: { id: string; drug: { name: string } }) => `${e.id}:${e.drug.name}`)).toEqual(['e1:Treprostinil', 'r1:Ralinepag', 'e2:Treprostinil']);
+    } finally {
+      await db.collection('assets').deleteMany({ _id: { $in: ['ralin', 'other'] as never[] } });
+      await db.collection('journey_events').deleteMany({ _id: { $in: ['r1', 'o1'] as never[] } });
+      await db.collection('market_listings').deleteMany({ _id: { $in: ['ralin:UTHR', 'other:BMY'] as never[] } });
+      await db.collection('market_listings').deleteOne({ _id: 'trep:UTHR' as never });
+      await db.collection('market_prices').deleteOne({ _id: 'UTHR' as never });
+    }
+  });
+
   it('serves the adverse-event series in month order', async () => {
     expect((await get(`/api/assets/${A}/series/adverse-events`)).json()).toEqual([
       { month: '2020-01', count: 5 },

@@ -4,7 +4,7 @@ import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { Chip } from '@/features/assets/components/badges'
 import { ApiError } from '@/lib/api'
-import { cn } from '@/lib/utils'
+import { cn, safeUrl } from '@/lib/utils'
 import { useCreateAsset, type Identity } from '../../api'
 import { IdentityFields } from './identity-fields'
 import { toCreateBody, toDraft } from './identity-draft'
@@ -24,7 +24,7 @@ function shortUrl(url: string): string {
 function SiteLink({ url, verified }: { url: string; verified: boolean }) {
   return (
     <span className="inline-flex flex-wrap items-center gap-[4px]">
-      <a href={url} target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">
+      <a href={safeUrl(url)} target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">
         {shortUrl(url)}
       </a>
       {verified ? (

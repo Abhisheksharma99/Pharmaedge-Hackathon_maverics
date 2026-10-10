@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import gzip
 import hashlib
 import ipaddress
@@ -13,23 +14,44 @@ import tempfile
 import time
 from collections import Counter
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlsplit
 
+import httpcore
 import httpx
 
 UA = "PharmaEdgePatentIntel/0.1 (patent research; low-rate)"
 ALLOWED_HOSTS = {"adisinsight.springer.com", "idp.springer.com", "patents.google.com", "pubchem.ncbi.nlm.nih.gov",
-                 "efts.sec.gov", "www.sec.gov", "api.fda.gov", "calendar.google.com", "clinicaltrials.gov"}
+                 "efts.sec.gov", "www.sec.gov", "api.fda.gov", "calendar.google.com", "clinicaltrials.gov",
+                 "query1.finance.yahoo.com", "query2.finance.yahoo.com"}  # market prices (patent_intel.market)
 # seconds between requests per host, below each source's published limit
-# (PubChem 5/s; SEC 10/s across efts+www; openFDA 240/min without key)
+# (PubChem 5/s; SEC 10/s across ALL its hosts -> one shared "sec.gov" budget of 8/s; openFDA 240/min without key)
 MIN_INTERVAL = {"adisinsight.springer.com": 1.0, "patents.google.com": 1.0, "pubchem.ncbi.nlm.nih.gov": 0.25,
-                "efts.sec.gov": 0.25, "www.sec.gov": 0.25, "api.fda.gov": 0.3, "clinicaltrials.gov": 1.0}
+                "sec.gov": 0.125, "api.fda.gov": 0.3, "clinicaltrials.gov": 1.0,
+                "query1.finance.yahoo.com": 0.5, "query2.finance.yahoo.com": 0.5}
 MAX_BYTES = 25 * 1024 * 1024  # decoded size cap -> guards decompression bombs too
 RETRY_STATUS = {429, 500, 502, 503, 504}  # all GETs here are idempotent; SEC search returns sporadic 500s
 MAX_ATTEMPTS = 6  # PubChem answers 503 "ServerBusy" under load; backoff reaches ~30 s
 BREAKER_LIMIT = 5  # consecutive failures before a host is skipped for the rest of the run
 
 stats: Counter[str] = Counter()
+_next_slot: dict[str, float] = {}  # process-wide request schedule per politeness key (shared by every client)
+
+
+def _pace_key(host: str) -> str:
+    return "sec.gov" if host == "sec.gov" or host.endswith(".sec.gov") else host
+
+
+async def pace(host: str) -> None:
+    """Wait for this host's next request slot. Process-wide, so separate clients (patent crawl, presentation discovery,
+    downloads) share one budget per source instead of each adding its own. Slot reservation needs no lock (no await
+    between read and write), so it is safe across clients and event loops."""
+    key = _pace_key(host)
+    now = time.monotonic()
+    slot = max(now, _next_slot.get(key, 0.0))
+    _next_slot[key] = slot + MIN_INTERVAL.get(key, 1.0)
+    if slot > now:
+        await asyncio.sleep(slot - now)
 
 
 class HostDown(RuntimeError):
@@ -89,6 +111,50 @@ async def _check_public(request: httpx.Request) -> None:
         raise httpx.UnsupportedProtocol(f"blocked non-public address: {u.host}")
 
 
+def _is_public_ip(ip: str) -> bool:
+    return ipaddress.ip_address(ip.split("%", 1)[0]).is_global  # strip an IPv6 zone id
+
+
+class _PublicOnlyBackend(httpcore.AsyncNetworkBackend):
+    """Resolve once, check, and connect to exactly that address. The request hook (`_check_public`) resolves separately,
+    so on its own a DNS server answering public-then-private (rebinding) could still steer the real connection inward;
+    here the address that is checked is the address that is used. TLS still verifies the certificate for the hostname."""
+
+    def __init__(self) -> None:
+        self._inner = httpcore.AnyIOBackend()  # what httpx uses under asyncio
+
+    async def connect_tcp(self, host: str, port: int, timeout: float | None = None, local_address: str | None = None,
+                          socket_options: Any = None) -> httpcore.AsyncNetworkStream:
+        try:
+            infos = await asyncio.get_running_loop().getaddrinfo(host, port, type=socket.SOCK_STREAM)
+        except OSError as e:
+            raise httpcore.ConnectError(f"cannot resolve {host}") from e
+        ips = [str(i[4][0]) for i in infos]
+        if not ips or not all(_is_public_ip(ip) for ip in ips):
+            raise httpcore.ConnectError(f"blocked non-public address: {host}")
+        addrs = list(dict.fromkeys(ips))  # all checked; try in order like happy-eyeballs would (e.g. IPv6, then IPv4)
+        for ip in addrs[:-1]:
+            with contextlib.suppress(httpcore.ConnectError, httpcore.ConnectTimeout):
+                return await self._inner.connect_tcp(ip, port, timeout=timeout, local_address=local_address,
+                                                     socket_options=socket_options)
+        return await self._inner.connect_tcp(addrs[-1], port, timeout=timeout, local_address=local_address,
+                                             socket_options=socket_options)
+
+    async def connect_unix_socket(self, path: str, timeout: float | None = None,
+                                  socket_options: Any = None) -> httpcore.AsyncNetworkStream:
+        raise httpcore.ConnectError("unix sockets are not allowed")
+
+    async def sleep(self, seconds: float) -> None:
+        await self._inner.sleep(seconds)
+
+
+def public_transport(limits: httpx.Limits | None = None) -> httpx.AsyncHTTPTransport:
+    """Transport for arbitrary public websites: every connection goes through `_PublicOnlyBackend`."""
+    t = httpx.AsyncHTTPTransport(limits=limits or httpx.Limits())
+    t._pool._network_backend = _PublicOnlyBackend()  # httpx exposes no public hook; tests/test_presentations.py pins this
+    return t
+
+
 class Http:
     """`public_web=False`: fixed allow-list of known sources (default).
     `public_web=True`: any public website (links from data), guarded against SSRF by `_check_public`."""
@@ -97,6 +163,7 @@ class Http:
         self.cache = cache
         self.public_web = public_web
         self.client = httpx.AsyncClient(
+            transport=public_transport() if public_web else None,
             headers={"User-Agent": UA},
             follow_redirects=True,
             max_redirects=5,
@@ -104,7 +171,6 @@ class Http:
             event_hooks={"request": [self._hook]},
         )
         self._locks: dict[str, asyncio.Lock] = {}
-        self._last: dict[str, float] = {}
         self._fails: Counter[str] = Counter()
 
     async def _hook(self, request: httpx.Request) -> None:
@@ -115,12 +181,6 @@ class Http:
 
     async def aclose(self) -> None:
         await self.client.aclose()
-
-    async def _pace(self, host: str) -> None:
-        wait = self._last.get(host, 0) + MIN_INTERVAL.get(host, 1.0) - time.monotonic()
-        if wait > 0:
-            await asyncio.sleep(wait)
-        self._last[host] = time.monotonic()
 
     async def get_html(self, url: str, ttl_s: float, ctype: str | tuple[str, ...] = "html",
                        headers: dict[str, str] | None = None, attempts: int = MAX_ATTEMPTS) -> tuple[int, str]:
@@ -134,7 +194,7 @@ class Http:
             raise HostDown(host)
         async with self._locks.setdefault(host, asyncio.Lock()):  # one in-flight request per host
             for attempt in range(attempts):
-                await self._pace(host)
+                await pace(host)
                 stats["requests"] += 1
                 try:
                     status, text, retry_after = await self._fetch(url, ctype, headers)

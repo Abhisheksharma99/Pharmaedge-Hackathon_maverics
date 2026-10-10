@@ -4,6 +4,7 @@ import { ChatConversation } from './components/chat-conversation'
 import { ADD_ASSET_DRAFT, ChatEmptyState } from './components/chat-empty-state'
 import { ChatHistory } from './components/chat-history'
 import { useStarterQuestions } from './starters'
+import { useOfferNavigation } from './navigation'
 
 /**
  * Full-page Asset AI (`/chat`, `/chat/:sessionId`); `?intent=add` starts with "Add " in the composer and
@@ -17,6 +18,7 @@ export function ChatPage() {
   const createSession = useCreateChatSession()
   const addIntent = sessionId === null && params.get('intent') === 'add'
   const askParam = sessionId === null ? (params.get('ask')?.trim() ?? '') : ''
+  useOfferNavigation(sessionId)
 
   return (
     <div className="flex h-full min-h-0">

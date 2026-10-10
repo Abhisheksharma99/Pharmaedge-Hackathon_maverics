@@ -137,12 +137,15 @@ async def fetch(asset: Dict[str, Any], names: List[str]) -> Tuple[List[Dict[str,
     store, http = _Collector(), Http(Cache(CACHE_DIR))
     try:
         # With an Adis id the crawler reads the developer and alternative names from the profile.
+        # Patents only: only patents/drug_patents are read back below, so run_drug's other steps would be work
+        # thrown away. Their data comes from dedicated steps: fda_calendar, sec_regulatory (SEC PDUFA dates, CRLs)
+        # and regulatory (Drugs@FDA). The market step also needs a real store (this collector cannot query).
         run = await run_drug(http=http, store=store, adis_ref=adis_id,
                              drug_name=None if adis_id else asset["name"],
                              companies=companies,
                              terms=None if adis_id else names, seeds=seeds,
                              max_pages=MAX_PAGES, probe_budget=PROBE_PAGES,
-                             fda_calendar=False)  # the fda_calendar step covers it
+                             regulatory=False, fda_calendar=False, market=False)
     finally:
         await http.aclose()
     patents = {p["_id"]: p for p in store.docs.get("patents", [])}

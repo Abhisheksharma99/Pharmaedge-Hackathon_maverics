@@ -1,6 +1,6 @@
 import { Pill, RefreshCw, Sparkle } from 'lucide-react'
 import { Fragment, useEffect, useRef } from 'react'
-import { Link, NavLink, Outlet, useLocation, useNavigate, useOutletContext, useParams } from 'react-router'
+import { Link, NavLink, Outlet, useLocation, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { AssetAiPanel } from '@/features/chat/components/asset-ai-panel'
 import { useRefreshAsset } from '@/features/jobs/api'
@@ -13,7 +13,8 @@ import { ApiError } from '@/lib/api'
 import { useMediaQuery } from '@/lib/use-media-query'
 import { cn } from '@/lib/utils'
 import { assetAiFocus, useShellStore } from '@/stores/shell-store'
-import { useAsset, type AssetDetail } from '../api'
+import { useAsset, type AssetDetail, type RecordTab } from '../api'
+import { RecordSheet } from '../components/record-sheet'
 import { Chip } from '../components/badges'
 import { shortIndication } from '../components/competitors/utils'
 
@@ -28,7 +29,9 @@ export const ASSET_TABS = [
   { path: 'documents', label: 'Documents' },
   { path: 'company-ir', label: 'Company IR' },
   { path: 'patents', label: 'Patents' },
+  { path: 'market', label: 'Market' },
   { path: 'competitors', label: 'Competitors' },
+  { path: 'canvas', label: 'Canvas' },
 ] as const
 
 /** Tabs get the loaded asset from the layout instead of refetching. */
@@ -189,6 +192,17 @@ export function AssetLayout() {
   const onboarding = asset.data?.status === 'onboarding'
   const tabLabel = onboarding && tab === 'overview' ? 'Building journey' : (ASSET_TABS.find((t) => t.path === tab)?.label ?? '')
   const competitorCount = asset.data?.competitors?.length ?? 0
+  // A record opened by Asset AI (open_record) or a shared link: ?rtab=regulatory&record=<key>
+  const [params, setParams] = useSearchParams()
+  const recordKey = params.get('record')
+  const RECORD_TABS: RecordTab[] = ['clinical', 'regulatory', 'documents', 'company-ir', 'news', 'publications', 'conferences', 'patents']
+  const recordTab = RECORD_TABS.find((t) => t === params.get('rtab')) ?? null
+  const closeRecord = () =>
+    setParams((p) => {
+      p.delete('record')
+      p.delete('rtab')
+      return p
+    }, { replace: true })
 
   useEffect(() => {
     if (asset.data) setLastAssetId(asset.data.id)
@@ -260,6 +274,7 @@ export function AssetLayout() {
           </ul>
         </nav>
         {asset.data && <Outlet context={asset.data} />}
+        {asset.data && recordKey && recordTab && <RecordSheet assetId={assetId} tab={recordTab} recordKey={recordKey} onClose={closeRecord} />}
       </div>
       {aiOpen && wide && (
         <aside aria-label="Asset AI" className="sticky top-0 h-[calc(100dvh-56px)] w-[440px] shrink-0 border-l bg-card">

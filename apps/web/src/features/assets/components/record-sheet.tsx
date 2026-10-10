@@ -4,9 +4,12 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
 import { formatDay } from '@/lib/dates'
 import { formatPhase, formatStatus } from '@/lib/format'
+import { safeUrl } from '@/lib/utils'
 import { useEventSheet } from '@/stores/event-sheet-store'
 import { CategoryIcon, SignificanceBadge } from './badges'
 import { useRecord, type RecordEventRef, type RecordTab, type SourceRecord } from '../api'
+import { DocumentText, MentionExcerpts } from './document-text'
+import { SlideBody, isSlide, slideHeading } from './slide-record'
 
 const TAB_TITLE: Record<RecordTab, string> = {
   clinical: 'Clinical trials',
@@ -78,8 +81,14 @@ export function recordTitle(r: SourceRecord): string {
   )
 }
 
+/** "Bristol-Myers Squibb", not the crawler's id "bristol_myers_squibb". */
+function publisher(r: SourceRecord): string {
+  const name = typeof r.company === 'string' && r.company ? r.company : String(r.source ?? r.record_type ?? '')
+  return name.includes('_') ? name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : name
+}
+
 function sourceUrl(r: SourceRecord): string | undefined {
-  return (r.url as string) || (r.medicine_url as string) || (r.dhpc_url as string) || undefined
+  return safeUrl(r.url) ?? safeUrl(r.medicine_url) ?? safeUrl(r.dhpc_url)
 }
 
 /** The journey events built from this record; each opens the event sheet. */
@@ -118,9 +127,10 @@ function RecordBody({ assetId, record, onClose }: { assetId: string; record: Sou
     const v = record[k]
     return v !== undefined && v !== null && v !== '' && !(Array.isArray(v) && v.length === 0)
   })
-  const docs = Array.isArray(record.documents) ? (record.documents as { url: string; type: string; date?: string }[]) : []
+  const docs = (Array.isArray(record.documents) ? (record.documents as { url: string; type: string; date?: string }[]) : []).filter((d) => safeUrl(d.url))
   const text = (record.content as string) || (record.abstract as string) || (record.therapeutic_indication as string) || ''
   const url = sourceUrl(record)
+  const names = Array.isArray(record.mentions) ? (record.mentions as string[]) : []
 
   return (
     <div className="space-y-[16px]">
@@ -139,6 +149,7 @@ function RecordBody({ assetId, record, onClose }: { assetId: string; record: Sou
           ))}
         </dl>
       )}
+      {text && <MentionExcerpts text={text} names={names} />}
       {docs.length > 0 && (
         <div>
           <p className="mb-1.5 font-medium">FDA documents</p>
@@ -157,12 +168,7 @@ function RecordBody({ assetId, record, onClose }: { assetId: string; record: Sou
       {record.journey_events && record.journey_events.length > 0 && (
         <InTheJourney assetId={assetId} events={record.journey_events} onClose={onClose} />
       )}
-      {text && (
-        <div>
-          <p className="mb-1.5 font-medium">Text</p>
-          <div className="max-w-none rounded-lg border bg-background p-3 leading-relaxed whitespace-pre-wrap">{text}</div>
-        </div>
-      )}
+      {text && <DocumentText text={text} names={names} open={!names.length || text.length < 2500} />}
     </div>
   )
 }
@@ -180,6 +186,7 @@ export function RecordSheet({
   onClose: () => void
 }) {
   const record = useRecord(assetId, tab, recordKey)
+  const slide = record.data ? isSlide(record.data) : false
 
   return (
     <Sheet open={recordKey !== null} onOpenChange={(open) => !open && onClose()}>
@@ -200,10 +207,14 @@ export function RecordSheet({
         </div>
         <div className="px-[18px] pt-[18px] pb-[24px]">
           <SheetTitle className="text-[20px] leading-[1.3] font-semibold tracking-[-0.015em] text-pretty">
-            {record.data ? recordTitle(record.data) : 'Loading…'}
+            {record.data ? (slide ? slideHeading(record.data).title : recordTitle(record.data)) : 'Loading…'}
           </SheetTitle>
           <SheetDescription className="mt-[6px] text-[12.5px] text-text-secondary">
-            {record.data ? `${formatDay(record.data.date)} · ${String(record.data.source ?? record.data.record_type ?? '')}` : ' '}
+            {record.data
+              ? slide
+                ? slideHeading(record.data).subtitle
+                : [formatDay(record.data.date), publisher(record.data)].filter(Boolean).join(' · ')
+              : ' '}
           </SheetDescription>
         {record.isPending && (
           <div role="status" aria-label="Loading the record" className="mt-[18px] space-y-[12px]">
@@ -220,7 +231,8 @@ export function RecordSheet({
             </Button>
           </div>
         )}
-        {record.data && <RecordBody assetId={assetId} record={record.data} onClose={onClose} />}
+        {record.data &&
+          (slide ? <SlideBody record={record.data} /> : <RecordBody assetId={assetId} record={record.data} onClose={onClose} />)}
         </div>
       </SheetContent>
     </Sheet>

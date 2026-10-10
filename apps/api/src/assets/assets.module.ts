@@ -10,11 +10,12 @@ import { CompetitorsService } from './competitors.service.js';
 import { EvidenceService } from './evidence.service.js';
 import { ResolveController } from './resolve.controller.js';
 import { SignalsController } from './signals.controller.js';
+import { StoryService } from './story.service.js';
 
 @Module({
   imports: [JobsModule, MeModule],
   controllers: [AssetsController, ResolveController, SignalsController, JourneyController],
-  providers: [AssetsService, CompetitorsService, EvidenceService, AssetLifecycleService, JourneyService],
-  exports: [AssetsService, CompetitorsService, JourneyService],
+  providers: [AssetsService, CompetitorsService, EvidenceService, AssetLifecycleService, JourneyService, StoryService],
+  exports: [AssetsService, CompetitorsService, JourneyService, StoryService],
 })
 export class AssetsModule {}

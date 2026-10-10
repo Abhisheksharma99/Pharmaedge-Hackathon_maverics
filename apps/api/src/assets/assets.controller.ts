@@ -4,9 +4,10 @@ import { CurrentUser, Roles } from '../common/decorators/auth.decorators.js';
 import { AssetLifecycleService } from './asset-lifecycle.service.js';
 import { AssetsService } from './assets.service.js';
 import { CompetitorsService } from './competitors.service.js';
-import { LedgerQueryDto, RecordQueryDto, RecordsQueryDto, TimelineQueryDto } from './dto/asset-queries.dto.js';
+import { ChangesQueryDto, LedgerQueryDto, MarketQueryDto, RecordQueryDto, StoryQueryDto, RecordsQueryDto, TimelineQueryDto } from './dto/asset-queries.dto.js';
 import { CreateAssetDto } from './dto/create-asset.dto.js';
 import { EvidenceService } from './evidence.service.js';
+import { StoryService } from './story.service.js';
 
 @Controller('assets')
 export class AssetsController {
@@ -15,6 +16,7 @@ export class AssetsController {
     private readonly competitorsView: CompetitorsService,
     private readonly evidenceView: EvidenceService,
     private readonly lifecycle: AssetLifecycleService,
+    private readonly stories: StoryService,
   ) {}
 
   @Get()
@@ -59,6 +61,24 @@ export class AssetsController {
   @Get(':id/timeline')
   timeline(@Param('id') id: string, @Query() query: TimelineQueryDto) {
     return this.assets.timeline(id, query);
+  }
+
+  /** Company share price with the move after each journey event (timing, never causation). */
+  @Get(':id/market')
+  market(@Param('id') id: string, @Query() query: MarketQueryDto) {
+    return this.assets.market(id, query);
+  }
+
+  /** The journey story: lanes, approvals, chapters, what changed (since), checks, comparison (spec 2026-10-10). */
+  @Get(':id/story')
+  story(@Param('id') id: string, @Query() query: StoryQueryDto) {
+    return this.stories.story(id, query);
+  }
+
+  /** What changed in the asset's evidence since a date: developments, updates, checks, label and trial changes. */
+  @Get(':id/changes')
+  async changes(@Param('id') id: string, @Query() query: ChangesQueryDto) {
+    return (await this.stories.story(id, { since: query.since })).changes;
   }
 
   @Get(':id/series/adverse-events')

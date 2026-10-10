@@ -4,8 +4,8 @@ EMA CHMP opinions for an asset, from the team's CHMP meeting highlights crawler
 the committee's opinions per medicine.
 
 The meetings are shared by every asset, so they are kept as a corpus collection
-(CHMP_CORPUS, default pharmaedge.ema_chmp_meetings), refreshed at most once a day
-from the newest meetings (an empty corpus gets the full history; ~30 min) and
+(CHMP_CORPUS, default pharmaedge.ema_chmp_meetings), crawled in full and then
+refreshed daily from the newest meetings by the corpus worker (corpus/), and
 matched per asset: whole names, case-insensitive, against each opinion's medicine
 name, INN and common name, and against the narrative paragraphs.
 
@@ -75,10 +75,10 @@ def store_meetings(db, meetings: List[Dict[str, Any]]) -> int:
     return result.upserted_count
 
 
-def refresh_corpus(db) -> Dict[str, Any]:
+def refresh_corpus(db, claim: bool = True) -> Dict[str, Any]:
     """Crawl meetings published since the newest one stored (minus an overlap); everything when the corpus is
-    empty."""
-    if not _claim_refresh(db):
+    empty. `claim=False`: the caller already holds the source (the corpus worker, see corpus/)."""
+    if claim and not _claim_refresh(db):
         return {"corpus_refreshed": False}
     newest = _corpus(db).find_one({}, {"published_at": 1}, sort=[("published_at", -1)])
     payload = {}
@@ -89,7 +89,8 @@ def refresh_corpus(db) -> Dict[str, Any]:
             manifest = chmp_highlights.crawl(payload, Path(out))
             meetings = json.loads((Path(out) / chmp_highlights.RECORDS_FILE).read_text("utf-8"))
     except Exception:
-        _corpus(db).database["corpus_refresh"].delete_one({"_id": CORPUS})  # let the next job retry
+        if claim:
+            _corpus(db).database["corpus_refresh"].delete_one({"_id": CORPUS})  # let the next job retry
         raise
     return {"corpus_refreshed": True, "meetings_crawled": len(meetings), "meetings_new": store_meetings(db, meetings),
             "crawl_problems": len(manifest.get("problems") or [])}
@@ -148,8 +149,8 @@ def to_records(meeting: Dict[str, Any], rx: re.Pattern) -> List[Dict[str, Any]]:
     header = title if when and when in title else f"{title} ({when})"
     records = []
     for o in meeting.get("outcomes") or []:
-        found = sorted({m.group(0) for f in ("medicine_name", "inn", "common_name") for m in rx.finditer(o.get(f) or "")},
-                       key=str.lower)
+        fields = (o.get("medicine_name"), o.get("inn"), o.get("common_name"))
+        found = sorted({m.group(0) for f in fields for m in rx.finditer(f or "")}, key=str.lower)
         if not found:
             continue
         # The paragraphs about this medicine: the narrative names medicines by trade name or INN.
