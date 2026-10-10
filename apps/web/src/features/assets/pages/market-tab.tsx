@@ -1,10 +1,12 @@
-import { lazy, Suspense, useMemo, useRef, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { CardFilters, useCardFilter } from '@/components/card-filters'
+import { FiltersToggle } from '@/components/filters-toggle'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { CHIP, CHIP_ON } from '@/features/journey/controls'
 import { eventIndications } from '@/features/journey/indications'
 import { formatDate } from '@/lib/format'
+import { useCollapsed } from '@/lib/use-collapsed'
 import { cn } from '@/lib/utils'
 import { useMarket, type EventCategory, type MarketImpact, type Significance } from '../api'
 import { CATEGORY_META, CategoryIcon, IndicationBadges, SignificanceBadge } from '../components/badges'
@@ -138,6 +140,9 @@ export function MarketTab() {
   const [allRows, setAllRows] = useState(false)
   const [categories, setCategories] = useState<EventCategory[]>([])
   const [extraDrugs, setExtraDrugs] = useState<string[]>([])
+  // The chart's Drugs / Events chips hide behind a "Filters" chip in the panel header (remembered); they keep applying.
+  const [chipsHidden, setChipsHidden] = useCollapsed('asset.market-chart')
+  const chipsId = useId()
   const [hovered, setHovered] = useState<MeasuredEvent[] | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [evidence, setEvidence] = useState<MeasuredEvent | null>(null)
@@ -215,22 +220,35 @@ export function MarketTab() {
           .filter(Boolean)
           .join(' · ')}
         actions={
-          <Segmented
-            label="Price range"
-            value={range}
-            onChange={(r) => {
-              setRange(r)
-              setSelectedId(null)
-            }}
-            options={[
-              { value: '1y', label: '1Y' },
-              { value: '5y', label: '5Y' },
-              { value: 'all', label: 'All' },
-            ]}
-          />
+          <span className="flex flex-wrap items-center gap-[8px]">
+            <FiltersToggle
+              collapsed={chipsHidden}
+              onCollapsed={setChipsHidden}
+              controls={chipsId}
+              active={categories.length + extraDrugs.length + (scope !== 'key' ? 1 : 0)}
+              onClear={() => {
+                setCategories([])
+                setExtraDrugs([])
+                setScope('key')
+              }}
+            />
+            <Segmented
+              label="Price range"
+              value={range}
+              onChange={(r) => {
+                setRange(r)
+                setSelectedId(null)
+              }}
+              options={[
+                { value: '1y', label: '1Y' },
+                { value: '5y', label: '5Y' },
+                { value: 'all', label: 'All' },
+              ]}
+            />
+          </span>
         }
       >
-        <div className="space-y-[8px] px-[20px] py-[12px]">
+        <div id={chipsId} hidden={chipsHidden} className="space-y-[8px] px-[20px] py-[12px]">
           {data.drugs.length > 1 && (
             <div role="group" aria-label="Drugs" className="flex flex-wrap items-center gap-[8px]">
               <span className="mr-[4px] text-[12px] font-medium tracking-wide text-muted-foreground uppercase">Drugs</span>
@@ -314,7 +332,7 @@ export function MarketTab() {
           />
         }
       >
-        {view.rows.length > 0 && <CardFilters {...filters} placeholder="Search events" />}
+        {view.rows.length > 0 && <CardFilters {...filters} collapseKey="asset.market-moves" placeholder="Search events" />}
         {rows.length === 0 ? (
           <EmptyState title="No events match these filters" />
         ) : (

@@ -92,7 +92,7 @@ export function CompetitorCards({ data }: { data: CompetitorsOverview }) {
   )
   return (
     <>
-      <CardFilters {...filters} placeholder="Search competitors" />
+      <CardFilters {...filters} collapseKey="asset.competitors" placeholder="Search competitors" />
       {rows.length === 0 && <p className="px-[20px] py-[24px] text-center text-text-secondary">No competitors match these filters.</p>}
       <div className={CARD_GRID}>
         {rows.map((r, i) => {

@@ -1,9 +1,11 @@
 import { Activity, Columns2, Flag, Plus, Rows2, Search, Star } from 'lucide-react'
-import { useMemo, useState, type CSSProperties } from 'react'
+import { useId, useMemo, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router'
+import { FiltersToggle } from '@/components/filters-toggle'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Segmented } from '@/features/assets/components/segmented'
+import { useCollapsed } from '@/lib/use-collapsed'
 import { cn } from '@/lib/utils'
 import type { JourneyScope } from './api'
 import { BTN_SM, CHIP, CHIP_ON, FOCUS } from './controls'
@@ -44,7 +46,8 @@ export interface JourneyHeaderProps {
 
 /**
  * Journey header card (README §6.2 "Header", SCREENS 7): title, counts, actions (orientation, order, scope, add), branch
- * cards, and the filters: category chips, Starred / Team notes, indication and title search.
+ * cards, and the filters: category chips, Starred / Team notes, indication and title search. "Hide filters" folds the
+ * branch cards and filters away (remembered) so the timeline sits right under the actions; the filters keep applying.
  */
 export function JourneyHeader(p: JourneyHeaderProps) {
   const { model, list } = p
@@ -60,6 +63,9 @@ export function JourneyHeader(p: JourneyHeaderProps) {
     return m
   }, [list, model])
   const laneCount = model.list.filter((b) => perLane.has(b.id)).length
+  const [collapsed, setCollapsed] = useCollapsed('journey.filters')
+  const filtersId = useId()
+  const nActive = p.cats.length + (p.focusBranch ? 1 : 0) + (p.mine ? 1 : 0) + (p.ind ? 1 : 0) + (p.q ? 1 : 0)
   return (
     <section aria-label="Journey" className="flex flex-wrap items-start justify-between gap-x-[24px] gap-y-[12px] rounded-[14px] border bg-card px-[20px] py-[18px] shadow-panel">
       <div className="min-w-0">
@@ -67,8 +73,8 @@ export function JourneyHeader(p: JourneyHeaderProps) {
         <p className="mt-[2px] text-pretty text-text-secondary">
           {list.length} event{list.length === 1 ? '' : 's'}
           {span && `, ${span}`}
-          {model.multi && ` · ${laneCount} indication branch${laneCount === 1 ? '' : 'es'}`}.{' '}
-          {model.multi ? 'Each new indication forks off the programme that led to it; select a branch to focus it.' : 'Open a card’s subtree for its evidence and linked events.'}
+          {model.multi && ` · ${laneCount} indication branch${laneCount === 1 ? '' : 'es'}`}.
+          {!collapsed && (model.multi ? ' Each new indication forks off the programme that led to it; select a branch to focus it.' : ' Open a card’s subtree for its evidence and linked events.')}
           {p.undated > 0 && ` ${p.undated} undated event${p.undated === 1 ? ' is' : 's are'} not placed on the timeline.`}
         </p>
       </div>
@@ -102,88 +108,91 @@ export function JourneyHeader(p: JourneyHeaderProps) {
         <Button size="sm" className={BTN_SM} onClick={p.onAdd}>
           <Plus /> Add to timeline
         </Button>
+        <FiltersToggle collapsed={collapsed} onCollapsed={setCollapsed} controls={filtersId} active={nActive} onClear={p.onClear} />
       </div>
-      {model.multi && (
-        <div className="grid basis-full grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-[8px]">
-          {model.list.map((b) => {
-            const mine = perLane.get(b.id) ?? []
-            const on = p.focusBranch === b.id
-            const parent = b.from ? model.byId.get(b.from)?.label : undefined
-            return (
-              <button
-                key={b.id}
-                type="button"
-                aria-pressed={on}
-                disabled={!mine.length}
-                onClick={() => p.onFocusBranch(on ? null : b.id)}
-                className={cn(
-                  'flex flex-col gap-[2px] rounded-xl border bg-card px-[12px] py-[10px] text-left transition-[border-color,box-shadow,opacity] hover:border-[var(--lc)]',
-                  FOCUS,
-                  on && 'border-[var(--lc)] shadow-[0_0_0_3px_color-mix(in_srgb,var(--lc)_16%,transparent)]',
-                  p.focusBranch && !on && 'opacity-50',
-                  !mine.length && 'cursor-default opacity-40 hover:border-border',
-                )}
-                style={{ '--lc': b.color } as CSSProperties}
-              >
-                <span className="flex items-center gap-[6px]">
-                  <i aria-hidden="true" className="size-[8px] rounded-full" style={{ background: b.color }} />
-                  <b className="font-[650]" style={{ color: b.color }}>
-                    {b.label}
-                  </b>
-                  <span className="text-[11px] text-muted-foreground">{b.trunk ? 'Trunk' : parent ? `from ${parent}` : ''}</span>
-                  <span className="ml-auto font-mono text-[11px] text-muted-foreground">{mine.length}</span>
-                </span>
-                <span className="text-[12px] text-secondary-foreground">{b.full}</span>
-                <span className={cn('text-[11.5px] text-muted-foreground', b.ended && 'text-warning')}>
-                  {b.status}
-                  {mine[0] && ` · since ${mine[0].date.slice(0, 4)}`}
-                </span>
-              </button>
-            )
-          })}
+      <div id={filtersId} hidden={collapsed} className="flex basis-full flex-col gap-[12px]">
+        {model.multi && (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-[8px]">
+            {model.list.map((b) => {
+              const mine = perLane.get(b.id) ?? []
+              const on = p.focusBranch === b.id
+              const parent = b.from ? model.byId.get(b.from)?.label : undefined
+              return (
+                <button
+                  key={b.id}
+                  type="button"
+                  aria-pressed={on}
+                  disabled={!mine.length}
+                  onClick={() => p.onFocusBranch(on ? null : b.id)}
+                  className={cn(
+                    'flex flex-col gap-[2px] rounded-xl border bg-card px-[12px] py-[10px] text-left transition-[border-color,box-shadow,opacity] hover:border-[var(--lc)]',
+                    FOCUS,
+                    on && 'border-[var(--lc)] shadow-[0_0_0_3px_color-mix(in_srgb,var(--lc)_16%,transparent)]',
+                    p.focusBranch && !on && 'opacity-50',
+                    !mine.length && 'cursor-default opacity-40 hover:border-border',
+                  )}
+                  style={{ '--lc': b.color } as CSSProperties}
+                >
+                  <span className="flex items-center gap-[6px]">
+                    <i aria-hidden="true" className="size-[8px] rounded-full" style={{ background: b.color }} />
+                    <b className="font-[650]" style={{ color: b.color }}>
+                      {b.label}
+                    </b>
+                    <span className="text-[11px] text-muted-foreground">{b.trunk ? 'Trunk' : parent ? `from ${parent}` : ''}</span>
+                    <span className="ml-auto font-mono text-[11px] text-muted-foreground">{mine.length}</span>
+                  </span>
+                  <span className="text-[12px] text-secondary-foreground">{b.full}</span>
+                  <span className={cn('text-[11.5px] text-muted-foreground', b.ended && 'text-warning')}>
+                    {b.status}
+                    {mine[0] && ` · since ${mine[0].date.slice(0, 4)}`}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+        <div role="group" aria-label="Filter the journey" className="flex flex-wrap items-center gap-[8px]">
+          {CATEGORIES.map((c) => (
+            <button key={c} type="button" aria-pressed={p.cats.includes(c)} onClick={() => p.onToggleCat(c)} className={cn(CHIP, p.cats.includes(c) && CHIP_ON)}>
+              <i aria-hidden="true" className="size-[7px] rounded-full" style={{ background: CATEGORY_META[c].color }} />
+              {CATEGORY_META[c].label}
+              <span className="font-mono text-[11px] text-muted-foreground">{p.counts.cats[c]}</span>
+            </button>
+          ))}
+          <span aria-hidden="true" className="mx-[4px] h-[20px] w-px bg-border" />
+          <button type="button" aria-pressed={p.mine === 'starred'} onClick={() => p.onMine(p.mine === 'starred' ? null : 'starred')} className={cn(CHIP, p.mine === 'starred' && CHIP_ON)}>
+            <Star className="size-[12px]" aria-hidden="true" />
+            Starred
+            <span className="font-mono text-[11px] text-muted-foreground">{p.counts.starred}</span>
+          </button>
+          <button type="button" aria-pressed={p.mine === 'notes'} onClick={() => p.onMine(p.mine === 'notes' ? null : 'notes')} className={cn(CHIP, p.mine === 'notes' && CHIP_ON)}>
+            <Flag className="size-[12px]" aria-hidden="true" />
+            Team notes
+            <span className="font-mono text-[11px] text-muted-foreground">{p.counts.notes}</span>
+          </button>
+          <span aria-hidden="true" className="mx-[4px] h-[20px] w-px bg-border" />
+          {(p.indications.length > 1 || p.ind) && (
+            <Select value={p.ind ?? ALL_INDICATIONS} onValueChange={(v) => p.onInd(v === ALL_INDICATIONS ? null : v)}>
+              <SelectTrigger size="sm" aria-label="Indication" className={cn(CHIP, 'max-w-[200px] min-w-[132px] justify-between', p.ind && CHIP_ON)}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_INDICATIONS}>Indication: all</SelectItem>
+                {p.indications.map((i) => (
+                  <SelectItem key={i} value={i}>
+                    {i}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <TitleSearch value={p.q} onChange={p.onQuery} />
+          {(p.cats.length > 0 || p.focusBranch || p.mine || p.ind || p.q) && (
+            <button type="button" onClick={p.onClear} className={cn('rounded-sm px-[4px] text-[12.5px] font-medium text-primary hover:underline', FOCUS)}>
+              Clear
+            </button>
+          )}
         </div>
-      )}
-      <div role="group" aria-label="Filter the journey" className="flex basis-full flex-wrap items-center gap-[8px]">
-        {CATEGORIES.map((c) => (
-          <button key={c} type="button" aria-pressed={p.cats.includes(c)} onClick={() => p.onToggleCat(c)} className={cn(CHIP, p.cats.includes(c) && CHIP_ON)}>
-            <i aria-hidden="true" className="size-[7px] rounded-full" style={{ background: CATEGORY_META[c].color }} />
-            {CATEGORY_META[c].label}
-            <span className="font-mono text-[11px] text-muted-foreground">{p.counts.cats[c]}</span>
-          </button>
-        ))}
-        <span aria-hidden="true" className="mx-[4px] h-[20px] w-px bg-border" />
-        <button type="button" aria-pressed={p.mine === 'starred'} onClick={() => p.onMine(p.mine === 'starred' ? null : 'starred')} className={cn(CHIP, p.mine === 'starred' && CHIP_ON)}>
-          <Star className="size-[12px]" aria-hidden="true" />
-          Starred
-          <span className="font-mono text-[11px] text-muted-foreground">{p.counts.starred}</span>
-        </button>
-        <button type="button" aria-pressed={p.mine === 'notes'} onClick={() => p.onMine(p.mine === 'notes' ? null : 'notes')} className={cn(CHIP, p.mine === 'notes' && CHIP_ON)}>
-          <Flag className="size-[12px]" aria-hidden="true" />
-          Team notes
-          <span className="font-mono text-[11px] text-muted-foreground">{p.counts.notes}</span>
-        </button>
-        <span aria-hidden="true" className="mx-[4px] h-[20px] w-px bg-border" />
-        {(p.indications.length > 1 || p.ind) && (
-          <Select value={p.ind ?? ALL_INDICATIONS} onValueChange={(v) => p.onInd(v === ALL_INDICATIONS ? null : v)}>
-            <SelectTrigger size="sm" aria-label="Indication" className={cn(CHIP, 'max-w-[200px] min-w-[132px] justify-between', p.ind && CHIP_ON)}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_INDICATIONS}>Indication: all</SelectItem>
-              {p.indications.map((i) => (
-                <SelectItem key={i} value={i}>
-                  {i}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-        <TitleSearch value={p.q} onChange={p.onQuery} />
-        {(p.cats.length > 0 || p.focusBranch || p.mine || p.ind || p.q) && (
-          <button type="button" onClick={p.onClear} className={cn('rounded-sm px-[4px] text-[12.5px] font-medium text-primary hover:underline', FOCUS)}>
-            Clear
-          </button>
-        )}
       </div>
     </section>
   )

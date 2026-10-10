@@ -1,5 +1,5 @@
-import { ArrowRight } from 'lucide-react'
-import { useEffect, useMemo, useRef } from 'react'
+import { ArrowRight, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { useEffect, useId, useMemo, useRef, type ReactNode } from 'react'
 import { Link, Navigate, useParams, useSearchParams } from 'react-router'
 import { CardFilters, useCardFilter, type FilterFacet } from '@/components/card-filters'
 import { Page } from '@/components/layout/page'
@@ -9,9 +9,10 @@ import { IndicationBadges, KindBadge } from '@/features/assets/components/badges
 import { LoadError } from '@/features/assets/components/competitors/load-error'
 import { shortIndication } from '@/features/assets/components/competitors/utils'
 import { EmptyState, Panel } from '@/features/assets/components/panel'
+import { useCollapsed } from '@/lib/use-collapsed'
 import { cn } from '@/lib/utils'
 import { useShellStore } from '@/stores/shell-store'
-import { FOCUS } from './controls'
+import { CHIP, FOCUS } from './controls'
 import { JourneySection } from './journey-section'
 
 const KIND_LABEL = { primary: 'Primary', competitor: 'Competitor' } as const
@@ -30,7 +31,8 @@ const KEEP = ['view', 'order']
 
 /**
  * Asset Journey (sidebar): every tracked asset, primary first, beside the selected asset's journey. `/journey` opens
- * the last asset viewed (else the first primary); picking another asset moves to `/journey/:assetId`.
+ * the last asset viewed (else the first primary); picking another asset moves to `/journey/:assetId`. The list can be
+ * hidden (remembered; hidden by default on narrow screens) so the journey takes the full width.
  */
 export function JourneyPage() {
   const { assetId } = useParams()
@@ -43,6 +45,22 @@ export function JourneyPage() {
   const selected = all.find((a) => a.id === assetId)
   const navRef = useRef<HTMLElement>(null)
   const nShown = filtered.length
+  const [listHidden, setListHidden] = useCollapsed('journey.asset-list', window.matchMedia?.('(max-width: 900px)').matches ?? false)
+  // An untracked asset id has no journey to show: keep the list up to pick another.
+  const listShown = !listHidden || !selected
+  const listId = useId()
+  // Hide and Show sit in different places: keyboard focus follows to the other one.
+  const toggleRef = useRef<HTMLButtonElement>(null)
+  const toggled = useRef(false)
+  const toggleList = (hide: boolean) => {
+    toggled.current = true
+    setListHidden(hide)
+  }
+  useEffect(() => {
+    if (!toggled.current) return
+    toggled.current = false
+    toggleRef.current?.focus()
+  }, [listShown])
 
   // Keep the selected asset in view in the list (a scrolling column, or a scrolling row on narrow screens).
   useEffect(() => {
@@ -52,7 +70,7 @@ export function JourneyPage() {
     const { offsetLeft: x, offsetTop: y, offsetWidth: w, offsetHeight: h } = li
     if (x < nav.scrollLeft || x + w > nav.scrollLeft + nav.clientWidth) nav.scrollLeft = x - 8
     if (y < nav.scrollTop || y + h > nav.scrollTop + nav.clientHeight) nav.scrollTop = y - 8
-  }, [assetId, nShown])
+  }, [assetId, nShown, listShown])
 
   // The journey shown is the asset last viewed: the sidebar's asset sections follow it.
   useEffect(() => {
@@ -93,14 +111,25 @@ export function JourneyPage() {
           </EmptyState>
         </section>
       ) : (
-        <div className="grid grid-cols-[280px_minmax(0,1fr)] items-start gap-[24px] max-[900px]:grid-cols-1 max-[900px]:gap-[16px]">
+        <div className={cn('grid items-start gap-[24px] max-[900px]:grid-cols-1 max-[900px]:gap-[16px]', listShown ? 'grid-cols-[280px_minmax(0,1fr)]' : 'grid-cols-1')}>
           <Panel
+            id={listId}
+            hidden={!listShown}
             title="Assets"
             description={`${all.length} tracked`}
+            actions={
+              selected &&
+              listShown && (
+                <button ref={toggleRef} type="button" aria-expanded="true" aria-controls={listId} onClick={() => toggleList(true)} className={cn('-mt-[4px] -mr-[8px] inline-flex h-[28px] items-center gap-[6px] rounded-[8px] px-[8px] text-[12.5px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground', FOCUS)}>
+                  <PanelLeftClose className="size-[14px]" aria-hidden="true" />
+                  Hide assets
+                </button>
+              )
+            }
             className="sticky top-[16px] flex max-h-[calc(100dvh-112px)] flex-col max-[900px]:static max-[900px]:max-h-none"
             bodyClassName="flex min-h-0 flex-col"
           >
-            <CardFilters {...filters} placeholder="Search assets" className="px-[14px]" />
+            <CardFilters {...filters} collapseKey="journey.asset-filters" placeholder="Search assets" className="px-[14px]" />
             {filtered.length === 0 ? (
               <EmptyState title="No assets match these filters" />
             ) : (
@@ -118,7 +147,18 @@ export function JourneyPage() {
           <div className="flex min-w-0 flex-col gap-[16px]">
             {selected ? (
               <>
-                <AssetHeading asset={selected} />
+                <AssetHeading
+                  asset={selected}
+                  showList={
+                    !listShown && (
+                      <button ref={toggleRef} type="button" aria-expanded="false" aria-controls={listId} onClick={() => toggleList(false)} className={CHIP}>
+                        <PanelLeftOpen className="size-[13px]" aria-hidden="true" />
+                        Show assets
+                        <span className="font-mono text-[11px] text-muted-foreground">{all.length}</span>
+                      </button>
+                    )
+                  }
+                />
                 <JourneySection key={selected.id} asset={selected} />
               </>
             ) : (
@@ -157,9 +197,10 @@ function AssetItem({ asset: a, to, current }: { asset: AssetSummary; to: string;
   )
 }
 
-function AssetHeading({ asset: a }: { asset: AssetSummary }) {
+function AssetHeading({ asset: a, showList }: { asset: AssetSummary; showList: ReactNode }) {
   return (
     <div className="flex flex-wrap items-center gap-x-[12px] gap-y-[6px]">
+      {showList}
       <h2 className="text-[18px] leading-[24px] font-[650] tracking-[-0.01em]">{a.name}</h2>
       <KindBadge kind={a.kind} competitorOf={a.competitorOf.map((p) => p.name)} />
       <span className="text-text-secondary">{a.company.name}</span>

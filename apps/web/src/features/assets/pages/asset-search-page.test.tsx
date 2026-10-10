@@ -155,6 +155,21 @@ describe('AssetSearchPage', () => {
     expect(screen.getByText('No assets match “zzz”')).toBeInTheDocument()
   })
 
+  it('hides the filters (remembered) while they keep applying; Clear empties them and the URL', async () => {
+    const router = renderSearch('/assets?kind=primary&q=tyv')
+    await screen.findByRole('link', { name: 'Treprostinil' })
+    await userEvent.click(screen.getByRole('button', { name: 'Hide filters' }))
+    expect(screen.queryByRole('textbox', { name: 'Search assets' })).not.toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'View' })).toBeVisible()
+    expect(screen.getAllByRole('row')).toHaveLength(2)
+    expect(localStorage.getItem('aj.collapsed.asset-search.filters')).toBe('1')
+    await userEvent.click(screen.getByRole('button', { name: 'Clear' }))
+    expect(router.state.location.search).toBe('')
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(4))
+    await userEvent.click(screen.getByRole('button', { name: 'Show filters' }))
+    expect(screen.getByRole('textbox', { name: 'Search assets' })).toHaveValue('')
+  })
+
   it('lists every indication of an asset on its row, investigational ones dashed', async () => {
     renderSearch()
     const trep = rowOf(await screen.findByRole('link', { name: 'Treprostinil' }).then(() => 'Treprostinil'))

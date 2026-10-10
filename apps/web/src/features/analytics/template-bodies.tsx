@@ -18,7 +18,7 @@ export function PipelineBody({ rows }: { rows: AnalyticsBlocks['pipeline'] }) {
   const { filtered, filters } = useCardFilter(rows, pipelineText, pipelineFacets)
   return (
     <>
-      <CardBar {...filters} placeholder="Search indications" />
+      <CardBar {...filters} collapseKey="analytics.custom.pipeline" placeholder="Search indications" />
       {filtered.length ? <PipelineMatrix rows={filtered} /> : <NoMatch />}
     </>
   )
@@ -28,7 +28,7 @@ export function MilestonesBody({ items }: { items: Milestone[] }) {
   const { filtered, filters } = useCardFilter(items, (m) => m.title, [{ label: 'Indication', of: (m) => m.indications ?? [] }])
   return (
     <>
-      <CardBar {...filters} placeholder="Search milestones" />
+      <CardBar {...filters} collapseKey="analytics.custom.milestones" placeholder="Search milestones" />
       {filtered.length ? (
         <MilestoneList
           items={filtered.slice(0, 4).map((e) => ({
@@ -51,7 +51,7 @@ export function TrialsPhaseBody({ trials }: { trials: AnalyticsBlocks['trials'] 
   const { filtered, filters } = useCardFilter(trials, trialText, trialFacets('Indication', 'Status'))
   return (
     <>
-      <CardBar {...filters} placeholder="Search trials" />
+      <CardBar {...filters} collapseKey="analytics.custom.trials-by-phase" placeholder="Search trials" />
       <VBars
         h={110}
         data={['Phase 1', 'Phase 2', 'Phase 3', 'Phase 4'].map((p) => ({
@@ -69,7 +69,7 @@ export function EnrolBody({ trials }: { trials: AnalyticsBlocks['trials'] }) {
   const data = enrolmentByIndication(filtered)
   return (
     <>
-      <CardBar {...filters} placeholder="Search trials" />
+      <CardBar {...filters} collapseKey="analytics.custom.enrolment" placeholder="Search trials" />
       {data.length ? (
         <HBars data={data.map(([l, v], i) => ({ l, v, c: BRANCH_PALETTE[i % BRANCH_PALETTE.length] }))} />
       ) : (
@@ -86,7 +86,7 @@ export function TrialsBody({ trials }: { trials: AnalyticsBlocks['trials'] }) {
   const to = Math.max(...trials.map((t) => yearOf(t.pcd || t.start))) + 1
   return (
     <>
-      <CardBar {...filters} placeholder="Search trials" />
+      <CardBar {...filters} collapseKey="analytics.custom.trial-timeline" placeholder="Search trials" />
       {filtered.length ? (
         <Gantt
           from={from}
@@ -115,7 +115,7 @@ export function LandscapeBody({ landscape }: { landscape: AnalyticsBlocks['lands
   const picked = filters.selects[0]?.value
   return (
     <>
-      <CardBar {...filters} placeholder="Search assets" />
+      <CardBar {...filters} collapseKey="analytics.custom.landscape" placeholder="Search assets" />
       {filtered.length ? (
         <Heat
           cols={picked ? [picked] : landscape.cols}

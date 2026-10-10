@@ -10,7 +10,11 @@ export function Panel({
   children,
   className,
   bodyClassName,
+  id,
+  hidden,
 }: {
+  id?: string
+  hidden?: boolean
   title: string
   description?: string
   actions?: ReactNode
@@ -19,7 +23,7 @@ export function Panel({
   bodyClassName?: string
 }) {
   return (
-    <section className={cn('overflow-hidden rounded-[14px] border bg-card shadow-[0_1px_2px_rgba(16,24,40,0.04)]', className)}>
+    <section id={id} hidden={hidden} className={cn('overflow-hidden rounded-[14px] border bg-card shadow-[0_1px_2px_rgba(16,24,40,0.04)]', className)}>
       <div className="flex flex-wrap items-start justify-between gap-x-[24px] gap-y-[12px] px-[20px] pt-[18px] pb-[14px]">
         <div className="min-w-0">
           <h3 className="text-[15px] font-semibold">{title}</h3>

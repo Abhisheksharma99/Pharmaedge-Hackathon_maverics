@@ -115,6 +115,9 @@ describe('AnalyticsTab', () => {
     expect(within(card).getByText('PERFECT').compareDocumentPosition(within(card).getByText('TRIUMPH I'))).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
     expect(within(card).getByText('Phase 2 · 1')).toBeInTheDocument()
     expect(within(card).getByText('Phase 3 · 1')).toBeInTheDocument()
+    // The small cards' filter bars start hidden behind a "Filters" chip.
+    expect(within(card).queryByRole('searchbox')).not.toBeInTheDocument()
+    await userEvent.click(within(card).getByRole('button', { name: 'Show filters' }))
     await userEvent.type(within(card).getByRole('searchbox'), 'triumph')
     expect(within(card).queryByText('PERFECT')).not.toBeInTheDocument()
     expect(within(card).getByText('TRIUMPH I')).toBeInTheDocument()
@@ -127,6 +130,7 @@ describe('AnalyticsTab', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json(200, FULL)))
     renderTab()
     const heat = await screen.findByRole('region', { name: 'Competitive landscape' })
+    await userEvent.click(within(heat).getByRole('button', { name: 'Show filters' }))
     await userEvent.type(within(heat).getByRole('searchbox'), 'rival')
     expect(within(heat).queryByText('Trep')).not.toBeInTheDocument()
     expect(within(heat).getByText('Rival')).toBeInTheDocument()

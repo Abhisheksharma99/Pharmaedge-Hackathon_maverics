@@ -59,7 +59,7 @@ export function TrackedAssets() {
           <EmptyState title="No assets yet">Add a drug by name with Asset AI.</EmptyState>
         </div>
       )}
-      {primary.length > 0 && <CardFilters {...filters} placeholder="Search assets" className="px-0 pt-0" />}
+      {primary.length > 0 && <CardFilters {...filters} collapseKey="home.tracked-assets" placeholder="Search assets" className="px-0 pt-0" />}
       {primary.length > 0 && filtered.length === 0 && (
         <div className="rounded-[14px] border bg-card">
           <NoMatches what="assets" />
