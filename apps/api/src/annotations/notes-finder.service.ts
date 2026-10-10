@@ -179,7 +179,10 @@ export class NotesFinderService implements OnModuleInit {
         }
       }
     }
-    if (proposal) return { kind: 'found', event: proposal.event, note: proposal.note };
+    if (proposal) {
+      await this.hintWebSources(asset, proposal.event.sources);
+      return { kind: 'found', event: proposal.event, note: proposal.note };
+    }
     if (ai.failed) return { kind: 'none', note: "Asset AI couldn't check this right now. You can keep it as a note." };
 
     return {
@@ -329,6 +332,18 @@ export class NotesFinderService implements OnModuleInit {
         sources: sources.map((s) => ({ collection: s.collection, record_key: s.record_key })),
       },
     };
+  }
+
+  /** A found event that rests on web pages adds their hosts to the asset's crawl_hints.domains (DATA_CONTRACTS §E.6). */
+  private async hintWebSources(asset: string, sources: SourceRef[]) {
+    const keys = sources.filter((s) => s.collection === 'web_records').map((s) => s.record_key);
+    if (!keys.length) return;
+    try {
+      const pages = await this.db.collection('web_records').find({ $or: [{ key: { $in: keys } }, { record_key: { $in: keys } }, { url: { $in: keys } }] }, { projection: { url: 1 } }).toArray();
+      await this.web.addCrawlHints(asset, pages.map((p) => String(p.url ?? '')));
+    } catch (err) {
+      this.logger.warn(`crawl hints not saved: ${(err as Error).message}`);
+    }
   }
 
   /** Web pages the answer used become records of the asset, so they can be opened and indexed. */

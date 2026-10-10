@@ -2,6 +2,8 @@ import { Injectable, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import type { Env } from '../../config/env.js';
+import { ValkeyService } from '../../valkey/valkey.service.js';
+import { ValkeyThrottlerStorage } from './valkey-throttler-storage.js';
 
 /** LLM / web-search calls cost money, so they are limited per signed-in user (per route). */
 @Injectable()
@@ -15,8 +17,9 @@ export class AiThrottlerGuard extends ThrottlerGuard {
 @Module({
   imports: [
     ThrottlerModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (config: ConfigService<Env, true>) => ({
+      inject: [ConfigService, ValkeyService],
+      useFactory: (config: ConfigService<Env, true>, valkey: ValkeyService) => ({
+        storage: new ValkeyThrottlerStorage(valkey),
         throttlers: [
           {
             name: 'ai_minute',

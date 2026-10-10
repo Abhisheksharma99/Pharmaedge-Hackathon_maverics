@@ -2,6 +2,8 @@ import type { Db } from 'mongodb';
 import { LlmService } from '../src/llm/llm.service.js';
 import { NotesFinderService } from '../src/annotations/notes-finder.service.js';
 import { WebSearchService } from '../src/web-search/web-search.service.js';
+import { CacheService } from '../src/valkey/cache.service.js';
+import { ValkeyService } from '../src/valkey/valkey.service.js';
 import { MONGO_DB } from '../src/database/database.module.js';
 import { ADMIN, closeTestApp, cookiesOf, createTestApp, type TestContext } from './helpers/test-app.js';
 
@@ -87,6 +89,26 @@ describe('notes', () => {
     expect((await call(analyst, 'PATCH', `/api/assets/trep/notes/${created.id}`, { title: 'Yutrepia approved (FDA)' })).json().title).toBe('Yutrepia approved (FDA)');
     expect((await call(analyst, 'DELETE', `/api/assets/trep/notes/${created.id}`)).statusCode).toBe(204);
     expect(await db.collection('crawl_feedback').countDocuments({ note_id: created.id })).toBe(0);
+  });
+
+  it('deleting a resolved note removes the crawler-made event, never a pre-existing one it matched', async () => {
+    const mk = async (title: string) => (await call(analyst, 'POST', '/api/assets/trep/notes', { ...note, title })).json().id as string;
+    const made = await mk('Resolved with a crawler event');
+    const matched = await mk('Resolved against an existing event');
+    const madeId = `feedback:trep:${made}`;
+    await db.collection('journey_events').insertOne({ _id: madeId as never, asset: 'trep', origin: 'feedback', via: 'finalize', date: '2005-04-27', title: 'Resolved', category: 'regulatory', significance: 'Medium', sources: [] });
+    await db.collection('journey_notes').updateOne({ _id: made as never }, { $set: { resolved_event: madeId } });
+    await db.collection('journey_notes').updateOne({ _id: matched as never }, { $set: { resolved_event: EV } });
+    const ver = ctx.app.get(CacheService);
+    const before = await ver.version('asset:trep:ver');
+
+    expect((await call(analyst, 'DELETE', `/api/assets/trep/notes/${made}`)).statusCode).toBe(204);
+    expect(await db.collection('journey_events').countDocuments({ _id: madeId as never })).toBe(0);
+    expect(await db.collection('crawl_feedback').countDocuments({ note_id: made })).toBe(0);
+    if (ctx.app.get(ValkeyService).isAvailable()) expect(await ver.version('asset:trep:ver')).toBe(before + 1);
+
+    expect((await call(analyst, 'DELETE', `/api/assets/trep/notes/${matched}`)).statusCode).toBe(204);
+    expect(await db.collection('journey_events').countDocuments({ _id: EV as never })).toBe(1);
   });
 
   it('validates fields', async () => {
@@ -238,6 +260,7 @@ describe('POST /assets/:id/notes/find', () => {
     expect(body).toMatchObject({ kind: 'found', event: { sources: [{ collection: 'web_records', record_key: 'web:abc' }] } });
     expect(body.note).toContain('web page');
     expect(await db.collection('web_records').findOne({ key: 'web:abc' })).toMatchObject({ url: 'https://www.fda.gov/news/zzz', assets: ['trep'] });
+    expect((await db.collection('assets').findOne({ _id: 'trep' as never }))?.crawl_hints).toEqual({ domains: ['fda.gov'] });
   });
 
   it('none: nothing supports it (no passages, web off)', async () => {

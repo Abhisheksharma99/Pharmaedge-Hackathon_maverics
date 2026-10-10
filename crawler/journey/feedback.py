@@ -4,10 +4,13 @@ Re-check of notes the team marked "Missed by AI" (DATA_CONTRACTS §D `crawl_feed
 For each open note: a journey event that matches it resolves it; else records the crawl now holds that support it
 become a journey event (origin "feedback", via "finalize", the note's significance or Medium) and resolve it; else it stays open with `last_checked_at`.
 A resolved note gets `resolved_event` (the event id) on its journey_notes doc; the API timeline then leaves the note out.
+Web pages (`web_records`) behind a resolution add their host to the asset's `crawl_hints.domains` (DATA_CONTRACTS §E.6),
+only hosts on the web-search allow-list families or the company's IR domain; the API's WebSearchService reads that field.
 A match is title/text overlap within +/-18 months of the note's date (any date when the note has none).
 """
 
 import re
+from urllib.parse import urlparse
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -22,6 +25,9 @@ STOP = {"the", "and", "for", "with", "from", "that", "this", "was", "were", "has
         "but", "not", "new", "per", "into", "after", "about", "over", "than", "also", "their", "been", "will"}
 CATEGORY_BY_COLLECTION = {"fda_records": "regulatory", "ema_records": "regulatory", "trial_records": "clinical",
                           "publication_records": "clinical", "patent_records": "ip"}
+
+# Mirror of ALLOWED_DOMAINS in apps/api/src/web-search/web-search.service.ts; the company IR host is added per asset.
+WEB_ALLOW_LIST = ("fda.gov", "open.fda.gov", "ema.europa.eu", "clinicaltrials.gov", "pubmed.ncbi.nlm.nih.gov", "sec.gov")
 
 Match = Tuple[float, int, Dict[str, Any]]  # (share of the note's words found, days from the note's date, doc)
 
@@ -120,6 +126,40 @@ def _create_event(db, asset_id: str, fb: Dict[str, Any], support: List[Dict[str,
     return event_id
 
 
+def _host(url: Any) -> Optional[str]:
+    try:
+        host = (urlparse(str(url)).hostname or "").lower()
+    except ValueError:
+        return None
+    return host.removeprefix("www.") or None
+
+
+def _on_list(host: str, domains: List[str]) -> bool:
+    return any(host == d or host.endswith("." + d) for d in domains)
+
+
+def add_crawl_hints(db, asset_id: str, sources: List[Dict[str, Any]]) -> List[str]:
+    """`$addToSet` the hosts of the web pages among `sources` into the asset's `crawl_hints.domains`.
+
+    Only hosts on the allow-list families or the asset's company IR domain are kept; returns the ones added.
+    """
+    keys = [s.get("record_key") for s in sources if s.get("collection") == "web_records" and s.get("record_key")]
+    if not keys:
+        return []
+    asset = db.assets.find_one({"_id": asset_id}, {"company": 1}) or {}
+    ir_host = _host((asset.get("company") or {}).get("ir_url"))
+    allowed = [*WEB_ALLOW_LIST, *([ir_host] if ir_host else [])]
+    hosts = set()
+    for field in KEY_FIELDS:  # a source's record_key is the page's key, record_key or url
+        for doc in db.web_records.find({field: {"$in": keys}}, {"url": 1, "domain": 1}):
+            host = _host(doc.get("url")) or _host(f"//{doc.get('domain')}")
+            if host and _on_list(host, allowed):
+                hosts.add(host)
+    if hosts:
+        db.assets.update_one({"_id": asset_id}, {"$addToSet": {"crawl_hints.domains": {"$each": sorted(hosts)}}})
+    return sorted(hosts)
+
+
 def recheck(db, asset_id: str, log: Callable[..., None]) -> Dict[str, int]:
     """Re-check this asset's open `crawl_feedback`; `log` is the job-feed logger (ctx.log)."""
     open_notes = list(db.crawl_feedback.find({"asset": asset_id, "status": "open"}))
@@ -134,15 +174,18 @@ def recheck(db, asset_id: str, log: Callable[..., None]) -> Dict[str, int]:
         when = _day(fb.get("date"))
         event = _find_event(events, fb, when)
         event_id = event["_id"] if event else None
+        web_sources = [*(event.get("sources") or []), *(event.get("merged_sources") or [])] if event else []
         if not event_id:
             records = _records(db, asset_id) if records is None else records
             support = _find_records(records, fb, when)
             event_id = _create_event(db, asset_id, fb, support, now) if support else None
+            web_sources = [{"collection": r["collection"], "record_key": r["record_key"]} for r in support]
             if event_id:
                 created += 1
                 log("event", fb.get("title") or event_id, event_id=event_id)
         if event_id:
             resolved += 1
+            add_crawl_hints(db, asset_id, web_sources)
             # The event carries the content now, so the API timeline skips the user's note.
             db.journey_notes.update_one({"_id": fb.get("note_id")}, {"$set": {"resolved_event": event_id}})
             db.crawl_feedback.update_one({"_id": fb["_id"], "status": "open"}, {"$set": {

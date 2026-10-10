@@ -96,14 +96,30 @@ export class WebSearchService implements OnModuleInit {
     return { enabled: true, results };
   }
 
-  private async allowList(asset: string, extra?: string[]) {
-    const doc = await this.db.collection('assets').findOne({ _id: asset as never }, { projection: { company: 1 } });
+  /** The fixed allow-list plus the asset's company IR host (a hint must be on one of these to count). */
+  private async baseDomains(asset: string): Promise<{ base: string[]; hints: unknown }> {
+    const doc = await this.db.collection('assets').findOne({ _id: asset as never }, { projection: { company: 1, crawl_hints: 1 } });
     const ir = (doc?.company as { ir_url?: string } | undefined)?.ir_url;
     const irHost = ir ? hostOf(ir) : null;
-    const base = [...ALLOWED_DOMAINS, ...(irHost ? [irHost] : [])];
+    return { base: [...ALLOWED_DOMAINS, ...(irHost ? [irHost] : [])], hints: (doc?.crawl_hints as { domains?: unknown } | undefined)?.domains };
+  }
+
+  private async allowList(asset: string, extra?: string[]) {
+    const { base, hints } = await this.baseDomains(asset);
+    // assets.crawl_hints.domains: hosts earlier searches and the crawler's feedback re-check relied on (DATA_CONTRACTS §E.6).
+    // Written by code, but re-validated here: only hosts on the allow-list families or the company IR domain are used.
+    const learned = (Array.isArray(hints) ? hints : []).filter((h): h is string => typeof h === 'string').map((h) => h.toLowerCase().replace(/^www\./, '')).filter((h) => h && onList(h, base));
+    const all = [...new Set([...base, ...learned])];
     // A caller may narrow the list, never widen it.
-    const narrowed = extra?.length ? base.filter((d) => extra.some((e) => onList(d, [e.toLowerCase()]) || onList(e.toLowerCase(), [d]))) : base;
-    return narrowed.length ? narrowed : base;
+    const narrowed = extra?.length ? all.filter((d) => extra.some((e) => onList(d, [e.toLowerCase()]) || onList(e.toLowerCase(), [d]))) : all;
+    return narrowed.length ? narrowed : all;
+  }
+
+  /** Remember the hosts of web pages an answer relied on, so the next search of this asset includes them. */
+  async addCrawlHints(asset: string, urls: string[]): Promise<void> {
+    const { base } = await this.baseDomains(asset);
+    const hosts = [...new Set(urls.map(hostOf).filter((h): h is string => !!h && onList(h, base)))];
+    if (hosts.length) await this.db.collection('assets').updateOne({ _id: asset as never }, { $addToSet: { 'crawl_hints.domains': { $each: hosts } } });
   }
 
   private async run(query: string, allowed: string[]) {
