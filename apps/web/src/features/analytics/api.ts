@@ -70,12 +70,13 @@ export interface AssetAnalytics {
   significance: { High: number; Medium: number; Low: number }
   stats: {
     approvedIndications: number
+    /** Each approved indication with the regions it is approved in. */
+    approved?: { indication: string; regions: string[] }[]
     inDevelopment: string[]
     activeTrials: number
     phase3: number
     patients: number
     nextCatalyst: { id: string; title: string; date: string } | null
-    patentRunwayYears: number | null
     evidenceRecords: number
   }
 }

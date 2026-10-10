@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { Fragment, type ReactNode } from 'react'
 import { todayIso, yearFraction } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 
@@ -13,6 +13,8 @@ export interface GanttRow {
   tag?: string
   dash?: boolean
   tip?: string
+  /** Rows are expected sorted by group; a label row shows where the group changes. */
+  group?: string
 }
 
 /** Start→end bars on a year axis (trial timeline, patent runway) with a Today line. */
@@ -30,7 +32,7 @@ export function Gantt({ rows, from, to, today = todayIso() }: { rows: GanttRow[]
         <span />
         <div className="relative h-full">
           {ticks.map((y) => (
-            <span key={y} className="absolute -translate-x-1/2 font-mono text-[10.5px] text-muted-foreground" style={{ left: `${pct(y)}%` }}>
+            <span key={y} className="absolute -translate-x-1/2 font-mono text-[10.5px] text-muted-foreground @max-[520px]:nth-[even]:hidden" style={{ left: `${pct(y)}%` }}>
               {y}
             </span>
           ))}
@@ -40,41 +42,52 @@ export function Gantt({ rows, from, to, today = todayIso() }: { rows: GanttRow[]
         const known = Number.isFinite(r.s) && Number.isFinite(r.e)
         const left = pct(Math.min(r.s, r.e))
         const width = Math.max(0.8, pct(Math.max(r.s, r.e)) - left)
+        const heading = r.group && r.group !== rows[i - 1]?.group ? r.group : null
         return (
-          <div key={`${r.l}-${i}`} className="grid h-[34px] grid-cols-[var(--gl)_minmax(0,1fr)] items-center">
-            <span className="flex min-w-0 flex-col pr-[8px] leading-[1.15]">
-              <b className="truncate text-[12px] font-medium">{r.l}</b>
-              {r.sub && <span className="truncate text-[10.5px] text-muted-foreground">{r.sub}</span>}
-            </span>
-            <div className="relative h-[34px]">
-              {ticks.map((y) => (
-                <i key={y} className="absolute inset-y-0 border-l border-[#f2f4f7]" style={{ left: `${pct(y)}%` }} />
-              ))}
-              {!known && <span className="absolute top-[10px] text-[10.5px] text-muted-foreground">Dates unknown</span>}
-              {known && (
-                <span
-                  title={r.tip}
-                  className={cn(
-                    'absolute top-[10px] flex h-[14px] min-w-[6px] origin-left animate-grow-x items-center justify-end rounded-[4px] border-[1.5px]',
-                    r.dash && 'border-dashed',
-                  )}
-                  style={{
-                    left: `${left}%`,
-                    width: `${Math.min(width, 100 - left)}%`,
-                    background: r.dash ? 'transparent' : r.c,
-                    borderColor: r.c,
-                    animationDelay: `${i * 35}ms`,
-                  }}
-                >
-                  {r.tag && (
-                    <em className={cn('px-[4px] text-[9.5px] font-bold whitespace-nowrap not-italic', r.dash ? 'text-destructive' : 'text-white')}>
-                      {r.tag}
-                    </em>
-                  )}
-                </span>
-              )}
+          <Fragment key={`${r.l}-${i}`}>
+            {heading && (
+              <div className="flex h-[24px] items-end gap-[8px] pb-[3px]">
+                <b className="text-[10.5px] font-semibold tracking-[0.05em] whitespace-nowrap text-muted-foreground uppercase">
+                  {heading} · {rows.filter((x) => x.group === heading).length}
+                </b>
+                <i className="mb-[4px] h-px flex-1 bg-border" aria-hidden="true" />
+              </div>
+            )}
+            <div className="grid h-[34px] grid-cols-[var(--gl)_minmax(0,1fr)] items-center">
+              <span className="flex min-w-0 flex-col pr-[8px] leading-[1.15]">
+                <b className="truncate text-[12px] font-medium">{r.l}</b>
+                {r.sub && <span className="truncate text-[10.5px] text-muted-foreground">{r.sub}</span>}
+              </span>
+              <div className="relative h-[34px]">
+                {ticks.map((y) => (
+                  <i key={y} className="absolute inset-y-0 border-l border-[#f2f4f7]" style={{ left: `${pct(y)}%` }} />
+                ))}
+                {!known && <span className="absolute top-[10px] text-[10.5px] text-muted-foreground">Dates unknown</span>}
+                {known && (
+                  <span
+                    title={r.tip}
+                    className={cn(
+                      'absolute top-[10px] flex h-[14px] min-w-[6px] origin-left animate-grow-x items-center justify-end rounded-[4px] border-[1.5px]',
+                      r.dash && 'border-dashed',
+                    )}
+                    style={{
+                      left: `${left}%`,
+                      width: `${Math.min(width, 100 - left)}%`,
+                      background: r.dash ? 'transparent' : r.c,
+                      borderColor: r.c,
+                      animationDelay: `${i * 35}ms`,
+                    }}
+                  >
+                    {r.tag && (
+                      <em className={cn('px-[4px] text-[9.5px] font-bold whitespace-nowrap not-italic', r.dash ? 'text-destructive' : 'text-white')}>
+                        {r.tag}
+                      </em>
+                    )}
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
+          </Fragment>
         )
       })}
       {showNow && (
