@@ -271,8 +271,9 @@ def build_timeline(drug_id: str, raw: list[dict[str, Any]], companies: list[str]
 
 
 async def collect(http: Http, *, drug_id: str, terms: list[str], companies: list[str], sec_user_agent: str | None,
-                  start: str, end: str, max_docs: int = 300,
-                  exclude: list[str] | None = None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+                  start: str, end: str, max_docs: int = 300, exclude: list[str] | None = None,
+                  openfda: bool = True) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """`openfda=False`: SEC EDGAR only (PDUFA dates, CRLs) - for callers that already hold Drugs@FDA approvals."""
     terms = rank_terms(terms)
     report: dict[str, Any] = {"sources_used": [], "errors": []}
     raw: list[dict[str, Any]] = []
@@ -289,11 +290,12 @@ async def collect(http: Http, *, drug_id: str, terms: list[str], companies: list
             report["errors"].append(f"SEC EDGAR: {e}")
     else:
         report["errors"].append("SEC EDGAR skipped: SEC_USER_AGENT not configured")
-    try:
-        raw += await openfda_events(http, terms)
-        report["sources_used"].append("openFDA")
-    except (RuntimeError, ValueError, KeyError) as e:
-        report["errors"].append(f"openFDA: {e}")
+    if openfda:
+        try:
+            raw += await openfda_events(http, terms)
+            report["sources_used"].append("openFDA")
+        except (RuntimeError, ValueError, KeyError) as e:
+            report["errors"].append(f"openFDA: {e}")
     timeline, excluded = build_timeline(drug_id, raw, companies, start, end)
     report |= {"events": len(timeline), "raw_mentions": len(raw), "other_sponsor_mentions_excluded": excluded,
                "by_type": {k: sum(e["type"] == k for e in timeline) for k in {e["type"] for e in timeline}}}

@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { AssetDetail } from '@/features/assets/api'
 import { useChatSessions, useCreateChatSession } from '../api'
+import { useAskStore } from '../ask-store'
+import { useFollowNavigation } from '../navigation'
 import { ChatConversation } from './chat-conversation'
 
 const defaultQuestions = (name: string) => [
@@ -28,6 +30,9 @@ export function AssetAiPanel({ asset, onClose }: { asset: AssetDetail; onClose: 
   const createSession = useCreateChatSession()
   const navigate = useNavigate()
   const sessionId = sessions.data?.[0]?.id ?? null
+  // "Ask about this" from another view: its question waits in the composer (the panel remounts it).
+  const draft = useAskStore((s) => s.draft)
+  useFollowNavigation(sessionId)
   const suggestions = asset.suggestedQuestions?.length ? asset.suggestedQuestions : defaultQuestions(asset.name)
 
   return (
@@ -72,6 +77,9 @@ export function AssetAiPanel({ asset, onClose }: { asset: AssetDetail; onClose: 
         </div>
       ) : (
         <ChatConversation
+          key={draft?.nonce ?? 0}
+          initialDraft={draft?.text}
+          autoFocus={!!draft}
           sessionId={sessionId}
           createSession={async () => (await createSession.mutateAsync(asset.id)).id}
           suggestions={suggestions}

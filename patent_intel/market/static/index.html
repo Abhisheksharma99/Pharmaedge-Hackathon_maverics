@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drug Event Impact</title>
+<script src="https://unpkg.com/lightweight-charts@5.2.1/dist/lightweight-charts.standalone.production.js" integrity="sha384-KkYqTZlM13Zya6fVUF3IGCBOQ1ehFeJVVgxaVvD/0MebineF9EI8Jkd3NnWNChqN" crossorigin="anonymous"></script>
+<style>
+  :root { --bg:#f7f8fa; --panel:#fff; --text:#0f172a; --muted:#64748b; --line:#e2e8f0; --accent:#2563eb; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--text); }
+  header { padding:16px 20px; border-bottom:1px solid var(--line); background:var(--panel); }
+  h1 { margin:0 0 8px; font-size:18px; }
+  .search { position:relative; max-width:560px; }
+  .search input { width:100%; padding:10px 12px; font-size:15px; border:1px solid var(--line); border-radius:8px; }
+  .results { position:absolute; z-index:10; left:0; right:0; background:var(--panel); border:1px solid var(--line); border-radius:8px; margin-top:4px; max-height:320px; overflow:auto; box-shadow:0 8px 24px rgba(0,0,0,.08); }
+  .results button { display:flex; justify-content:space-between; gap:12px; width:100%; padding:8px 12px; border:0; background:none; text-align:left; cursor:pointer; font:inherit; }
+  .results button:hover, .results button:focus { background:#eff6ff; outline:none; }
+  .results small { color:var(--muted); }
+  main { display:grid; grid-template-columns:1fr; gap:16px; padding:16px 20px; max-width:1400px; margin:0 auto; }
+  section { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px; min-width:0; }
+  section h2 { margin:0; font-size:15px; }
+  .sub { color:var(--muted); font-size:12.5px; margin:2px 0 10px; }
+  .chart { height:480px; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; background:#f1f5f9; color:#334155; margin-right:6px; }
+  .warn { background:#fff7ed; color:#9a3412; }
+  .ok { background:#ecfdf5; color:#065f46; }
+  .legend { display:flex; flex-wrap:wrap; gap:10px; font-size:12.5px; margin:8px 0; }
+  .legend i { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:4px; vertical-align:-1px; }
+  #hover { min-height:42px; font-size:13px; color:#334155; border-top:1px solid var(--line); padding-top:8px; margin-top:8px; }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; margin-top:10px; }
+  th, td { text-align:left; padding:5px 6px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; }
+  td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .pos { color:#047857; } .neg { color:#b91c1c; }
+  .empty { color:var(--muted); padding:40px 0; text-align:center; }
+  #card { margin-top:10px; }
+  .card-title { font-weight:600; font-size:13.5px; margin-bottom:6px; }
+  .stats { display:flex; flex-wrap:wrap; gap:8px; }
+  .stat { background:#f8fafc; border:1px solid var(--line); border-radius:8px; padding:6px 10px; min-width:110px; }
+  .stat small { display:block; color:var(--muted); font-size:11.5px; }
+  .stat b { font-size:15px; font-variant-numeric:tabular-nums; }
+  button.link { margin-top:6px; border:0; background:none; color:var(--accent); cursor:pointer; padding:0; font:inherit; font-size:12.5px; }
+  tr.click { cursor:pointer; } tr.click:hover { background:#f8fafc; } tr.sel { background:#eff6ff; }
+  .muted { color:var(--muted); }
+  fieldset { border:1px solid var(--line); border-radius:8px; padding:8px 12px; margin:0 0 10px; }
+  legend { color:var(--muted); font-size:12.5px; padding:0 4px; }
+  #druglist { display:flex; flex-wrap:wrap; gap:6px 16px; }
+  #druglist label, #kinds label { display:flex; gap:6px; align-items:center; cursor:pointer; }
+  #kinds { display:flex; flex-wrap:wrap; gap:6px 16px; margin-bottom:6px; }
+  .dates { display:flex; flex-wrap:wrap; gap:6px 14px; align-items:center; font-size:13px; }
+  .dates input { font:inherit; padding:2px 6px; border:1px solid var(--line); border-radius:6px; }
+  footer { padding:0 20px 20px; color:var(--muted); font-size:12px; }
+  footer a { color:var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Drug event impact on stock price</h1>
+  <div class="search">
+    <input id="q" placeholder="Search a company or ticker, e.g. United Therapeutics, Liquidia, Pfizer" autocomplete="off" aria-label="Company search">
+    <div class="results" id="results" hidden></div>
+  </div>
+  <div class="sub" id="picked">Type any company name or ticker: live search across exchanges.</div>
+  <form id="keyform" class="sub" hidden>API key (kept in this tab only): <input id="apikey" type="password" autocomplete="off" size="44"> <button>Use</button></form>
+</header>
+
+<main>
+
+  <section>
+    <h2>Event impact: how the stock moved after each event</h2>
+    <div class="sub">Daily closing price + the stored events of the drugs you select. ▼ red = price dipped after the event, ▲ green = it rose. Click any event to zoom into it.</div>
+    <fieldset id="drugs" hidden><legend>This company's drugs in our data (events of the selected drugs)</legend><div id="druglist"></div></fieldset>
+    <fieldset id="filters" hidden><legend>Filters: event type and date range</legend>
+      <div id="kinds"></div>
+      <div class="dates"><label>From <input type="date" id="start"></label> <label>To <input type="date" id="end"></label>
+        <button type="button" id="reset" class="link">Reset filters</button></div>
+    </fieldset>
+    <div id="status"></div>
+    <div class="legend" id="legend"></div>
+    <div id="lwc" class="chart"><div class="empty">Search a company to draw our events.</div></div>
+    <div id="card"></div>
+    <div id="hover">Click a marker or a table row to see that event's dip or rise.</div>
+    <div id="table"></div>
+  </section>
+</main>
+
+<footer>
+  Lightweight Charts™ is Copyright (c) TradingView, Inc. — <a href="https://www.tradingview.com" target="_blank" rel="noopener">https://www.tradingview.com</a>.
+  Event markers show timing only: they do not mean the event caused a price move.
+</footer>
+
+<script>
+const LWC = LightweightCharts;
+const KIND = {
+  pdufa:              { text:"PDUFA",    name:"PDUFA date (FDA calendar)" },
+  adcom:              { text:"AdCom",    name:"Advisory committee" },
+  approval:           { text:"Approval", name:"FDA approval / supplement" },
+  tentative_approval: { text:"TA",       name:"Tentative approval" },
+  pdufa_date:         { text:"PDUFA",    name:"PDUFA target date (SEC filing)" },
+  complete_response_letter: { text:"CRL", name:"Complete response letter" },
+  presentation:       { text:"Deck",     name:"Investor presentation" },
+  advisory_panel:     { text:"Panel",    name:"Advisory panel" },
+  patent_granted:     { text:"Patent",   name:"US patent granted" },
+  patent_expiry:      { text:"Expiry",   name:"US patent expiry" },
+};
+const OFF_BY_DEFAULT = new Set(["patent_granted", "patent_expiry"]);  // many dates: shown on request
+const kindOf = k => KIND[k] || { text:k, name:k };
+const $ = id => document.getElementById(id);
+const el = (tag, props = {}, ...kids) => { const n = Object.assign(document.createElement(tag), props); n.append(...kids); return n; };
+const sign = v => v == null ? "—" : `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`;
+let chart = null, timer = null, searchSeq = 0, current = null, refreshSeq = 0;
+let kinds = null;                                                    // selected event types; null = defaults
+
+// ---- API (same X-API-Key as every other endpoint; kept in sessionStorage = this tab only) ----------
+const key = () => { try { return sessionStorage.getItem("pi_key") || ""; } catch { return ""; } };
+async function api(path) {
+  const r = await fetch(path, { headers: { "X-API-Key": key() } });
+  if (r.status === 401) { $("keyform").hidden = false; throw new Error("API key required"); }
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body.detail ? JSON.stringify(body.detail) : `HTTP ${r.status}`);
+  return body;
+}
+$("keyform").hidden = !!key();
+$("keyform").addEventListener("submit", e => { e.preventDefault(); try { sessionStorage.setItem("pi_key", $("apikey").value.trim()); } catch {} $("apikey").value = ""; $("keyform").hidden = true; });
+
+// ---- company search ------------------------------------------------------------------------------
+$("q").addEventListener("input", () => {
+  clearTimeout(timer);
+  timer = setTimeout(async () => {
+    const q = $("q").value.trim(), seq = ++searchSeq;
+    if (!q) { $("results").hidden = true; return; }
+    let r; try { r = await api(`/v1/market/search?q=${encodeURIComponent(q)}`); } catch (e) { r = { error: e.message }; }
+    if (seq !== searchSeq) return;                                   // a newer keystroke won
+    const box = $("results"); box.replaceChildren(); box.hidden = false;
+    if (!r.results) { box.append(el("div", { className:"empty", textContent:`Search failed: ${r.error}` })); return; }
+    if (!r.results.length) { box.append(el("div", { className:"empty", textContent:"No listed company found." })); return; }
+    for (const c of r.results) {
+      const b = el("button", { type:"button" }, el("span", { textContent:c.name }), el("small", { textContent:`${c.ticker} · ${c.exchange || "?"}` }));
+      b.onclick = () => { box.hidden = true; $("q").value = c.name; pick(c); };
+      box.append(b);
+    }
+  }, 250);
+});
+document.addEventListener("click", e => { if (!e.target.closest(".search")) $("results").hidden = true; });
+
+// ---- company -> its drugs in our data -> events of the selected drugs -------------------------------
+async function pick(c) {
+  $("picked").textContent = `${c.name} — ${c.ticker} (${c.exchange || "exchange unknown"})`;
+  current = c; kinds = null; $("start").value = $("end").value = "";
+  const list = $("druglist"); list.replaceChildren(); $("drugs").hidden = false;
+  let d; try { d = await api(`/v1/market/${encodeURIComponent(c.ticker)}/drugs`); } catch (e) { list.append(el("span", { className:"muted", textContent:e.message })); return; }
+  if (current !== c) return;
+  for (const g of d.drugs) {
+    const box = el("input", { type:"checkbox", checked:true, value:g.drug_ids.join(","), onchange:refresh });
+    list.append(el("label", { title:`Linked as: ${g.roles.join(", ")}` }, box, `${g.name} (${g.events} events)`));
+  }
+  if (!d.drugs.length)
+    list.append(el("span", { className:"muted", textContent:"No drugs crawled for this company yet. Run the pipeline for one of its drugs to see event impact." }));
+  refresh();
+}
+
+async function refresh() {
+  if (!current) return;
+  const c = current, seq = ++refreshSeq;
+  const ids = [...$("druglist").querySelectorAll("input[value]:checked")].map(i => i.value).join(",");
+  const qs = new URLSearchParams({ drug_ids: ids });
+  if (kinds) qs.set("kinds", [...kinds].join(","));
+  if ($("start").value) qs.set("start", $("start").value);
+  if ($("end").value) qs.set("end", $("end").value);
+  let d; try { d = await api(`/v1/market/${encodeURIComponent(c.ticker)}/impact?${qs}`); }
+  catch (e) { d = { bars:[], events:[], kind_counts:{}, price_error:e.message }; }
+  if (current !== c || seq !== refreshSeq) return;                   // a newer request won
+  if (kinds === null) {                                              // first load: every type except the bulky ones
+    kinds = new Set(Object.keys(d.kind_counts || {}).filter(k => !OFF_BY_DEFAULT.has(k)));
+    if (Object.keys(d.kind_counts || {}).some(k => OFF_BY_DEFAULT.has(k))) return refresh();
+  }
+  drawFilters(d.kind_counts || {});
+  draw(d);
+}
+
+// ---- filters: event types come from the data (counts before filtering), plus a date range ----------
+function drawFilters(counts) {
+  const box = $("kinds"); box.replaceChildren(); $("filters").hidden = !Object.keys(counts).length && !$("start").value && !$("end").value;
+  for (const [k, n] of Object.entries(counts).sort((a, b) => b[1] - a[1])) {
+    const cb = el("input", { type:"checkbox", checked:kinds.has(k), onchange:() => { cb.checked ? kinds.add(k) : kinds.delete(k); refresh(); } });
+    box.append(el("label", {}, cb, `${kindOf(k).name} (${n})`));
+  }
+}
+for (const id of ["start", "end"]) $(id).addEventListener("change", refresh);
+$("reset").addEventListener("click", () => { kinds = null; $("start").value = $("end").value = ""; refresh(); });
+
+// ---- chart: our prices + our events, impact computed by the API ------------------------------------
+function draw(d) {
+  if (chart) { chart.remove(); chart = null; }                       // free the old canvas + listeners
+  const box = $("lwc"); box.replaceChildren(); $("table").replaceChildren(); $("legend").replaceChildren(); $("card").replaceChildren();
+  const bars = d.bars || [], events = d.events || [];
+  $("status").replaceChildren(
+    d.prices ? el("span", { className:"badge ok", textContent:`Prices: ${d.prices.source} · latest bar ${d.prices.as_of}${d.prices.currency ? ` · ${d.prices.currency}` : ""} (today's bar may still be moving)` }) : "",
+    d.price_error ? el("span", { className:"badge warn", textContent:d.price_error }) : "",
+    el("span", { className:"badge", textContent:`${events.length} events for the selection` }));
+  if (!bars.length) { box.append(el("div", { className:"empty", textContent:"No price history available for this ticker, so the impact cannot be measured." })); return; }
+
+  chart = LWC.createChart(box, { autoSize:true, layout:{ textColor:"#334155", background:{ color:"#ffffff" } },
+    grid:{ vertLines:{ color:"#f1f5f9" }, horzLines:{ color:"#f1f5f9" } }, timeScale:{ borderColor:"#e2e8f0" },
+    rightPriceScale:{ borderColor:"#e2e8f0" } });
+  const series = chart.addSeries(LWC.AreaSeries, { lineColor:"#2563eb", lineWidth:2, topColor:"rgba(37,99,235,.15)", bottomColor:"rgba(37,99,235,0)" });
+  series.setData(bars.map(b => ({ time:b.date, value:b.close })));
+  const index = new Map(bars.map((b, i) => [b.date, i]));
+  const placed = events.filter(e => e.impact), byTime = new Map();
+  for (const e of placed) { e.move = e.impact.day5 ?? e.impact.day0; (byTime.get(e.impact.trading_day) || byTime.set(e.impact.trading_day, []).get(e.impact.trading_day)).push(e); }
+  LWC.createSeriesMarkers(series, [...byTime].sort(([a], [b]) => a < b ? -1 : 1).flatMap(([time, es]) => es.map(e => {
+    const up = e.move >= 0;
+    return { time, position: up ? "belowBar" : "aboveBar", shape: up ? "arrowUp" : "arrowDown", color: up ? "#16a34a" : "#dc2626",
+             text: `${kindOf(e.kind).text} ${sign(e.move)}` };
+  })));
+  for (const [c, t] of [["#16a34a", "▲ price higher 5 trading days after the event"], ["#dc2626", "▼ price lower (a dip)"]])
+    $("legend").append(el("span", {}, el("i", { style:`background:${c}` }), t));
+
+  let lines = [], rowOf = new Map();
+  function focus(e) {
+    const m = e.impact;
+    lines.forEach(l => series.removePriceLine(l));
+    lines = [series.createPriceLine({ price:m.base_close, color:"#64748b", lineWidth:1, lineStyle:2, title:"close before event" })];
+    if (m.dip != null) lines.push(series.createPriceLine({ price:m.dip_close, color:"#dc2626", lineWidth:2, lineStyle:2, title:`dip ${sign(m.dip)} (day ${m.dip_day})` }));
+    if (m.peak != null) lines.push(series.createPriceLine({ price:m.peak_close, color:"#16a34a", lineWidth:2, lineStyle:2, title:`peak ${sign(m.peak)} (day ${m.peak_day})` }));
+    const i = index.get(m.trading_day);
+    chart.timeScale().setVisibleLogicalRange({ from:i - 15, to:i + 30 });
+    rowOf.forEach((tr, x) => tr.classList.toggle("sel", x === e));
+    const stat = (label, v, extra = "") => el("div", { className:"stat" }, el("small", { textContent:label }),
+      el("b", { className: v == null ? "" : v >= 0 ? "pos" : "neg", textContent: sign(v) + extra }));
+    const none = (label, text) => el("div", { className:"stat" }, el("small", { textContent:label }), el("b", { textContent:text }));
+    $("card").replaceChildren(
+      el("div", { className:"card-title", textContent:`${e.date} · ${kindOf(e.kind).name}: ${e.label}` }),
+      e.detail ? el("div", { className:"muted", textContent:`${e.source}: ${e.detail}` }) : "",
+      el("div", { className:"stats" }, stat("Event day", m.day0), stat("After 5 days", m.day5), stat("After 20 days", m.day20),
+         m.dip != null ? stat("Deepest dip", m.dip, ` · day ${m.dip_day}`) : none("Deepest dip", "no dip"),
+         m.peak != null ? stat("Highest peak", m.peak, ` · day ${m.peak_day}`) : none("Highest peak", "no rise")),
+      el("button", { type:"button", className:"link", textContent:"Show full history", onclick:() => {
+        lines.forEach(l => series.removePriceLine(l)); lines = []; chart.timeScale().fitContent(); } }));
+  }
+  chart.subscribeClick(p => { const es = p.time && byTime.get(p.time); if (es) focus(es[0]); });
+  chart.subscribeCrosshairMove(p => {
+    const es = p.time && byTime.get(p.time);
+    $("hover").textContent = es ? es.map(e => `${e.date} ${kindOf(e.kind).name}: ${e.label} → ${sign(e.move)} after 5 days (click to zoom)`).join(" | ")
+                                : "Click a marker or a table row to see that event's dip or rise.";
+  });
+
+  const cell = v => el("td", { className:`num ${v == null ? "" : v >= 0 ? "pos" : "neg"}`, textContent:sign(v) });
+  const t = el("table", {}, el("tr", {}, ...["Date", "Event", "Source", "Event day", "+5 days", "+20 days", "Deepest dip"].map(h => el("th", { textContent:h }))));
+  for (const e of [...placed].sort((a, b) => Math.abs(b.move) - Math.abs(a.move))) {
+    const tr = el("tr", { className:"click", onclick:() => focus(e) }, el("td", { textContent:e.date }),
+      el("td", { textContent:`${kindOf(e.kind).name}: ${e.label}` }), el("td", { textContent:e.source }),
+      cell(e.impact.day0), cell(e.impact.day5), cell(e.impact.day20),
+      e.impact.dip != null ? cell(e.impact.dip) : el("td", { className:"num muted", textContent:"no dip" }));
+    rowOf.set(e, tr); t.append(tr);
+  }
+  const rest = events.filter(e => !e.impact);
+  if (rest.length) t.append(el("tr", {}, el("td", { colSpan:7, className:"muted",
+    textContent:`${rest.length} more events not measurable: ${[...new Set(rest.map(e => e.note))].join(", ")}.` })));
+  $("table").append(t);
+  chart.timeScale().fitContent();                                      // start on the full history; click to zoom
+  const from = $("start").value || bars[0].date, to = $("end").value || bars[bars.length - 1].date;
+  if (($("start").value || $("end").value) && from <= to) chart.timeScale().setVisibleRange({ from, to });
+  $("card").replaceChildren(el("div", { className:"muted", textContent:`${placed.length} events measured. ${d.note}` }));
+}
+</script>
+</body>
+</html>

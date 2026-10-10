@@ -32,13 +32,14 @@ def journey(monkeypatch, db):
 
 def test_finalize_rebuilds_the_journey_and_marks_the_asset_ready(journey):
     journey.assets.insert_one({**ASSET, "competitors": [{"id": "sotatercept", "name": "Sotatercept"}]})
-    journey.journey_events.insert_one({"asset": "treprostinil", "is_milestone": True, "date": "2020-01-01",
+    journey.journey_events.insert_one({"_id": "e0", "asset": "treprostinil", "is_milestone": True, "date": "2020-01-01",
                                        "type": "patent_expiry"})  # past: not next
-    journey.journey_events.insert_one({"asset": "treprostinil", "is_milestone": True, "date": future(90),
+    journey.journey_events.insert_one({"_id": "e1", "asset": "treprostinil", "is_milestone": True, "date": future(90),
                                        "type": "expected_readout"})
-    journey.journey_events.insert_one({"asset": "treprostinil", "is_milestone": True, "date": future(400),
+    journey.journey_events.insert_one({"_id": "e2", "asset": "treprostinil", "is_milestone": True, "date": future(400),
                                        "type": "patent_expiry"})
-    assert steps.finalize(ctx()) == {"events": 1, "new": 1, "removed": 0, "suggested_questions": 4}
+    assert steps.finalize(ctx()) == {"events": 1, "new": 1, "removed": 0, "checks_unconfirmed": 0, "checks_conflict": 0,
+                                     "checks_confirmed": 0, "suggested_questions": 4}
     asset = journey.assets.find_one({"_id": "treprostinil"})
     assert asset["status"] == "ready" and asset["last_crawled_at"]
     assert asset["suggested_questions"][1] == "What is expected from Treprostinil's next trial readout, and when?"
@@ -240,3 +241,25 @@ def test_jobs_interrupted_by_a_worker_restart_are_failed_and_unlock_their_asset(
     saved = db.jobs.find_one({"_id": job["_id"]})
     assert saved["status"] == "failed" and [s["status"] for s in saved["steps"]] == ["done", "failed", "skipped"]
     assert saved["steps"][1]["error"] == INTERRUPTED and saved["finished_at"]
+
+
+def test_finalize_catches_up_on_records_stored_after_the_ai_steps(journey, monkeypatch):
+    journey.assets.insert_one(ASSET)
+    # stored after this job's AI steps ran: never triaged
+    journey.company_records.insert_one({"record_key": "pr:late", "assets": ["treprostinil"], "record_type": "press_release", "title": "Late"})
+    calls = []
+    monkeypatch.setattr(steps, "triage_stored", lambda asset: calls.append("triage") or {"company_records_ingest": 1})
+    monkeypatch.setattr(steps, "extract_events", lambda asset: calls.append("extract") or {"events": 2, "documents": 1})
+    monkeypatch.setattr(steps, "consolidate", lambda asset_id: calls.append("consolidate") or {})
+    monkeypatch.setattr(steps, "index_asset", lambda asset_id: calls.append("index") or {})
+    out = steps.finalize(ctx())
+    assert calls == ["triage", "extract", "consolidate", "index"]
+    assert out["catch_up_untriaged"] == 1 and out["catch_up_kept"] == 1 and out["catch_up_events"] == 2
+
+
+def test_finalize_survives_a_failed_catch_up(journey, monkeypatch):
+    journey.assets.insert_one(ASSET)
+    journey.company_records.insert_one({"record_key": "pr:late", "assets": ["treprostinil"], "record_type": "press_release"})
+    monkeypatch.setattr(steps, "triage_stored", lambda asset: (_ for _ in ()).throw(RuntimeError("model down")))
+    out = steps.finalize(ctx())
+    assert out["catch_up_error"] == "RuntimeError: model down" and out["suggested_questions"] == 4

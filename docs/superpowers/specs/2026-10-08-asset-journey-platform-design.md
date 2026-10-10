@@ -334,8 +334,8 @@ Each milestone ends working and demoable, and gets its own implementation plan:
 `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `CRAWLER_SERVICE_KEY`, `OPENAI_PROVIDER`
 (`openai`/`azure`), `OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_VERSION`,
 `LLM_TRIAGE_MODEL`, `LLM_REASONING_MODEL`, `LLM_EMBEDDING_MODEL`, `EMBEDDING_DIMENSIONS`,
-`LLM_CHAT_MODEL` (Asset AI; default `gpt-5.4-mini` with `LLM_CHAT_REASONING_EFFORT=none`, since gpt-5.4 models
-take function tools on Chat Completions only without reasoning), `LLM_FOLLOWUP_MODEL`,
+`LLM_CHAT_MODEL` (Asset AI; default `gpt-6-luna` with `LLM_CHAT_REASONING_EFFORT=none`, since gpt-6-luna
+takes function tools on Chat Completions only without reasoning), `LLM_FOLLOWUP_MODEL` (`gpt-6-luna`),
 `OPENFDA_API_KEY` (optional), `NCBI_API_KEY` (optional), `RESIDENTIAL_PROXY` (optional),
 `GOOGLE_DECODE_INTERVAL`.
 

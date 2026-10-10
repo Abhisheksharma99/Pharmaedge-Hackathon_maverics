@@ -1,7 +1,10 @@
 import { ExternalLink, Loader2 } from 'lucide-react'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { formatDate, formatPhase, formatStatus } from '@/lib/format'
+import { safeUrl } from '@/lib/utils'
 import { useRecord, type RecordTab, type SourceRecord } from '../api'
+import { DocumentText, JourneyEvents, MentionExcerpts, type JourneyEventRef } from './document-text'
+import { SlideBody, isSlide, slideHeading } from './slide-record'
 
 type Formatter = (value: unknown) => string
 
@@ -62,8 +65,14 @@ export function recordTitle(r: SourceRecord): string {
   )
 }
 
+/** "Bristol-Myers Squibb", not the crawler's id "bristol_myers_squibb". */
+function publisher(r: SourceRecord): string {
+  const name = typeof r.company === 'string' && r.company ? r.company : String(r.source ?? r.record_type ?? '')
+  return name.includes('_') ? name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : name
+}
+
 function sourceUrl(r: SourceRecord): string | undefined {
-  return (r.url as string) || (r.medicine_url as string) || (r.dhpc_url as string) || undefined
+  return safeUrl(r.url) ?? safeUrl(r.medicine_url) ?? safeUrl(r.dhpc_url)
 }
 
 function RecordBody({ record }: { record: SourceRecord }) {
@@ -71,9 +80,11 @@ function RecordBody({ record }: { record: SourceRecord }) {
     const v = record[k]
     return v !== undefined && v !== null && v !== '' && !(Array.isArray(v) && v.length === 0)
   })
-  const docs = Array.isArray(record.documents) ? (record.documents as { url: string; type: string; date?: string }[]) : []
+  const docs = (Array.isArray(record.documents) ? (record.documents as { url: string; type: string; date?: string }[]) : []).filter((d) => safeUrl(d.url))
   const text = (record.content as string) || (record.abstract as string) || (record.therapeutic_indication as string) || ''
   const url = sourceUrl(record)
+  const names = Array.isArray(record.mentions) ? (record.mentions as string[]) : []
+  const events = Array.isArray(record.journeyEvents) ? (record.journeyEvents as JourneyEventRef[]) : []
 
   return (
     <div className="space-y-5 px-4 pb-6">
@@ -92,6 +103,8 @@ function RecordBody({ record }: { record: SourceRecord }) {
           ))}
         </dl>
       )}
+      {text && <MentionExcerpts text={text} names={names} />}
+      <JourneyEvents events={events} />
       {docs.length > 0 && (
         <div>
           <p className="mb-1.5 font-medium">FDA documents</p>
@@ -107,12 +120,7 @@ function RecordBody({ record }: { record: SourceRecord }) {
           </ul>
         </div>
       )}
-      {text && (
-        <div>
-          <p className="mb-1.5 font-medium">Text</p>
-          <div className="max-w-none rounded-lg border bg-background p-3 leading-relaxed whitespace-pre-wrap">{text}</div>
-        </div>
-      )}
+      {text && <DocumentText text={text} names={names} open={!names.length || text.length < 2500} />}
     </div>
   )
 }
@@ -135,9 +143,15 @@ export function RecordSheet({
     <Sheet open={recordKey !== null} onOpenChange={(open) => !open && onClose()}>
       <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
         <SheetHeader>
-          <SheetTitle className="pr-6 leading-snug">{record.data ? recordTitle(record.data) : 'Loading…'}</SheetTitle>
+          <SheetTitle className="pr-6 leading-snug">
+            {record.data ? (isSlide(record.data) ? slideHeading(record.data).title : recordTitle(record.data)) : 'Loading…'}
+          </SheetTitle>
           <SheetDescription>
-            {record.data ? `${formatDate(record.data.date)} · ${String(record.data.source ?? record.data.record_type ?? '')}` : ' '}
+            {record.data
+              ? isSlide(record.data)
+                ? slideHeading(record.data).subtitle
+                : [formatDate(record.data.date), publisher(record.data)].filter(Boolean).join(' · ')
+              : ' '}
           </SheetDescription>
         </SheetHeader>
         {record.isPending && (
@@ -146,7 +160,7 @@ export function RecordSheet({
           </div>
         )}
         {record.isError && <p className="px-4 text-destructive">This record couldn't be loaded.</p>}
-        {record.data && <RecordBody record={record.data} />}
+        {record.data && (isSlide(record.data) ? <SlideBody record={record.data} /> : <RecordBody record={record.data} />)}
       </SheetContent>
     </Sheet>
   )

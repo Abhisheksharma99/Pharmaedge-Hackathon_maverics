@@ -7,11 +7,12 @@ import { CompetitorsService } from './competitors.service.js';
 import { EvidenceService } from './evidence.service.js';
 import { ResolveController } from './resolve.controller.js';
 import { SignalsController } from './signals.controller.js';
+import { StoryService } from './story.service.js';
 
 @Module({
   imports: [JobsModule],
   controllers: [AssetsController, ResolveController, SignalsController],
-  providers: [AssetsService, CompetitorsService, EvidenceService, AssetLifecycleService],
-  exports: [AssetsService, CompetitorsService],
+  providers: [AssetsService, CompetitorsService, EvidenceService, AssetLifecycleService, StoryService],
+  exports: [AssetsService, CompetitorsService, StoryService],
 })
 export class AssetsModule {}

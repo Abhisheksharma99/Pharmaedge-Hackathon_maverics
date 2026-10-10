@@ -4,6 +4,7 @@ import { useChatSessions, useCreateChatSession } from './api'
 import { ChatConversation } from './components/chat-conversation'
 import { ADD_ASSET_DRAFT, ChatEmptyState } from './components/chat-empty-state'
 import { ChatHistory } from './components/chat-history'
+import { useOfferNavigation } from './navigation'
 
 const PORTFOLIO_QUESTIONS = [
   'What changed across my assets this month?',
@@ -20,6 +21,7 @@ export function ChatPage() {
   const createSession = useCreateChatSession()
   const addIntent = sessionId === null && params.get('intent') === 'add'
   const title = sessionId ? (sessions.data?.find((s) => s.id === sessionId)?.title ?? '') : ''
+  useOfferNavigation(sessionId)
 
   return (
     <div className="flex h-full min-h-0">

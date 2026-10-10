@@ -38,7 +38,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw err
       }
     },
-    retry: false,
+    // A restart or deploy (502/503, network) is not a signed-out user: retry for ~30 s before giving up.
+    retry: (failures, err) => !(err instanceof ApiError && err.status < 500) && failures < 6,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
     staleTime: 5 * 60_000,
   })
 

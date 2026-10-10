@@ -65,6 +65,18 @@ describe('apiFetch', () => {
     expect(unauthorized).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps the session when the refresh only failed because the server was down', async () => {
+    fetchMock.mockImplementation(async (url: string) =>
+      url === '/api/auth/refresh' ? json(502, { message: 'Bad Gateway' }) : json(401, { code: 'TOKEN_INVALID', message: 'x' }),
+    )
+    await expect(apiFetch('/assets')).rejects.toMatchObject({ status: 503, code: 'SESSION_REFRESH_UNAVAILABLE' })
+    fetchMock.mockImplementation(async (url: string) =>
+      url === '/api/auth/refresh' ? Promise.reject(new TypeError('Failed to fetch')) : json(401, { code: 'TOKEN_INVALID', message: 'x' }),
+    )
+    await expect(apiFetch('/assets')).rejects.toMatchObject({ status: 503 })
+    expect(unauthorized).not.toHaveBeenCalled()
+  })
+
   it('never refreshes for the session endpoints themselves', async () => {
     fetchMock.mockResolvedValue(json(401, { code: 'INVALID_CREDENTIALS', message: 'Invalid email or password' }))
     await expect(apiFetch('/auth/login', { method: 'POST', body: {} })).rejects.toMatchObject({
@@ -117,3 +129,4 @@ describe('apiStream', () => {
     })
   })
 })
+

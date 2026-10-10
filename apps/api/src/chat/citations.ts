@@ -13,6 +13,7 @@ export const COLLECTION_META: Record<string, { tab: string; label: string }> = {
 };
 
 /** Company documents (prescribing information, annual reports) live on the Documents tab, not Company IR. */
+// Investor-presentation slides are company IR (the collection's own tab), like press releases.
 const DOCUMENT_TYPES = new Set(['prescribing_info', 'annual_report', 'company_document', 'company_page']);
 
 export type CitationSource = Omit<Citation, 'n' | 'tab' | 'source'> & { recordType?: string | null };
@@ -23,6 +24,36 @@ export type CitationSource = Omit<Citation, 'n' | 'tab' | 'source'> & { recordTy
  */
 export class CitationRegistry {
   private readonly byKey = new Map<string, Citation>();
+  /** What the model was shown for each ref this turn: the only text a claim citing that ref may rest on. */
+  private readonly shown = new Map<number, string[]>();
+
+  /** Record the evidence handed to the model under ref `n` (a passage, a record view, an event). */
+  addEvidence(n: number | null, evidence: unknown): void {
+    if (n === null) return;
+    const list = this.shown.get(n) ?? [];
+    list.push(typeof evidence === 'string' ? evidence : JSON.stringify(evidence));
+    this.shown.set(n, list);
+  }
+
+  /** The evidence text behind ref `n` (empty when the ref was never issued this turn). */
+  evidence(n: number): string {
+    return (this.shown.get(n) ?? []).join('\n');
+  }
+
+  /** The record behind ref `n`, when it was issued this turn. */
+  lookup(n: number): Citation | undefined {
+    return [...this.byKey.values()].find((c) => c.n === n);
+  }
+
+  /** Every ref issued this turn. */
+  issued(): number[] {
+    return [...this.byKey.values()].map((c) => c.n);
+  }
+
+  /** Records handed to the model this turn, for the audit trail (ids only, never the text). */
+  records(): string[] {
+    return [...this.byKey.values()].map((c) => `${c.collection}|${c.recordKey}`);
+  }
 
   /** The ref number for a source record, or null when it can't be opened in the app. */
   ref(src: CitationSource): number | null {

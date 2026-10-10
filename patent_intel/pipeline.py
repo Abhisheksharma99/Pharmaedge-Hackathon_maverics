@@ -15,6 +15,7 @@ from . import google_patents as gp
 from .adis import fetch_drug
 from .ctgov import other_product, other_products, resolve_by_name
 from .crawler import classify, crawl
+from .market.ingest import collect as market_collect
 from .matching import normalize
 from .net import Http, stats
 from .pubchem import patent_ids
@@ -80,7 +81,7 @@ async def run_drug(*, http: Http, store: Store, adis_ref: str | None = None,
                    drug_name: str | None = None, companies: list[str] | None = None, all_developers: bool = False,
                    terms: list[str] | None = None, seeds: list[str] | None = None,
                    max_pages: int = 600, probe_budget: int = 150, regulatory: bool = True,
-                   fda_calendar: bool = True) -> dict:
+                   fda_calendar: bool = True, market: bool = True) -> dict:
     started, before = _now(), stats.copy()
     drug = await resolve_drug(http, adis_ref, drug_name, companies)
     did = drug["_id"]
@@ -172,6 +173,12 @@ async def run_drug(*, http: Http, store: Store, adis_ref: str | None = None,
         rep["events_marked_stale"] = await store.mark_stale("fda_calendar_events", {"drug_id": did}, {e["_id"] for e in cal})
         run["fda_calendar"] = rep
         log.info("run %s | FDA calendar: %d matched, %d unresolved", drug["name"], rep["matched"], rep["unresolved"])
+    if market:  # listed companies owning this drug's events + their daily prices (stock-impact charts)
+        try:
+            run["market"] = await market_collect(http, store, drug=drug, companies=companies)
+        except Exception as e:  # optional step: never fails a run whose patents/events are already stored
+            log.exception("run %s | market step failed", drug["name"])
+            run["market"] = {"error": f"{type(e).__name__}: {e}"[:300]}
     await store.upsert("drugs", [{**drug, "updated_at": _now()}])
     await store.upsert("crawl_runs", [run])
     return run

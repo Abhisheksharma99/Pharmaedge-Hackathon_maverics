@@ -20,6 +20,7 @@ storage/json_store.py), for reviewing data before loading it into MongoDB.
 """
 
 import functools
+import logging
 import hashlib
 import os
 import time
@@ -29,7 +30,7 @@ from typing import Any, Dict, Iterable, List, Optional
 
 from dotenv import load_dotenv
 from pymongo import MongoClient, UpdateOne
-from pymongo.errors import AutoReconnect
+from pymongo.errors import AutoReconnect, OperationFailure
 
 load_dotenv()
 
@@ -81,6 +82,14 @@ def get_db():
         for name in ("fda_records", "ema_records", "company_records", "trial_records"):
             db[name].create_index("record_key", unique=True)
             db[name].create_index("assets")
+        # Later collections: same contract. A deployment holding duplicate keys from before keeps running (logged);
+        # the duplicates must be merged before the unique index can exist.
+        for name in ("publication_records", "conference_records", "patent_records"):
+            db[name].create_index("assets")
+            try:
+                db[name].create_index("record_key", unique=True)
+            except OperationFailure as e:
+                logging.getLogger("storage").warning("no unique record_key index on %s: %s", name, e)
         db.logs.create_index("crawler_id")
         _db = db  # only once indexes exist, so a retry redoes them
     return _db

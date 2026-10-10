@@ -61,9 +61,17 @@ API e2e tests need Valkey running (`docker compose up -d valkey`).
 - **Cards:** `identity` (resolve), `job` (crawl progress), `comparison`, `timeline`.
 - **Adding an asset:** the model only calls `resolve_asset`. The user's "Confirm & start crawl" calls `POST /api/assets`,
   which creates the asset and starts its `onboard` crawl. Adding a tracked competitor promotes it to a primary asset.
-- **Model:** `LLM_CHAT_MODEL` (default `gpt-5.4-mini`, reasoning off: gpt-5.4 models only take function tools on
-  Chat Completions without reasoning). Without `OPENAI_API_KEY` the rest of the app works and chat answers
+- **Model:** `LLM_CHAT_MODEL` (default `gpt-6-luna`, reasoning off: gpt-6-luna only takes function tools on
+  Chat Completions without reasoning). Follow-ups: `LLM_FOLLOWUP_MODEL` (`gpt-6-luna`, reasoning off). Without `OPENAI_API_KEY` the rest of the app works and chat answers
   `LLM_UNAVAILABLE`.
+
+### Drug master and evaluations
+
+- Name resolution data: `cd crawler && python -m scripts.load_drug_master "<drug_master.xlsx>" --link` loads
+  `pharmaedge.drug_master` and links tracked assets (`assets.master`). Idempotent; never adds crawl aliases.
+- Evals (not part of `npm test`; never against production - they seed eval records):
+  `EVAL_MONGODB_URI=... EVAL_OPENAI_API_KEY=... npx vitest run --config ./vitest.config.eval.ts retrieval|answers`
+  (`EVAL_CATEGORIES`, `EVAL_LIMIT`, `EVAL_OUT_DIR`).
 
 ## Auth model
 

@@ -32,11 +32,12 @@ def test_unknown_or_empty_step_lists_are_rejected(steps):
 
 CONTRACT_PLANS = {
     "onboard": ["regulatory", "ema_chmp", "clinical", "publications", "conferences", "company_site", "company_news",
-                "news", "industry_news", "journey", "ai_triage", "ai_events", "index", "competitors", "fda_calendar",
-                "patents", "finalize"],
+                "presentations", "news", "industry_news", "journey", "ai_triage", "ai_events", "index", "competitors",
+                "fda_calendar", "sec_regulatory", "market", "patents", "finalize"],
     # Patents too: their expiries are the competitor's loss-of-exclusivity dates.
-    "competitor": ["regulatory", "fda_calendar", "ema_chmp", "clinical", "publications", "conferences", "news",
-                   "patents", "journey", "ai_triage", "ai_events", "index", "finalize"],
+    "competitor": ["regulatory", "fda_calendar", "sec_regulatory", "market", "ema_chmp", "clinical", "publications",
+                   "conferences", "presentations", "news", "patents", "journey", "ai_triage", "ai_events", "index",
+                   "finalize"],
 }
 
 

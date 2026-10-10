@@ -46,9 +46,10 @@ export const SOURCE_TABS: Record<string, SourceTab> = {
   },
   'company-ir': {
     collections: ['company_records'],
-    match: { record_type: 'press_release' },
-    searchFields: ['title'],
-    omitInList: ['content'],
+    // Press releases and investor-presentation slides (crawler step `presentations`): both are investor relations.
+    match: { record_type: { $in: ['press_release', 'presentation_slide'] } },
+    searchFields: ['title', 'deck_title'],
+    omitInList: ['content', 'slide_text', 'claims', 'metrics', 'evidence'],
     keyField: 'record_key',
   },
   news: {

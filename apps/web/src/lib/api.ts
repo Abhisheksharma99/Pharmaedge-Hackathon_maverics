@@ -13,7 +13,8 @@ export class ApiError extends Error {
 // Calls that must never trigger a refresh (they *are* the session endpoints).
 const NO_REFRESH = new Set(['/auth/login', '/auth/refresh', '/auth/logout'])
 
-let refreshing: Promise<boolean> | null = null
+type Refresh = 'ok' | 'rejected' | 'unavailable'
+let refreshing: Promise<Refresh> | null = null
 let onUnauthorized: () => void = () => {}
 
 /** Called once a session can't be recovered (refresh failed). */
@@ -21,11 +22,14 @@ export function setUnauthorizedHandler(handler: () => void) {
   onUnauthorized = handler
 }
 
-/** One refresh for any number of concurrent 401s. */
-function refreshSession(): Promise<boolean> {
+/**
+ * One refresh for any number of concurrent 401s. 'rejected' = the server refused the session (sign out);
+ * 'unavailable' = the server couldn't answer (restart, deploy, network): the session may still be valid.
+ */
+function refreshSession(): Promise<Refresh> {
   refreshing ??= fetch('/api/auth/refresh', { method: 'POST', credentials: 'same-origin' })
-    .then((res) => res.ok)
-    .catch(() => false)
+    .then((res): Refresh => (res.ok ? 'ok' : res.status === 401 || res.status === 403 ? 'rejected' : 'unavailable'))
+    .catch((): Refresh => 'unavailable')
     .finally(() => {
       refreshing = null
     })
@@ -77,7 +81,10 @@ async function send(path: string, { method = 'GET', body, signal }: RequestOptio
 
   let res = await request()
   if (res.status === 401 && !NO_REFRESH.has(path)) {
-    if (await refreshSession()) res = await request()
+    const refreshed = await refreshSession()
+    // Server briefly down: keep the session and let the caller retry (5xx), never sign out for it.
+    if (refreshed === 'unavailable') throw new ApiError(503, 'SESSION_REFRESH_UNAVAILABLE', 'The server is restarting, retrying…')
+    if (refreshed === 'ok') res = await request()
     if (res.status === 401) onUnauthorized()
   }
   if (!res.ok) throw await toApiError(res)

@@ -30,6 +30,8 @@ export const RECORD_TYPE_LABEL: Record<string, string> = {
   company_document: 'Company document',
   company_page: 'Company web page',
   press_release: 'Press release',
+  presentation_slide: 'Investor presentation',
+  sec_fda_action: 'SEC filing (PDUFA / CRL)',
 }
 
 const str = (v: unknown) => (typeof v === 'string' ? v : '')
@@ -282,25 +284,47 @@ export function DocumentsTab() {
 export function CompanyIrTab() {
   const asset = useAssetContext()
   const [mentionsOnly, setMentionsOnly] = useState(true)
+  const [type, setType] = useState(ALL)
   return (
     <RecordsView
       assetId={asset.id}
       tab="company-ir"
-      title={`${asset.company.name} press releases`}
-      description="From the company's investor-relations site"
-      searchPlaceholder="Search releases"
-      filters={{ mentionsOnly }}
+      title={`${asset.company.name} investor relations`}
+      description="Press releases and investor-presentation slides from the company's IR site"
+      searchPlaceholder="Search releases and slides"
+      filters={{ mentionsOnly, type: asFilter(type) }}
       filterControls={
-        <div className="flex items-center gap-2">
-          <Switch id="mentions-only" checked={mentionsOnly} onCheckedChange={setMentionsOnly} />
-          <Label htmlFor="mentions-only" className="font-normal text-text-secondary">
-            Mentioning {asset.name}
-          </Label>
+        <div className="flex flex-wrap items-center gap-3">
+          <FilterSelect
+            label="Type"
+            value={type}
+            onChange={setType}
+            options={[
+              ['press_release', 'Press releases'],
+              ['presentation_slide', 'Investor presentations'],
+            ]}
+          />
+          <div className="flex items-center gap-2">
+            <Switch id="mentions-only" checked={mentionsOnly} onCheckedChange={setMentionsOnly} />
+            <Label htmlFor="mentions-only" className="font-normal text-text-secondary">
+              Mentioning {asset.name}
+            </Label>
+          </div>
         </div>
       }
       columns={[
         { header: 'Date', cell: dateCell },
-        { header: 'Release', cell: (r) => <span className="font-medium">{recordTitle(r)}</span> },
+        {
+          header: 'Title',
+          cell: (r) => (
+            <span className="font-medium">
+              {r.record_type === 'presentation_slide' && (
+                <Chip className="mr-1.5 h-5 px-1.5 align-middle text-xs">Slide</Chip>
+              )}
+              {recordTitle(r)}
+            </span>
+          ),
+        },
         {
           header: 'Mentions',
           cell: (r) => (

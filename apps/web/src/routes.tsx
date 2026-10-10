@@ -17,7 +17,9 @@ import {
   PublicationsTab,
   RegulatoryTab,
 } from '@/features/assets/pages/tabs'
+import { MarketTab } from '@/features/assets/pages/market-tab'
 import { LoginPage } from '@/features/auth/login-page'
+import { CanvasTab } from '@/features/canvas/canvas-tab'
 import { ChatPage } from '@/features/chat/chat-page'
 import { JobPage, JobsPage } from '@/features/jobs/jobs-pages'
 import { ProtectedRoute, RoleRoute } from '@/features/auth/route-guards'
@@ -57,7 +59,11 @@ export const routes: RouteObject[] = [
               { path: 'documents', element: <DocumentsTab /> },
               { path: 'company-ir', element: <CompanyIrTab /> },
               { path: 'patents', element: <PatentsTab /> },
+              { path: 'market', element: <MarketTab /> },
               { path: 'competitors', element: <CompetitorsTab /> },
+              { path: 'canvas', element: <CanvasTab /> },
+              { path: 'canvas/:canvasId', element: <CanvasTab /> },
+              { path: 'canvas/story/:storyId', element: <CanvasTab /> },
             ],
           },
           { path: '/chat', element: <ChatPage /> },

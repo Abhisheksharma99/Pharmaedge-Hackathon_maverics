@@ -26,6 +26,7 @@ INDEXES: dict[str, list[tuple[list[str], dict[str, Any]]]] = {
     "crawl_runs": [(["drug_id", "started_at"], {})],
     "regulatory_events": [(["drug_id", "date"], {}), (["drug_id", "type", "date"], {})],
     "fda_calendar_events": [(["drug_id", "stale", "date"], {}), (["drug_id", "status"], {})],
+    "drug_listings": [(["ticker", "stale"], {}), (["drug_id"], {})],  # market_prices: one doc per ticker, by _id
     # at most ONE active (queued/running) job per drug - enforced by the database, across processes
     "crawl_jobs": [(["drug_key"], {"unique": True, "partialFilterExpression": {"active": True}, "name": "one_active_job_per_drug"}),
                    (["status", "created_at"], {})],

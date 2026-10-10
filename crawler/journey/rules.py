@@ -14,14 +14,27 @@ import re
 from datetime import date, timedelta
 from typing import Any, Dict, Iterable, List, Optional
 
+from integrations import TEAM_ROOT  # noqa: F401  (puts the team packages on sys.path)
+from patent_intel.regulatory import is_company
+
+
+def company_names(company: Optional[str]) -> List[str]:
+    """The asset company and the names inside it ("Actelion (Janssen)" -> also "Actelion", "Janssen")."""
+    if not company:
+        return []
+    parts = [company, *re.split(r"[()]", company)]
+    return list(dict.fromkeys(p.strip() for p in parts if p.strip()))
+
 SIGNIFICANCE_BY_PHASE = {"PHASE3": "High", "PHASE2": "Medium", "PHASE4": "Low", "PHASE1": "Low", "EARLY_PHASE1": "Low"}
 ACTIVE_TRIAL_STATUSES = {"RECRUITING", "ACTIVE_NOT_RECRUITING", "NOT_YET_RECRUITING", "ENROLLING_BY_INVITATION"}
 
 
 def _event(asset: str, record: Dict[str, Any], collection: str, kind: str, **fields: Any) -> Dict[str, Any]:
-    """An event keyed by its source record and kind, so re-running updates instead of duplicating."""
+    """An event keyed by its asset, source record and kind, so re-running updates instead of duplicating. The asset
+    is part of the key because records are shared (a head-to-head trial is in both drugs' journeys): without it two
+    assets' events for one record were one document, which moved to whichever asset refreshed last."""
     return {
-        "_id": f"rule:{kind}:{record['record_key']}",
+        "_id": f"rule:{asset}:{kind}:{record['record_key']}",
         "asset": asset,
         "type": kind,
         "origin": "rule",
@@ -45,13 +58,15 @@ def _brand(record: Dict[str, Any]) -> str:
 
 
 CALENDAR_URL = re.compile(r"https?://\S+")
+PDUFA_TYPES = ("pdufa", "pdufa_date")  # FDA calendar listing / SEC filing
 
 
 def fda_calendar_event(asset: str, group: List[Dict[str, Any]], today: str) -> Dict[str, Any]:
     """FDA Tracker calendar: a PDUFA goal date ahead is the FDA decision milestone, one behind is history (the
-    decision itself comes from Drugs@FDA); advisory committee meetings likewise. `group` holds the calendar's
-    listings of one occurrence (the same date and type, e.g. a PDUFA date listed for the company and for its
-    partner): one event citing them all, worded from the asset company's own listing when there is one."""
+    decision itself comes from Drugs@FDA); advisory committee meetings likewise. `group` holds the listings of one
+    occurrence (the same date and type, e.g. a PDUFA date listed for the company and for its partner, and the
+    company's SEC filing stating it): one event citing them all, worded from the asset company's own listing when
+    there is one (calendar first, then the filing)."""
     group = sorted(group, key=lambda g: (not g.get("sponsor_is_company"), g["record_key"]))
     r = group[0]
     drugs = ", ".join(dict.fromkeys(d for g in group for d in g.get("drugs") or []))
@@ -60,7 +75,7 @@ def fda_calendar_event(asset: str, group: List[Dict[str, Any]], today: str) -> D
                   expected_date=r["date"] if upcoming else None, sponsor=r.get("company"),
                   sponsor_is_company=r.get("sponsor_is_company"),
                   summary=re.sub(r"\s+", " ", CALENDAR_URL.sub("", r.get("description") or "")).strip()[:400])
-    if r.get("event_type") != "pdufa":
+    if r.get("event_type") not in PDUFA_TYPES:
         kind = "advisory_committee"
         title = f"FDA advisory committee {'meeting scheduled' if upcoming else 'meeting'}: {drugs}"
     elif upcoming:
@@ -72,13 +87,58 @@ def fda_calendar_event(asset: str, group: List[Dict[str, Any]], today: str) -> D
     return event
 
 
-def fda_events(asset: str, records: Iterable[Dict[str, Any]], today: Optional[str] = None) -> List[Dict[str, Any]]:
+def _submission_key(r: Dict[str, Any]) -> tuple:
+    """(application, ORIG|SUPPL, supplement number) - the same submission in Drugs@FDA and FDA's program lists."""
+    original = (r.get("submission_type") or "").upper().startswith("ORIG")
+    number = "" if original else str(r.get("submission_number") or "").lstrip("0")
+    return (r.get("application_number") or "", "ORIG" if original else "SUPPL", number)
+
+
+def _programs(rows: List[Dict[str, Any]]) -> List[str]:
+    return sorted({r.get("program_name") or r.get("program") or "" for r in rows} - {""})
+
+
+def _expedited_event(asset: str, rows: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """An FDA approval that used expedited programs, when Drugs@FDA lists no such submission for the asset."""
+    r = rows[0]
+    brand = _brand(r) or "the asset"
+    original = r.get("submission_type") == "ORIG"
+    event = _event(asset, r, "fda_records", "approval" if original else "label_expansion", category="regulatory", region="US",
+                   date=r["date"], application_number=r.get("application_number"), significance="High",
+                   title=f"FDA approves {'' if original else 'new indication for '}{brand}",
+                   summary=f"{r.get('indication') or ''} · {', '.join(_programs(rows))}".strip(" ·"),
+                   expedited_programs=_programs(rows), indication=r.get("indication"))
+    event["sources"] = [{"collection": "fda_records", "record_key": x["record_key"]} for x in rows]
+    return event
+
+
+def fda_events(asset: str, records: Iterable[Dict[str, Any]], today: Optional[str] = None,
+               company: Optional[str] = None) -> List[Dict[str, Any]]:
     today = today or date.today().isoformat()
+    names = company_names(company)
     events, calendar = [], {}
+    expedited: Dict[tuple, List[Dict[str, Any]]] = {}  # FDA program lists, by submission
+    submissions: Dict[str, Dict[str, Any]] = {}  # Drugs@FDA submissions that made an event, by record_key
     for r in records:
+        if r.get("record_type") == "fda_expedited_approval":  # integrations/designations.py
+            if r.get("date"):
+                expedited.setdefault(_submission_key(r), []).append(r)
+            continue
         if r.get("record_type") == "fda_calendar_event":
             if r.get("date"):
                 calendar.setdefault((r["date"], r.get("event_type")), []).append(r)
+            continue
+        if r.get("record_type") == "sec_fda_action":  # the company's own SEC filing (integrations/sec_regulatory.py)
+            if not r.get("date"):
+                continue
+            if r.get("event_type") == "pdufa_date":  # same occurrence as a calendar listing of that date -> one event
+                calendar.setdefault((r["date"], "pdufa"), []).append(r)
+            elif r.get("event_type") == "complete_response_letter":
+                events.append(_event(asset, r, "fda_records", "complete_response_letter", category="regulatory",
+                                     region="US", date=r["date"], significance="High", sponsor=r.get("company"),
+                                     sponsor_is_company=True,
+                                     title=f"FDA complete response letter: {', '.join(r.get('drugs') or [])}",
+                                     summary=re.sub(r"\s+", " ", r.get("description") or "").strip()[:400]))
             continue
         if r.get("record_type") == "fda_recall":
             events.append(_event(asset, r, "fda_records", "recall", category="safety", region="US", date=r.get("date", ""),
@@ -87,10 +147,15 @@ def fda_events(asset: str, records: Iterable[Dict[str, Any]], today: Optional[st
             continue
         if r.get("record_type") != "fda_submission" or not r.get("date"):
             continue
+        submissions[r["record_key"]] = r
         status, sub_type, cls = r.get("submission_status"), r.get("submission_type"), r.get("submission_class") or ""
         brand, app_no = _brand(r), r.get("application_number", "")
         sponsor = (r.get("sponsor_name") or "").title()
-        common = dict(category="regulatory", region="US", date=r["date"], application_number=app_no)
+        # Other sponsors of the same molecule (a competitor's formulation, generics) are not the asset company's
+        # milestones: flagged, so views can tell them apart (None when the asset company is unknown).
+        own = is_company(names, r.get("sponsor_name") or "") if names and r.get("sponsor_name") else None
+        common = dict(category="regulatory", region="US", date=r["date"], application_number=app_no,
+                      sponsor=sponsor or None, sponsor_is_company=own)
         if status == "TA":
             events.append(_event(asset, r, "fda_records", "tentative_approval", **common, significance="Medium",
                                  title=f"FDA tentative approval: {brand} ({sponsor})", summary=f"{app_no}"))
@@ -114,6 +179,23 @@ def fda_events(asset: str, records: Iterable[Dict[str, Any]], today: Optional[st
             events.append(_event(asset, r, "fda_records", "label_update", **common, significance="Low",
                                  title=f"Label update for {brand}", summary=f"{app_no} supplement {r.get('submission_number')}"))
         # Manufacturing (CMC) supplements are left off the journey: frequent and not strategic.
+    # Expedited programs (Breakthrough, Priority Review, Accelerated Approval, Fast Track) belong to the approval
+    # they were used for: annotate that event and cite the program list; never a second approval event.
+    for e in events:
+        src = submissions.get(e["sources"][0]["record_key"])
+        rows = expedited.pop(_submission_key(src), None) if src else None
+        if rows:
+            e["expedited_programs"] = _programs(rows)
+            e["summary"] = f"{e.get('summary') or ''} · {', '.join(_programs(rows))}".strip(" ·")
+            e["sources"] = e["sources"] + [{"collection": "fda_records", "record_key": x["record_key"]} for x in rows]
+            e.setdefault("indication", rows[0].get("indication"))
+    events += [_expedited_event(asset, rows) for rows in expedited.values()]  # not in Drugs@FDA for this asset
+    # A divested product lists its current holder (Esbriet: Legacy Pharma, not Genentech/Roche). When the asset company
+    # holds none of the molecule's brand applications, the match says nothing about them: unknown, not "other".
+    brand_apps = [e for e in events if (e.get("application_number") or "").startswith(("NDA", "BLA"))]
+    if names and brand_apps and not any(e.get("sponsor_is_company") for e in brand_apps):
+        for e in brand_apps:
+            e["sponsor_is_company"] = None
     return events + [fda_calendar_event(asset, group, today) for group in calendar.values()]
 
 
@@ -286,7 +368,7 @@ def patent_events(asset: str, records: Iterable[Dict[str, Any]], today: Optional
 
 def build_rule_events(db, asset_id: str, company: Optional[str]) -> List[Dict[str, Any]]:
     q = {"assets": asset_id}
-    return (fda_events(asset_id, db.fda_records.find(q))
+    return (fda_events(asset_id, db.fda_records.find(q), company=company)
             + ema_events(asset_id, db.ema_records.find(q))
             + trial_events(asset_id, db.trial_records.find(q, {"study": 0}), company)
             + patent_events(asset_id, db.patent_records.find(q, {"abstract": 0, "events": 0})))

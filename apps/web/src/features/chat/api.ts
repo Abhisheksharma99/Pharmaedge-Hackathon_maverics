@@ -8,6 +8,8 @@ import {
   type Significance,
 } from '@/features/assets/api'
 import type { Job } from '@/features/jobs/api'
+import type { CanvasNode } from '@/features/canvas/api'
+import type { StorySpec } from '@/features/story/api'
 
 export interface ChatSession {
   id: string
@@ -76,6 +78,19 @@ export type Card =
       rows: { label: string; values: string[] }[]
     }
   | { type: 'timeline'; title: string; assetId: string; events: TimelineCardEvent[] }
+  | { type: 'canvas'; canvasId: string; assetId: string; title: string; nodes: number; groups: { label: string; events: number }[] }
+  | { type: 'story'; storyId: string; assetId: string; title: string; events: number; changes: number; checks: number; compare: string | null }
+
+/** A view Asset AI asks the app to open: an asset tab, or a canvas on the canvas tab. */
+export interface NavTarget {
+  assetId: string
+  tab: string
+  canvasId?: string
+  /** A journey story, shown in the canvas area. */
+  storyId?: string
+  /** A cited source record to open over the tab. */
+  record?: { tab: string; key: string }
+}
 
 export interface ChatMessage {
   id: string
@@ -93,6 +108,11 @@ export type StreamEvent =
   | { type: 'tool_call'; id: string; name: string; label: string }
   | { type: 'tool_result'; id: string; name: string; summary: string }
   | { type: 'card'; card: Card }
+  | { type: 'navigate'; to: NavTarget }
+  | { type: 'canvas_start'; canvasId: string; assetId: string; title: string; tree: CanvasNode }
+  | { type: 'canvas_nodes'; canvasId: string; parentId: string; nodes: CanvasNode[] }
+  | { type: 'story_start'; storyId: string; assetId: string; title: string; question: string | null; spec: StorySpec }
+  | { type: 'story_layer'; storyId: string; layer: string; data: unknown }
   | { type: 'token'; text: string }
   | { type: 'answer'; message: ChatMessage }
   | { type: 'error'; code: string; message: string }

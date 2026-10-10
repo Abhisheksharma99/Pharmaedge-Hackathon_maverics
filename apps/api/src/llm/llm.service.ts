@@ -60,12 +60,30 @@ export class LlmService {
     return res.data[0]!.embedding;
   }
 
+  /**
+   * One structured (JSON schema) call on the retrieval model: reranking, hypothetical passages (HyDE) and the
+   * evidence check of search_evidence. Throws on failure; callers fall back to plain retrieval.
+   */
+  async structured<T>(system: string, user: string, name: string, schema: Record<string, unknown>, maxTokens = 800): Promise<T> {
+    if (!this.client) throw new Error('LLM unavailable');
+    const res = await this.client.chat.completions.create({
+      model: this.config.get('LLM_RAG_MODEL', { infer: true }),
+      reasoning_effort: 'none',
+      max_completion_tokens: maxTokens,
+      messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+      response_format: { type: 'json_schema', json_schema: { name, strict: true, schema } },
+    });
+    return JSON.parse(res.choices[0]?.message.content ?? '{}') as T;
+  }
+
   /** Three short next questions for the "Ask next" list. Best effort: [] on any failure. */
   async followUps(question: string, answer: string, assetName: string | null): Promise<string[]> {
     if (!this.client) return [];
     try {
       const res = await this.client.chat.completions.create({
         model: this.config.get('LLM_FOLLOWUP_MODEL', { infer: true }),
+        reasoning_effort: this.config.get('LLM_FOLLOWUP_REASONING_EFFORT', { infer: true }),
+        max_completion_tokens: 600,
         messages: [
           {
             role: 'system',

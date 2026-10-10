@@ -3,7 +3,8 @@ import { createHash } from 'node:crypto';
 import type { Db, Document } from 'mongodb';
 import { MONGO_DB } from '../database/database.module.js';
 import { CacheService } from '../valkey/cache.service.js';
-import type { RecordsQueryDto, TimelineQueryDto } from './dto/asset-queries.dto.js';
+import type { MarketQueryDto, RecordsQueryDto, TimelineQueryDto } from './dto/asset-queries.dto.js';
+import { MARKET_NOTE, measure, type Bar } from '../chat/market.js';
 import { SOURCE_TABS, type SourceTab } from './source-registry.js';
 
 const CACHE_TTL_SECONDS = 3600;
@@ -34,6 +35,8 @@ export interface AssetDoc {
   kind: 'primary' | 'competitor';
   status: 'onboarding' | 'ready' | 'failed';
   competitors?: CompetitorRef[];
+  /** Drug-master identity (crawler scripts/load_drug_master --link): for resolving names, never crawl aliases. */
+  master?: { adis_id?: string | null; name?: string; names?: string[]; keys?: string[]; moa?: string[]; targets?: string[] };
   competitor_scan?: { at: Date; candidates: number };
   competitor_of?: string[];
   suggested_questions?: string[];
@@ -93,7 +96,7 @@ export class AssetsService {
       Promise.all(['fda_records', 'ema_records'].map((c) =>
         this.db.collection(c).countDocuments({ ...q, ...SOURCE_TABS.regulatory.match }),
       )).then(([a, b]) => a + b),
-      this.db.collection('company_records').countDocuments({ ...q, ...SOURCE_TABS['company-ir'].match }),
+      this.db.collection('company_records').countDocuments({ ...q, record_type: 'press_release' }), // KPI: releases only
       this.db.collection('company_records').countDocuments({ ...q, ...SOURCE_TABS.documents.match }),
       this.db.collection('articles').countDocuments(q),
       this.db.collection('publication_records').countDocuments(q),
@@ -179,6 +182,79 @@ export class AssetsService {
     });
   }
 
+  /**
+   * Share price of the asset's listed company (crawler step `market`) with the move after each journey event
+   * (day 0 / +5 / +20, dip, peak; same rules as Asset AI's get_market_reaction). Past High/Medium events by default.
+   */
+  market(id: string, query: MarketQueryDto) {
+    // The view name carries the response version: a cached entry of an older shape is never served after a deploy.
+    return this.cached(id, 'market:v2', query, async () => {
+      const asset = await this.getAsset(id);
+      const listings = await this.db.collection('market_listings').find({ asset: id, stale: { $ne: true } }).toArray();
+      const primary = listings.find((l) => (l.roles as string[] | undefined)?.includes('asset_company')) ?? listings[0];
+      if (!primary) {
+        return { listed: false as const, company: asset.company?.name ?? null, note: MARKET_NOTE };
+      }
+      // The company's other tracked drugs: assets listed under the same ticker. Only these can be added (?drugs=).
+      const sameTicker = await this.db
+        .collection('market_listings')
+        .find({ ticker: primary.ticker, stale: { $ne: true } }, { projection: { asset: 1 } })
+        .toArray();
+      const drugs = await this.db
+        .collection<AssetDoc>('assets')
+        .find({ _id: { $in: [...new Set([id, ...sameTicker.map((l) => l.asset as string)])] } }, { projection: { name: 1 } })
+        .sort({ name: 1 })
+        .toArray();
+      const allowed = new Set(drugs.map((d) => d._id));
+      const selected = [id, ...(query.drugs ?? []).filter((d) => d !== id && allowed.has(d))];
+      const names = new Map(drugs.map((d) => [d._id, d.name]));
+
+      const prices = await this.db.collection('market_prices').findOne({ _id: primary.ticker });
+      const bars = ((prices?.bars ?? []) as Bar[]).filter((b) => typeof b.close === 'number' && typeof b.date === 'string');
+      const base: Document = {
+        asset: { $in: selected },
+        is_milestone: false,
+        significance: { $in: query.significance ?? ['High', 'Medium'] },
+        date: { $ne: '', ...(query.from && { $gte: query.from }), ...(query.to && { $lte: query.to }) },
+      };
+      const coll = this.db.collection('journey_events');
+      const [events, counts] = await Promise.all([
+        coll
+          .find(query.category?.length ? { ...base, category: { $in: query.category } } : base, {
+            projection: { asset: 1, title: 1, date: 1, category: 1, type: 1, significance: 1, sources: { $slice: 1 } },
+          })
+          .sort({ date: 1 })
+          .limit(1000)
+          .toArray(),
+        coll.aggregate<{ _id: string; n: number }>([{ $match: base }, { $group: { _id: '$category', n: { $sum: 1 } } }]).toArray(),
+      ]);
+      const now = new Date().toISOString().slice(0, 10);
+      return {
+        listed: true as const,
+        ticker: primary.ticker as string,
+        company: primary.company as string,
+        listed_name: (primary.listed_name as string | null) ?? null,
+        exchange: (primary.exchange as string | null) ?? null,
+        via_parent: primary.via_parent === true,
+        other_listings: listings.filter((l) => l !== primary).map((l) => l.ticker as string),
+        source: (prices?.source as string | undefined) ?? null,
+        currency: (prices?.currency as string | undefined) ?? null,
+        as_of: (prices?.as_of as string | undefined) ?? null,
+        note: MARKET_NOTE,
+        drugs: drugs.map((d) => ({ id: d._id, name: d.name, selected: selected.includes(d._id) })),
+        category_counts: Object.fromEntries(counts.map((c) => [c._id, c.n])),
+        bars,
+        events: events.map(({ _id, sources, asset: drug, ...e }) => ({
+          id: _id,
+          ...e,
+          drug: { id: drug as string, name: names.get(drug as string) ?? (drug as string) },
+          source: (sources as { collection: string; record_key: string }[] | undefined)?.[0] ?? null,
+          ...measure(bars, String(e.date), now),
+        })),
+      };
+    }, query.drugs ?? []);
+  }
+
   records(id: string, tabName: string, query: RecordsQueryDto) {
     const tab = this.tab(tabName);
     return this.cached(id, `records:${tabName}`, query, async () => {
@@ -188,7 +264,8 @@ export class AssetsService {
         const re = new RegExp(escapeRegex(query.q), 'i');
         match.$or = tab.searchFields.map((f) => ({ [f]: re }));
       }
-      if (query.type?.length) match.record_type = { $in: query.type };
+      // Narrows the tab's own record types, never replaces them (a ?type= cannot reach records outside the tab).
+      if (query.type?.length) (match.$and ??= []).push({ record_type: { $in: query.type } });
       if (query.phase?.length) match.phases = { $in: query.phase };
       if (query.status?.length) match[tab.statusField ?? 'overall_status'] = { $in: query.status };
       if (query.mentionsOnly) match.mentions = { $exists: true, $ne: [] };
@@ -230,7 +307,16 @@ export class AssetsService {
       const doc = await this.db
         .collection(coll)
         .findOne({ assets: id, ...tab.match, [tab.keyField]: key }, { projection: { _id: 0 } });
-      if (doc) return { ...doc, key: doc[tab.keyField] };
+      if (doc) {
+        // The journey events this document is evidence for (rules and AI extraction), so the panel shows its impact.
+        const journeyEvents = await this.db
+          .collection('journey_events')
+          .find({ asset: id, 'sources.record_key': key }, { projection: { title: 1, type: 1, category: 1, date: 1, significance: 1, is_milestone: 1 } })
+          .sort({ date: -1 })
+          .limit(12)
+          .toArray();
+        return { ...doc, key: doc[tab.keyField], journeyEvents: journeyEvents.map(({ _id, ...e }) => ({ id: String(_id), ...e })) };
+      }
     }
     throw new NotFoundException({ code: 'RECORD_NOT_FOUND', message: 'Record not found' });
   }

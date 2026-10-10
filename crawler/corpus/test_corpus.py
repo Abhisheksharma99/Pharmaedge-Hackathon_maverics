@@ -178,3 +178,44 @@ def test_designations_are_parsed_from_the_pdfs_once(mongo, monkeypatch):
     stored = mongo.client["pharmaedge"]["fda_designations"].find_one()
     assert stored["_id"] == "breakthrough_therapy:NDA1:ORIG-1:2024-01-02:ab" and stored["names"][0] == "TYVASO"
     assert corpus.run_source(mongo, "designations") == {"skipped": "crawled once (once-only source)"}
+
+
+# ---------------------------------------------------------------- drug master (lookup corpus)
+
+def test_drug_master_parses_arrays_qualified_names_and_keys():
+    from corpus import drug_master as dm
+    assert dm.pg_array('{SNX-185,"Minocycline, controlled-release",NULL}') == ["SNX-185", "Minocycline, controlled-release"]
+    assert dm.pg_array(None) == [] and dm.pg_array("plain") == ["plain"]
+    assert dm.base_name("Sotatercept-csrk - Merck & Co") == "Sotatercept-csrk"
+    assert dm.key("BI 1015550") == dm.key("BI-1015550") == "bi1015550"
+    doc = dm.to_doc({"drug_id": "9", "drug_web_id": "800024655", "drug_name": "Sotatercept - Merck & Co", "competitor_name": "Sotatercept",
+                     "alternative_drug_name": "{ACE-011,WINREVAIR,MK-7962,\"Sotatercept-csrk - Merck & Co\",AB}",
+                     "competitor_company": "{Merck & Co}", "competitor_moa": "{Activin receptor antagonist}"})
+    assert doc["_id"] == doc["adis_id"] == "800024655" and doc["name"] == "Sotatercept"
+    assert doc["names"] == ["Sotatercept", "ACE-011", "WINREVAIR", "MK-7962", "Sotatercept-csrk", "AB"]
+    assert "winrevair" in doc["keys"] and "mk7962" in doc["keys"] and "ab" not in doc["keys"]  # too short to index
+    assert dm.to_doc({"drug_id": "1", "drug_web_id": "n/a", "drug_name": "X-1"})["_id"] == "row:1"
+
+
+def test_drug_master_resolves_aliases_and_refuses_ambiguity(mongo):
+    from corpus import drug_master as dm
+    dm.store(mongo, [
+        dm.to_doc({"drug_id": "1", "drug_web_id": "800010447", "drug_name": "Treprostinil - United Therapeutics Corporation",
+                   "alternative_drug_name": "{Tyvaso,Remodulin}", "competitor_company": "{United Therapeutics}"}),
+        dm.to_doc({"drug_id": "2", "drug_web_id": "800040000", "drug_name": "Treprostinil - Liquidia",
+                   "alternative_drug_name": "{Yutrepia,LIQ861}", "competitor_company": "{Liquidia Technologies}"}),
+        dm.to_doc({"drug_id": "3", "drug_web_id": "800024655", "drug_name": "Sotatercept - Merck & Co", "alternative_drug_name": "{WINREVAIR,MK-7962}"}),
+    ])
+    assert dm.resolve(mongo, ["winrevair"])["adis_id"] == "800024655"
+    assert dm.resolve(mongo, ["MK 7962"])["name"] == "Sotatercept"
+    assert dm.resolve(mongo, ["Treprostinil"]) is None  # two companies' entries: not guessed
+    assert dm.resolve(mongo, ["Treprostinil"], "United Therapeutics Corp")["adis_id"] == "800010447"
+    # the company's own formulation entry also matches a brand: the substance entry (canonical name) wins
+    dm.store(mongo, [dm.to_doc({"drug_id": "4", "drug_web_id": "800051419", "drug_name": "Treprostinil dry powder inhalation - MannKind",
+                                "alternative_drug_name": "{Tyvaso DPI}", "competitor_company": "{United Therapeutics Corporation}"})])
+    assert dm.resolve(mongo, ["Treprostinil", "Tyvaso", "Tyvaso DPI", "Yutrepia"], "United Therapeutics")["adis_id"] == "800010447"
+    assert dm.resolve(mongo, ["Treprostinil", "Tyvaso"], "Actelion (Janssen)") is None  # another company's asset: not guessed
+    assert dm.resolve(mongo, ["Tyvaso DPI"], "Some Therapeutics Corporation") is not None  # single candidate needs no company
+    assert dm.resolve(mongo, ["Yutrepia"])["adis_id"] == "800040000"
+    assert dm.resolve(mongo, ["nonexistent drug"]) is None
+    assert dm.store(mongo, [])["drugs"] == 0

@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatDate, formatNumber } from '@/lib/format'
-import { cn } from '@/lib/utils'
+import { cn, safeUrl } from '@/lib/utils'
 import type { RecordTab, SourceRecord } from '../api'
 import { useEvidenceSummary, useLedger, type Decision, type EvidenceSourceKey, type EvidenceSummary, type LedgerRow } from '../competitors-api'
 import { Chip } from '../components/badges'
@@ -181,7 +181,7 @@ function Ledger({ assetId }: { assetId: string }) {
   const activate = (r: LedgerRow) => {
     const tab = TAB_FOR_COLLECTION[r.collection]
     if (tab && r.decision !== 'skip' && r.recordKey) setOpen({ tab, key: r.recordKey })
-    else if (r.url) window.open(r.url, '_blank', 'noopener,noreferrer')
+    else if (safeUrl(r.url)) window.open(safeUrl(r.url), '_blank', 'noopener,noreferrer')
   }
   const head = 'h-9 text-xs font-semibold text-text-secondary'
 
@@ -252,9 +252,9 @@ function Ledger({ assetId }: { assetId: string }) {
                 >
                   <TableCell className="py-2.5 pl-5 font-mono text-xs text-muted-foreground">{formatDate(r.date)}</TableCell>
                   <TableCell className="max-w-[420px] min-w-[240px] py-2.5 whitespace-normal">
-                    {r.url ? (
+                    {safeUrl(r.url) ? (
                       <a
-                        href={r.url}
+                        href={safeUrl(r.url)}
                         target="_blank"
                         rel="noreferrer"
                         onClick={(e) => e.stopPropagation()}
