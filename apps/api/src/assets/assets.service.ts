@@ -199,7 +199,7 @@ export class AssetsService {
       if (query.milestones === 'only') match.is_milestone = true;
       if (query.milestones === 'exclude') match.is_milestone = false;
       if (query.from || query.to) match.date = { ...(query.from && { $gte: query.from }), ...(query.to && { $lte: query.to }) };
-      if (query.companyOnly) match.$or = [{ category: { $ne: 'clinical' } }, { sponsor_is_company: true }];
+      if (query.companyOnly) match.$or = [{ category: { $ne: 'clinical' } }, { type: { $in: ['recall', 'safety_communication'] } }, { sponsor_is_company: true }];
       if (query.scope === 'key') match.key = true;
       if (query.branch?.length) match.branch = { $in: query.branch };
       const sort = query.milestones === 'only' ? { date: 1 as const } : { date: -1 as const };

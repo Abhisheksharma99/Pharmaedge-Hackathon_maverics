@@ -172,7 +172,7 @@ def fda_events(asset: str, records: Iterable[Dict[str, Any]], today: Optional[st
                                      summary=re.sub(r"\s+", " ", r.get("description") or "").strip()[:400]))
             continue
         if r.get("record_type") == "fda_recall":
-            events.append(_event(asset, r, "fda_records", "recall", category="safety", region="US", date=r.get("date", ""),
+            events.append(_event(asset, r, "fda_records", "recall", category="clinical", region="US", date=r.get("date", ""),
                                  title=f"FDA recall: {r.get('product_description', '')[:90]}",
                                  summary=r.get("reason_for_recall", ""), significance="High",
                                  details=_facts(Reason=(r.get("reason_for_recall") or "")[:90],
@@ -319,7 +319,7 @@ def ema_events(asset: str, records: Iterable[Dict[str, Any]], today: Optional[st
                                  title=f"CHMP {r.get('post_authorisation_opinion_status', '').lower()} opinion: {name}",
                                  summary="Post-authorisation procedure (e.g. new indication or variation)"))
         elif rt == "ema_dhpc":
-            events.append(_event(asset, r, "ema_records", "safety_communication", **{**common, "category": "safety"},
+            events.append(_event(asset, r, "ema_records", "safety_communication", **{**common, "category": "clinical"},
                                  significance="High", title=f"Safety communication: {name}",
                                  summary=r.get("dhpc_type", "")))
         if events and events[-1]["sources"][0]["record_key"] == r["record_key"]:

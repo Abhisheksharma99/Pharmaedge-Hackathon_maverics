@@ -90,9 +90,9 @@ export const TOOL_DEFINITIONS: ChatCompletionFunctionTool[] = [
   fn('get_asset_overview', 'Identity, key metrics (approvals, active trials, upcoming milestones, record counts), competitors and latest high-significance events of one asset.', {
     asset_id: ASSET_ID,
   }, ['asset_id']),
-  fn('get_timeline', 'Journey events of one asset (regulatory, clinical, safety, company, ip/patents), newest first. Includes upcoming milestones unless filtered.', {
+  fn('get_timeline', 'Journey events of one asset (regulatory, clinical incl. safety actions, company, ip/patents), newest first. Includes upcoming milestones unless filtered.', {
     asset_id: ASSET_ID,
-    category: { type: 'array', items: { type: 'string', enum: ['regulatory', 'clinical', 'safety', 'company', 'ip'] }, maxItems: 5 },
+    category: { type: 'array', items: { type: 'string', enum: ['regulatory', 'clinical', 'company', 'ip'] }, maxItems: 5 },
     significance: { type: 'array', items: { type: 'string', enum: ['High', 'Medium', 'Low'] }, maxItems: 3 },
     from: ISO_DATE,
     to: ISO_DATE,
@@ -138,7 +138,7 @@ export const TOOL_DEFINITIONS: ChatCompletionFunctionTool[] = [
   }, ['collection', 'record_key']),
   fn('get_market_reaction', "Share-price moves of an asset's listed company after the asset's journey events (day 0, +5 and +20 trading days, deepest dip, highest peak). Timing only: never proof that an event caused a move, never a basis for investment advice.", {
     asset_id: ASSET_ID,
-    category: { type: 'array', items: { type: 'string', enum: ['regulatory', 'clinical', 'safety', 'company', 'ip'] }, maxItems: 5 },
+    category: { type: 'array', items: { type: 'string', enum: ['regulatory', 'clinical', 'company', 'ip'] }, maxItems: 5 },
     from: ISO_DATE,
     to: ISO_DATE,
     limit: { type: 'integer', minimum: 1, maximum: 20 },
@@ -146,7 +146,7 @@ export const TOOL_DEFINITIONS: ChatCompletionFunctionTool[] = [
   fn('build_journey_tree', "Build an editable canvas (tree) of one asset's journey from its stored events, grouped by category then year, or by year. The app opens the canvas beside the chat; the user can rename, annotate and prune it. Use when the user asks for a tree, map, canvas, mind map or visual timeline of an asset.", {
     asset_id: ASSET_ID,
     group_by: { type: 'string', enum: ['category', 'year'] },
-    category: { type: 'array', items: { type: 'string', enum: ['regulatory', 'clinical', 'safety', 'company', 'ip'] }, maxItems: 5 },
+    category: { type: 'array', items: { type: 'string', enum: ['regulatory', 'clinical', 'company', 'ip'] }, maxItems: 5 },
     significance: { type: 'array', items: { type: 'string', enum: ['High', 'Medium', 'Low'] }, maxItems: 3, description: 'Defaults to High and Medium' },
     from: ISO_DATE,
     to: ISO_DATE,
@@ -158,7 +158,7 @@ export const TOOL_DEFINITIONS: ChatCompletionFunctionTool[] = [
     since: { ...ISO_DATE, description: 'Focus window start for "what changed since" (YYYY-MM-DD), e.g. the date of a readout or approval' },
     from: ISO_DATE,
     to: ISO_DATE,
-    category: { type: 'array', items: { type: 'string', enum: ['regulatory', 'clinical', 'safety', 'company', 'ip'] }, maxItems: 5 },
+    category: { type: 'array', items: { type: 'string', enum: ['regulatory', 'clinical', 'company', 'ip'] }, maxItems: 5 },
     significance: { type: 'array', items: { type: 'string', enum: ['High', 'Medium', 'Low'] }, maxItems: 3, description: 'Defaults to High and Medium' },
     compare_with: { ...ASSET_ID, description: 'Another tracked asset to compare journeys with (same time axis)' },
     title: { type: 'string', maxLength: 120 },
@@ -704,7 +704,7 @@ export class ChatTools {
 
   private async regulatory(id: string, agency: string | undefined, ctx: ToolContext): Promise<ToolOutput> {
     const asset = await this.asset(id);
-    const match: Document = { asset: id, origin: 'rule', category: { $in: ['regulatory', 'safety'] } };
+    const match: Document = { asset: id, origin: 'rule', $or: [{ category: 'regulatory' }, { type: { $in: ['recall', 'safety_communication'] } }] };
     if (agency) match.region = agency === 'FDA' ? 'US' : 'EU';
     const events = await this.db.collection('journey_events').find(match).sort({ date: -1 }).limit(40).toArray();
     return {

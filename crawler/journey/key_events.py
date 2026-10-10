@@ -33,7 +33,7 @@ def _dated(e: Dict[str, Any]) -> bool:
 
 
 def _company_relevant(e: Dict[str, Any]) -> bool:
-    if e.get("category") != "clinical" or e.get("origin") != "rule":
+    if e.get("category") != "clinical" or e.get("origin") != "rule" or e.get("type") in ("recall", "safety_communication"):
         return True
     return bool(e.get("sponsor_is_company")) and e.get("type") != "trial_completion" \
         and not MINOR_STUDY.search(e.get("title") or "")

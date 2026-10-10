@@ -360,3 +360,12 @@ def test_a_divested_brand_is_unknown_not_another_company():
              "application_number": "ANDA212345", "sponsor_name": "SANDOZ", "brand_names": ["PIRFENIDONE"]}]
     by = {e["sources"][0]["record_key"]: e for e in fda_events("pirfenidone", recs, company="Hoffmann-La Roche")}
     assert by["fda:e"]["sponsor_is_company"] is None and by["fda:g"]["sponsor_is_company"] is False
+
+
+def test_safety_events_are_clinical():
+    recall = fda_events(A, [{"record_key": "fda:recall:D-1", "record_type": "fda_recall", "date": "2025-01-17",
+                             "product_description": "Treprostinil Injection", "reason_for_recall": "particulates",
+                             "classification": "Class II"}])
+    dhpc = ema_events(A, [{"record_key": "dhpc1", "record_type": "ema_dhpc", "date": "2024-05-01",
+                           "medicine_name": "Remodulin", "dhpc_type": "Safety"}])
+    assert [(e["type"], e["category"]) for e in recall + dhpc] == [("recall", "clinical"), ("safety_communication", "clinical")]

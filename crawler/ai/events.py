@@ -30,7 +30,7 @@ EVENT_TYPES = ["approval", "label_expansion", "regulatory_submission", "regulato
 CATEGORY_OF = {"approval": "regulatory", "label_expansion": "regulatory", "regulatory_submission": "regulatory",
                "regulatory_opinion": "regulatory", "regulatory_decision_expected": "regulatory",
                "advisory_committee": "regulatory", "trial_start": "clinical", "trial_readout": "clinical",
-               "trial_enrollment_complete": "clinical", "publication": "clinical", "safety": "safety",
+               "trial_enrollment_complete": "clinical", "publication": "clinical", "safety": "clinical",
                "launch": "company", "deal": "company", "litigation": "company", "financials": "company",
                "guidance": "company"}
 
