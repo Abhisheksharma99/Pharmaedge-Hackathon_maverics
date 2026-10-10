@@ -163,11 +163,11 @@ export const TOOL_DEFINITIONS: ChatCompletionFunctionTool[] = [
     compare_with: { ...ASSET_ID, description: 'Another tracked asset to compare journeys with (same time axis)' },
     title: { type: 'string', maxLength: 120 },
   }, ['asset_id']),
-  fn('annotate_story', 'Pin your interpretation ("what it means") to a journey story built with build_journey_story: 2-5 notes of one or two sentences, each citing the event_id values (from that result, compared asset included) it explains, and optional short names for its chapters ({id, name}, ids from that result). Notes must only state what the cited events support.', {
+  fn('annotate_story', 'Pin your interpretation ("what it means") to a journey story built with build_journey_story: 2-5 notes of one or two plain sentences (at most 400 characters; no ids in the text, the app links the cited events), each citing in event_ids the event_id values (from that result, compared asset included) it explains, and optional short names for its chapters ({id, name}, ids from that result). Notes must only state what the cited events support.', {
     story_id: { type: 'string', pattern: '^[0-9a-f-]{36}$' },
     notes: {
       type: 'array', minItems: 1, maxItems: 6,
-      items: { type: 'object', properties: { text: { type: 'string', minLength: 1, maxLength: 400 }, event_ids: { type: 'array', items: { type: 'string', maxLength: 300 }, minItems: 1, maxItems: 6 } }, required: ['text', 'event_ids'], additionalProperties: false },
+      items: { type: 'object', properties: { text: { type: 'string', minLength: 1, maxLength: 1200 }, event_ids: { type: 'array', items: { type: 'string', maxLength: 300 }, minItems: 1, maxItems: 6 } }, required: ['text', 'event_ids'], additionalProperties: false },
     },
     chapter_names: {
       type: 'array', maxItems: 12,

@@ -109,7 +109,8 @@ export class StoryStore implements OnModuleInit {
     const unknown = wanted.filter((e) => !known.has(e));
     if (unknown.length) bad(`Not events of this story's assets: ${unknown.slice(0, 5).join(', ')}`);
     const notes: StoryNote[] = input.notes.map((n) => {
-      const text = n.text.trim();
+      // Models often repeat the cited ids inline ("[ai:trep:pubmed:1:0]"): event_ids already carries them.
+      const text = n.text.replace(/\[([^\]]+)\]/g, (m, id: string) => (n.event_ids.includes(id.trim()) ? '' : m)).replace(/\s{2,}/g, ' ').replace(/\s+([.,;])/g, '$1').trim();
       if (!text || text.length > NOTE_MAX) bad(`A note needs 1-${NOTE_MAX} characters`);
       if (!n.event_ids.length) bad('A note must cite at least one event');
       return { id: randomUUID(), text, eventIds: [...new Set(n.event_ids)].slice(0, 6) };

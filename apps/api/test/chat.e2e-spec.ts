@@ -369,6 +369,11 @@ describe('Asset AI chat', () => {
     turn = events((await req('POST', `/api/chat/sessions/${id}/turn`, { message: 'annotate' })).body);
     expect(turn.find((e) => e.type === 'story_layer')).toMatchObject({ storyId, layer: 'notes', data: { notes: [expect.objectContaining({ eventIds: ['ai:trep:phild', 'rule:trep:approval:remo'] })], chapterNames: { 'ch-1': 'PAH era' } } });
 
+    // Ids the model repeats inline are dropped from the text (they would push a note over its length limit).
+    script = [{ toolCalls: [{ name: 'annotate_story', args: { story_id: storyId, notes: [{ text: `${'Misdated. '.repeat(38)}[ai:trep:phild] [rule:trep:approval:remo].`, event_ids: ['ai:trep:phild', 'rule:trep:approval:remo'] }] } }] }, { text: 'Done.' }];
+    turn = events((await req('POST', `/api/chat/sessions/${id}/turn`, { message: 'annotate' })).body);
+    expect(turn.find((e) => e.type === 'story_layer').data.notes[0].text).toBe(`${'Misdated. '.repeat(38).trim()}.`);
+
     // A story compared with another asset may cite that asset's events too; other assets' events stay refused.
     await db.collection('journey_events').insertOne({ _id: 'rule:nint:approval' as any, asset: 'nint', date: '2014-10-15', title: 'FDA approves Ofev', type: 'approval', category: 'regulatory', significance: 'High', is_milestone: false, origin: 'rule', sources: [] });
     await db.collection('stories').updateOne({ _id: storyId }, { $set: { 'spec.compare': 'nint' } });
