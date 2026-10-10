@@ -1,6 +1,4 @@
 import { Fragment } from 'react'
-import { Badge } from '@/components/ui/badge'
-import { formatDate } from '@/lib/format'
 
 /**
  * Readable long documents (press releases, filings, articles) in the record panel. Crawled text arrives as one line
@@ -109,39 +107,6 @@ export function MentionExcerpts({ text, names, assetName }: { text: string; name
         {found.map((t) => (
           <li key={t} className="rounded-lg border-l-2 border-primary/50 bg-background py-1.5 pr-3 pl-3 leading-relaxed">
             <Highlight text={t} names={names} />
-          </li>
-        ))}
-      </ul>
-    </section>
-  )
-}
-
-export interface JourneyEventRef {
-  id: string
-  title: string
-  type?: string
-  date?: string
-  significance?: string
-  is_milestone?: boolean
-}
-
-export function JourneyEvents({ events }: { events: JourneyEventRef[] }) {
-  if (!events.length) return null
-  return (
-    <section aria-labelledby="doc-events">
-      <h3 id="doc-events" className="mb-2 font-medium">On the journey</h3>
-      <ul className="divide-y rounded-lg border bg-background">
-        {events.map((e) => (
-          <li key={e.id} className="flex items-start justify-between gap-3 px-3 py-2">
-            <span className="min-w-0 leading-snug">
-              <span className="mr-2 font-mono text-xs whitespace-nowrap text-muted-foreground">{formatDate(e.date)}</span>
-              {e.title}
-            </span>
-            {e.significance && (
-              <Badge variant={e.significance === 'High' ? 'default' : 'secondary'} className="shrink-0">
-                {e.is_milestone ? 'Milestone' : e.significance}
-              </Badge>
-            )}
           </li>
         ))}
       </ul>

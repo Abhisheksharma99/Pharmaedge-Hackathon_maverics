@@ -3,10 +3,13 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { InlineError } from '@/components/inline-error'
+import { CHIP, CHIP_ON } from '@/features/journey/controls'
 import type { EventCategory, RecordTab } from '@/features/assets/api'
 import { TAB_FOR_COLLECTION } from '@/features/assets/api'
 import { RecordSheet } from '@/features/assets/components/record-sheet'
 import { Segmented } from '@/features/assets/components/segmented'
+import { TD, TH } from '@/features/assets/components/records-cells'
 import { Pct } from '@/features/assets/pages/market-tab'
 import { useAssetContext } from '@/features/assets/pages/asset-layout'
 import { useAskStore } from '@/features/chat/ask-store'
@@ -34,12 +37,9 @@ function Chip({ active, onClick, color, children }: { active: boolean; onClick: 
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      className={cn(
-        'inline-flex h-7 items-center gap-1.5 rounded-lg border px-2.5 text-[12.5px] font-medium text-text-secondary hover:bg-accent',
-        active ? 'border-[#D0D5DD] bg-card text-foreground' : 'border-[#EAECF0] bg-[#F9FAFB] text-muted-foreground',
-      )}
+      className={cn(CHIP, active ? CHIP_ON : 'bg-background text-muted-foreground')}
     >
-      {color && <span aria-hidden="true" className="size-2 rounded-full" style={{ background: active ? color : '#D0D5DD' }} />}
+      {color && <span aria-hidden="true" className="size-[8px] rounded-full" style={{ background: active ? color : '#D0D5DD' }} />}
       {children}
     </button>
   )
@@ -49,11 +49,11 @@ function EventLine({ e, onSelect, right }: { e: StoryEvent; onSelect: (e: StoryE
   const flag = eventFlag(e)
   return (
     <li>
-      <button type="button" onClick={() => onSelect(e)} className="flex w-full items-start gap-2 rounded-md px-1.5 py-1 text-left hover:bg-accent/60">
-        <span aria-hidden="true" className="mt-1.5 size-2 shrink-0 rounded-full" style={{ background: CATEGORY_COLOR[e.category] ?? '#667085' }} />
+      <button type="button" onClick={() => onSelect(e)} className="flex w-full items-start gap-[8px] rounded-[6px] px-[6px] py-[4px] text-left hover:bg-background">
+        <span aria-hidden="true" className="mt-[6px] size-[8px] shrink-0 rounded-full" style={{ background: CATEGORY_COLOR[e.category] ?? '#667085' }} />
         <span className="min-w-0 flex-1">
-          <span className="line-clamp-2 text-[12.5px] leading-snug">{e.title}</span>
-          <span className="font-mono text-[10.5px] text-muted-foreground">
+          <span className="line-clamp-2 leading-[18px]">{e.title}</span>
+          <span className="font-mono text-[11.5px] text-muted-foreground">
             {formatDate(e.date)}
             {flag && ` · ${flag.label}`}
           </span>
@@ -67,39 +67,39 @@ function EventLine({ e, onSelect, right }: { e: StoryEvent; onSelect: (e: StoryE
 function Inspector({ e, assetName, onEvidence, onAsk, against }: { e: StoryEvent; assetName: string; onEvidence: (() => void) | null; onAsk: () => void; against: StoryEvent[] }) {
   const flag = eventFlag(e)
   return (
-    <div className="space-y-3 p-4" aria-live="polite">
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="inline-flex h-6 items-center gap-1.5 rounded-md border px-2 text-[12px] font-medium">
-          <span className="size-2 rounded-full" style={{ background: CATEGORY_COLOR[e.category] ?? '#667085' }} />
+    <div className="space-y-[12px] p-[20px]" aria-live="polite">
+      <div className="flex flex-wrap items-center gap-[6px]">
+        <span className="inline-flex h-[22px] items-center gap-[6px] rounded-[6px] border px-[8px] text-[12px] font-medium">
+          <span className="size-[8px] rounded-full" style={{ background: CATEGORY_COLOR[e.category] ?? '#667085' }} />
           {CATEGORY_LABEL[e.category] ?? e.category}
         </span>
-        <span className="rounded-md bg-muted px-2 py-0.5 text-[12px] font-medium">{e.significance}</span>
-        {e.upcoming && <span className="rounded-md border border-dashed px-2 py-0.5 text-[12px]">Upcoming</span>}
-        {e.ownProduct === false && <span className="rounded-md bg-[#FFF6ED] px-2 py-0.5 text-[12px] font-medium text-[#B93815]">Other company's product</span>}
+        <span className="inline-flex h-[22px] items-center rounded-[6px] bg-muted px-[8px] text-[12px] font-medium">{e.significance}</span>
+        {e.upcoming && <span className="inline-flex h-[22px] items-center rounded-[6px] border border-dashed px-[8px] text-[12px]">Upcoming</span>}
+        {e.ownProduct === false && <span className="inline-flex h-[22px] items-center rounded-[6px] bg-orange-soft px-[8px] text-[12px] font-medium text-competitor">Other company's product</span>}
       </div>
       <div>
-        <p className="font-mono text-[11.5px] text-muted-foreground">{formatDate(e.date)}{e.upcoming ? ' · expected' : ''}</p>
-        <h3 className="text-[15px] leading-snug font-semibold">{e.title}</h3>
-        {e.summary && <p className="mt-1 text-[12.5px] leading-relaxed text-text-secondary">{e.summary}</p>}
+        <p className="font-mono text-[12px] text-muted-foreground">{formatDate(e.date)}{e.upcoming ? ' · expected' : ''}</p>
+        <h3 className="mt-[2px] text-[15px] leading-[20px] font-semibold">{e.title}</h3>
+        {e.summary && <p className="mt-[4px] leading-[19px] text-text-secondary">{e.summary}</p>}
       </div>
       {e.verification && e.verification.status !== 'confirmed' && (
-        <div className="rounded-lg border border-[#FECDCA] bg-[#FEF3F2] p-2.5 text-[12px] text-[#912018]">
-          <p className="flex items-center gap-1.5 font-semibold"><AlertTriangle className="size-3.5" /> {e.verification.status === 'conflict' ? 'Sources disagree' : 'Not confirmed by a regulator record'}</p>
-          <p className="mt-0.5">{e.verification.note}</p>
+        <div className="rounded-[10px] border border-[#FECDCA] bg-danger-soft p-[12px] text-[12.5px] text-[#912018]">
+          <p className="flex items-center gap-[6px] font-semibold"><AlertTriangle className="size-[14px]" /> {e.verification.status === 'conflict' ? 'Sources disagree' : 'Not confirmed by a regulator record'}</p>
+          <p className="mt-[2px]">{e.verification.note}</p>
           {against.length > 0 && (
-            <ul className="mt-1 space-y-0.5">
+            <ul className="mt-[4px] space-y-[2px]">
               {against.map((a) => <li key={a.id}>vs {formatDate(a.date)} · {a.title}</li>)}
             </ul>
           )}
         </div>
       )}
-      {e.verification?.status === 'confirmed' && <p className="text-[12px] text-success">Confirmed: {e.verification.note}</p>}
+      {e.verification?.status === 'confirmed' && <p className="text-[12.5px] text-success">Confirmed: {e.verification.note}</p>}
       {flag && flag.tone !== 'check' && e.change && (
-        <p className="rounded-lg bg-[#FFFAEB] p-2 text-[12px] text-[#93370D]">
+        <p className="rounded-[10px] bg-warning-soft p-[10px] text-[12.5px] text-[#93370D]">
           {e.change.kind === 'added' ? `First seen ${formatDate(e.change.at)}` : `${e.change.field?.replace('_', ' ')} changed from ${String(e.change.before ?? '—')} to ${String(e.change.after ?? '—')} (detected ${formatDate(e.change.at)})`}
         </p>
       )}
-      <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[12px]">
+      <dl className="grid grid-cols-2 gap-x-[12px] gap-y-[6px] text-[12.5px]">
         <dt className="text-muted-foreground">Type</dt><dd>{e.type.replace(/_/g, ' ')}</dd>
         {e.region && (<><dt className="text-muted-foreground">Region</dt><dd>{e.region}</dd></>)}
         {e.indication && (<><dt className="text-muted-foreground">Indication</dt><dd className="line-clamp-2">{e.indication}</dd></>)}
@@ -109,7 +109,7 @@ function Inspector({ e, assetName, onEvidence, onAsk, against }: { e: StoryEvent
         <dt className="text-muted-foreground">Sources</dt><dd>{e.sources}</dd>
         {e.impact && (<><dt className="text-muted-foreground">Share price +5d</dt><dd><Pct value={e.impact.day5 ?? e.impact.day0} /></dd></>)}
       </dl>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-[8px]">
         {onEvidence && (
           <Button size="sm" variant="outline" onClick={onEvidence}>
             <ExternalLink /> Open evidence
@@ -119,7 +119,7 @@ function Inspector({ e, assetName, onEvidence, onAsk, against }: { e: StoryEvent
           <MessageSquarePlus /> Ask about this
         </Button>
       </div>
-      <p className="text-[11px] text-muted-foreground">Asset: {assetName}</p>
+      <p className="text-[12px] text-muted-foreground">Asset: {assetName}</p>
     </div>
   )
 }
@@ -221,8 +221,24 @@ export function StoryPanel({ storyId }: { storyId: string }) {
     openAi(true)
   }
 
-  if (!story && (saved.isPending || building)) return <Skeleton className="h-[520px] w-full" />
-  if (saved.isError && !live) return <p className="text-destructive">This story couldn’t be loaded. It may have been deleted.</p>
+  if (!story && (saved.isPending || building)) {
+    return (
+      <div role="status" aria-label="Loading story" className="overflow-hidden rounded-[14px] border bg-card shadow-panel">
+        <div className="px-[20px] pt-[18px] pb-[14px]">
+          <Skeleton className="h-[18px] w-72" />
+          <Skeleton className="mt-[6px] h-[14px] w-96 max-w-full" />
+        </div>
+        <Skeleton className="mx-[20px] mb-[20px] h-[420px] w-[calc(100%-40px)]" />
+      </div>
+    )
+  }
+  if (saved.isError && !live) {
+    return (
+      <section className="overflow-hidden rounded-[14px] border bg-card shadow-panel">
+        <InlineError message="This story couldn’t be loaded. It may have been deleted." onRetry={() => void saved.refetch()} />
+      </section>
+    )
+  }
   if (!story) return null
 
   const chapters = story.chapters ?? []
@@ -231,14 +247,14 @@ export function StoryPanel({ storyId }: { storyId: string }) {
   const changeTabs: { id: string; label: string; count: number; hint?: string; rows: ReactNode[] }[] = changes
     ? [
         { id: 'new', label: 'New', count: changes.developments.length, hint: 'Key events in the window; the figure is the share move 5 trading days later (timing, not cause).',
-          rows: changes.developments.map((e) => evLine(e, e.impact ? <Pct value={e.impact.day5 ?? e.impact.day0} className="text-[11.5px]" /> : undefined)) },
+          rows: changes.developments.map((e) => evLine(e, e.impact ? <Pct value={e.impact.day5 ?? e.impact.day0} className="text-[12px]" /> : undefined)) },
         { id: 'checks', label: 'Needs checking', count: changes.checks.length, hint: 'Sources the regulator records don\'t confirm, or that disagree on a date.', rows: changes.checks.map((e) => evLine(e)) },
         { id: 'updates', label: 'Updated', count: changes.updates.length, hint: 'What the pipeline saw change between crawls.',
           rows: changes.updates.map((u) => (
             <li key={`${u.eventId}-${u.field}-${u.at}`}>
-              <button type="button" className="w-full rounded-md px-1.5 py-1 text-left hover:bg-accent/60" onClick={() => show(u.eventId)}>
-                <span className="line-clamp-1 text-[12.5px]">{u.title}</span>
-                <span className="font-mono text-[10.5px] text-muted-foreground">
+              <button type="button" className="w-full rounded-[6px] px-[6px] py-[4px] text-left hover:bg-background" onClick={() => show(u.eventId)}>
+                <span className="line-clamp-1">{u.title}</span>
+                <span className="font-mono text-[11.5px] text-muted-foreground">
                   {u.kind === 'changed' ? `${u.field?.replace('_', ' ')}: ${String(u.before ?? '—')} → ${String(u.after ?? '—')}` : u.kind} · {formatDate(u.at)}
                 </span>
               </button>
@@ -249,17 +265,17 @@ export function StoryPanel({ storyId }: { storyId: string }) {
         { id: 'slides', label: 'Slide conflicts', count: changes.slides.length, hint: 'Investor-slide figures that contradict the slide\'s own chart.',
           rows: changes.slides.map((sl) => (
             <li key={`${sl.recordKey}-${sl.metric}`}>
-              <button type="button" className="w-full rounded-md px-1.5 py-1 text-left hover:bg-accent/60" onClick={() => setRecord({ tab: 'company-ir', key: sl.recordKey, assetId: asset.id })}>
-                <span className="line-clamp-1 text-[12.5px]">{sl.title}</span>
-                <span className="text-[11px] text-muted-foreground">{sl.metric}: {sl.value} · {formatDate(sl.date)}</span>
+              <button type="button" className="w-full rounded-[6px] px-[6px] py-[4px] text-left hover:bg-background" onClick={() => setRecord({ tab: 'company-ir', key: sl.recordKey, assetId: asset.id })}>
+                <span className="line-clamp-1">{sl.title}</span>
+                <span className="text-[12px] text-muted-foreground">{sl.metric}: {sl.value} · {formatDate(sl.date)}</span>
               </button>
             </li>
           )) },
         { id: 'seen', label: 'First seen', count: changes.firstSeen.total, hint: `${changes.firstSeen.kept} kept by AI screening · ${changes.firstSeen.headline} headline only`,
           rows: changes.firstSeen.items.map((it) => (
-            <li key={`${it.title}-${it.date}`} className="px-1.5 py-1">
-              {safeUrl(it.url) ? <a href={safeUrl(it.url)!} target="_blank" rel="noreferrer" className="line-clamp-1 text-[12.5px] hover:underline">{it.title}</a> : <span className="line-clamp-1 text-[12.5px]">{it.title}</span>}
-              <span className="text-[11px] text-muted-foreground">{it.source} · {formatDate(it.date)}</span>
+            <li key={`${it.title}-${it.date}`} className="px-[6px] py-[4px]">
+              {safeUrl(it.url) ? <a href={safeUrl(it.url)!} target="_blank" rel="noreferrer" className="line-clamp-1 hover:underline">{it.title}</a> : <span className="line-clamp-1">{it.title}</span>}
+              <span className="text-[12px] text-muted-foreground">{it.source} · {formatDate(it.date)}</span>
             </li>
           )) },
         { id: 'ahead', label: 'Ahead', count: changes.upcoming.length, rows: changes.upcoming.map((e) => evLine(e)) },
@@ -267,18 +283,18 @@ export function StoryPanel({ storyId }: { storyId: string }) {
     : []
 
   return (
-    <div className="flex flex-col gap-4">
-      <div ref={card} className="scroll-mt-4 overflow-hidden rounded-[14px] border bg-card">
+    <div className="flex flex-col gap-[20px]">
+      <div ref={card} className="scroll-mt-[16px] overflow-hidden rounded-[14px] border bg-card shadow-panel">
         {/* header */}
-        <div className="flex flex-wrap items-start gap-3 border-b border-[#EEF0F3] px-4 py-3">
+        <div className="flex flex-wrap items-start gap-x-[24px] gap-y-[12px] px-[20px] pt-[18px] pb-[14px]">
           <div className="min-w-0 flex-1">
-            <h2 className="flex items-center gap-2 text-[16px] font-semibold">
-              <Sparkles className="size-4 shrink-0 text-primary" />
+            <h2 className="flex items-center gap-[8px] text-[15px] font-semibold">
+              <Sparkles className="size-[16px] shrink-0 text-primary" />
               <span className="line-clamp-2">{title}</span>
-              {building && <Loader2 aria-label="Building" className="size-4 animate-spin text-primary" />}
+              {building && <Loader2 aria-label="Building" className="size-[16px] animate-spin text-primary" />}
             </h2>
-            {question && <p className="mt-0.5 text-[12.5px] text-text-secondary">“{question}”</p>}
-            <p className="mt-0.5 text-[11.5px] text-muted-foreground">
+            {question && <p className="mt-[2px] text-text-secondary">“{question}”</p>}
+            <p className="mt-[2px] text-[12px] text-muted-foreground">
               {story.counts ? `${story.counts.shown} events shown of ${story.counts.events}` : 'Building…'}
               {story.range && ` · ${formatDate(story.range.from)} – ${formatDate(story.range.to)}`}
               {saved.isFetching && !building && ' · updating…'}
@@ -318,11 +334,11 @@ export function StoryPanel({ storyId }: { storyId: string }) {
         </div>
 
         {/* filters */}
-        <div className="flex flex-wrap items-center gap-2 border-b border-[#EEF0F3] px-4 py-2.5">
+        <div className="flex flex-wrap items-center gap-[8px] border-y border-hair px-[20px] py-[12px]">
           {CATEGORIES.map((c) => (
             <Chip key={c} color={CATEGORY_COLOR[c]} active={!filters.category?.length || filters.category.includes(c)} onClick={() => toggleCategory(c)}>
               {CATEGORY_LABEL[c]}
-              <span className="text-[11px] text-muted-foreground tabular-nums">{story.counts?.byCategory[c] ?? 0}</span>
+              <span className="text-[12px] text-muted-foreground tabular-nums">{story.counts?.byCategory[c] ?? 0}</span>
             </Chip>
           ))}
           <span className="flex-1" />
@@ -337,12 +353,12 @@ export function StoryPanel({ storyId }: { storyId: string }) {
             ]}
           />
           {compareOptions.length > 0 && (
-            <label className="flex items-center gap-1.5 text-[12.5px] text-text-secondary">
+            <label className="flex items-center gap-[8px] text-[13px] text-text-secondary">
               Compare with
               <select
                 value={compareValue}
                 onChange={(e) => setFilters((f) => ({ ...f, compare: e.target.value }))}
-                className="h-7 rounded-lg border bg-card px-2 text-[12.5px] text-foreground"
+                className="h-[32px] rounded-[8px] border bg-card px-[8px] text-[13px] text-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-primary/12 focus-visible:outline-none"
               >
                 <option value="none">No comparison</option>
                 {compareOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -367,21 +383,21 @@ export function StoryPanel({ storyId }: { storyId: string }) {
               replayKey={replay}
               live={building}
             />
-            <p className="flex flex-wrap gap-x-4 gap-y-1 border-t border-[#EEF0F3] px-4 py-2 text-[11px] text-muted-foreground">
+            <p className="flex flex-wrap gap-x-[16px] gap-y-[4px] border-t border-hair px-[20px] py-[10px] text-[12px] text-muted-foreground">
               <span>Bigger = more significant · ◇ upcoming · numbers = grouped events</span>
               <span><b className="text-[#912018]">!</b> needs checking</span>
               {story.market && <span>{story.market.ticker}: timing, not cause</span>}
             </p>
           </div>
-          <aside aria-label="Selected event" className="border-t border-[#EEF0F3] bg-[#FCFCFD] 2xl:border-t-0 2xl:border-l">
+          <aside aria-label="Selected event" className="border-t border-hair bg-background 2xl:border-t-0 2xl:border-l">
             {(selected || group) && (
-              <button type="button" onClick={() => select(null)} className="mx-4 mt-3 text-[12px] font-medium text-primary hover:underline">
+              <button type="button" onClick={() => select(null)} className="mx-[20px] mt-[16px] font-medium text-primary hover:underline">
                 ← Back to {notes.length ? 'what it means' : 'the story'}
               </button>
             )}
             {group && !selected ? (
-              <div className="p-4 pt-2">
-                <h3 className="mb-1.5 text-[13px] font-semibold">{group.length} events here</h3>
+              <div className="p-[20px] pt-[8px]">
+                <h3 className="mb-[6px] text-[13px] font-semibold">{group.length} events here</h3>
                 <ul>{group.map((e) => <EventLine key={e.id} e={e} onSelect={(x) => setSelectedId(x.id)} />)}</ul>
               </div>
             ) : selected ? (
@@ -393,17 +409,17 @@ export function StoryPanel({ storyId }: { storyId: string }) {
                 against={(selected.verification?.against ?? []).map((id) => byId.get(id)).filter((x): x is StoryEvent => !!x)}
               />
             ) : (
-              <div className="space-y-3 p-4">
-                <h3 className="text-[13px] font-semibold">What it means</h3>
+              <div className="space-y-[12px] p-[20px]">
+                <h3 className="text-[15px] font-semibold">What it means</h3>
                 {notes.length ? (
-                  <ol className="grid gap-2 md:grid-cols-2 2xl:grid-cols-1">
+                  <ol className="grid gap-[8px] md:grid-cols-2 2xl:grid-cols-1">
                     {notes.map((n, i) => (
-                      <li key={n.id} className="rounded-lg border border-[#C7D7FE] border-l-[3px] border-l-primary bg-card p-2.5 text-[12.5px] leading-relaxed duration-500 animate-in fade-in slide-in-from-bottom-2 fill-mode-both" style={{ animationDelay: `${i * 0.15}s` }}>
-                        <span className="mr-1.5 inline-flex size-4 items-center justify-center rounded-full bg-primary text-[9.5px] font-bold text-white">{i + 1}</span>
+                      <li key={n.id} className="rounded-[10px] border border-[#C7D7FE] border-l-[3px] border-l-primary bg-card p-[12px] leading-[19px] duration-500 animate-in fade-in slide-in-from-bottom-2 fill-mode-both" style={{ animationDelay: `${i * 0.15}s` }}>
+                        <span className="mr-[6px] inline-flex size-[16px] items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white">{i + 1}</span>
                         {n.text}
-                        <span className="mt-1 flex flex-wrap gap-1">
+                        <span className="mt-[6px] flex flex-wrap gap-[4px]">
                           {n.eventIds.map((id) => byId.get(id)).filter((x): x is StoryEvent => !!x).map((e) => (
-                            <button key={e.id} type="button" onClick={() => setSelectedId(e.id)} className="rounded bg-muted px-1.5 text-[11px] text-text-secondary hover:bg-accent">
+                            <button key={e.id} type="button" onClick={() => setSelectedId(e.id)} className="rounded-[4px] bg-muted px-[6px] text-[11.5px] text-text-secondary hover:bg-accent">
                               {formatDate(e.date)}
                             </button>
                           ))}
@@ -412,7 +428,7 @@ export function StoryPanel({ storyId }: { storyId: string }) {
                     ))}
                   </ol>
                 ) : (
-                  <p className="text-[12.5px] text-muted-foreground">{building ? 'Asset AI is laying out the evidence…' : 'Asset AI adds its interpretation here, pinned to the events it explains. Select any mark to inspect it.'}</p>
+                  <p className="text-muted-foreground">{building ? 'Asset AI is laying out the evidence…' : 'Asset AI adds its interpretation here, pinned to the events it explains. Select any mark to inspect it.'}</p>
                 )}
               </div>
             )}
@@ -422,8 +438,8 @@ export function StoryPanel({ storyId }: { storyId: string }) {
 
       {/* chapters: a compact row of pills that zoom the timeline */}
       {chapters.length > 0 && (
-        <nav aria-label="Chapters" className="flex flex-wrap items-center gap-1.5">
-          <span className="mr-1 text-[12px] font-medium text-muted-foreground">Chapters</span>
+        <nav aria-label="Chapters" className="flex flex-wrap items-center gap-[8px]">
+          <span className="mr-[4px] text-[12px] font-medium text-muted-foreground">Chapters</span>
           {chapters.map((c: Chapter) => {
             const on = range === 'chapter' && filters.from === shift(c.from, -60)
             return (
@@ -433,12 +449,9 @@ export function StoryPanel({ storyId }: { storyId: string }) {
                 aria-pressed={on}
                 title={`${c.from.slice(0, 4)}–${c.to.slice(0, 4)} · ${c.events} key events`}
                 onClick={() => (on ? setSpan('all') : setSpan('chapter', shift(c.from, -60), shift(c.to, 60)))}
-                className={cn(
-                  'inline-flex h-7 max-w-[260px] items-center gap-1.5 rounded-full border bg-card px-3 text-[12px] text-text-secondary hover:border-primary/50',
-                  (on || c.focus) && 'border-primary bg-[#EEF2FD] font-medium text-primary',
-                )}
+                className={cn(CHIP, 'max-w-[260px] rounded-full px-[12px]', (on || c.focus) && CHIP_ON)}
               >
-                <span className="font-mono text-[10.5px] text-muted-foreground">{c.from.slice(0, 4)}</span>
+                <span className="font-mono text-[11.5px] text-muted-foreground">{c.from.slice(0, 4)}</span>
                 <span className="truncate">{chapterNames[c.id] ?? c.name}</span>
               </button>
             )
@@ -450,10 +463,10 @@ export function StoryPanel({ storyId }: { storyId: string }) {
       {changes && changeTabs.length > 0 && (() => {
         const tab = changeTabs.find((t) => t.id === changeTab) ?? changeTabs[0]!
         return (
-          <section aria-label="What changed" className="overflow-hidden rounded-[14px] border bg-card">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-[#EEF0F3] px-4 py-3">
-              <h3 className="font-semibold">{changes.since ? `What changed since ${formatDate(changes.since)}` : 'What changed recently'}</h3>
-              <div role="tablist" aria-label="What changed" className="flex flex-wrap gap-1">
+          <section aria-label="What changed" className="overflow-hidden rounded-[14px] border bg-card shadow-panel">
+            <div className="flex flex-wrap items-center gap-x-[24px] gap-y-[12px] border-b border-hair px-[20px] pt-[18px] pb-[14px]">
+              <h3 className="text-[15px] font-semibold">{changes.since ? `What changed since ${formatDate(changes.since)}` : 'What changed recently'}</h3>
+              <div role="tablist" aria-label="What changed" className="inline-flex flex-wrap gap-[2px] rounded-[8px] bg-muted p-[2px]">
                 {changeTabs.map((t) => (
                   <button
                     key={t.id}
@@ -464,18 +477,18 @@ export function StoryPanel({ storyId }: { storyId: string }) {
                       setChangeTab(t.id)
                       setAllRows(false)
                     }}
-                    className={cn('h-7 rounded-lg px-2.5 text-[12.5px] font-medium text-text-secondary hover:bg-accent', t.id === tab.id && 'bg-muted text-foreground')}
+                    className={cn('h-[28px] rounded-[6px] px-[10px] font-medium text-text-secondary transition-colors', t.id === tab.id && 'bg-card text-foreground shadow-[0_1px_2px_rgba(16,24,40,0.1)]')}
                   >
-                    {t.label} <span className="text-[11px] text-muted-foreground tabular-nums">{t.count}</span>
+                    {t.label} <span className="text-[12px] text-muted-foreground tabular-nums">{t.count}</span>
                   </button>
                 ))}
               </div>
             </div>
-            <div role="tabpanel" className="px-3 py-2">
-              {tab.hint && <p className="px-1.5 pb-1 text-[11.5px] text-muted-foreground">{tab.hint}</p>}
-              <ul className="grid gap-x-6 md:grid-cols-2">{(allRows ? tab.rows : tab.rows.slice(0, ROWS)).map((r) => r)}</ul>
+            <div role="tabpanel" className="px-[14px] py-[12px]">
+              {tab.hint && <p className="px-[6px] pb-[6px] text-[12px] text-muted-foreground">{tab.hint}</p>}
+              <ul className="grid gap-x-[24px] md:grid-cols-2">{(allRows ? tab.rows : tab.rows.slice(0, ROWS)).map((r) => r)}</ul>
               {tab.rows.length > ROWS && (
-                <button type="button" onClick={() => setAllRows((v) => !v)} className="mt-1 px-1.5 text-[12.5px] font-medium text-primary hover:underline">
+                <button type="button" onClick={() => setAllRows((v) => !v)} className="mt-[4px] px-[6px] font-medium text-primary hover:underline">
                   {allRows ? 'Show fewer' : `Show all ${tab.rows.length}`}
                 </button>
               )}
@@ -486,19 +499,23 @@ export function StoryPanel({ storyId }: { storyId: string }) {
 
       {/* comparison */}
       {story.compare && (
-        <section aria-label="Comparison" className="overflow-hidden rounded-[14px] border bg-card">
-          <h3 className="border-b border-[#EEF0F3] px-4 py-3 font-semibold">{asset.name} vs {story.compare.asset.name}</h3>
+        <section aria-label="Comparison" className="overflow-hidden rounded-[14px] border bg-card shadow-panel">
+          <h3 className="border-b border-hair px-[20px] pt-[18px] pb-[14px] text-[15px] font-semibold">{asset.name} vs {story.compare.asset.name}</h3>
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-[12.5px]">
-              <thead className="text-[11px] text-muted-foreground">
-                <tr className="border-b border-[#EEF0F3]"><th className="px-4 py-2 font-medium">Difference</th><th className="px-3 py-2 font-medium">{asset.name}</th><th className="px-3 py-2 font-medium">{story.compare.asset.name}</th></tr>
+            <table className="w-full text-left text-[13px]">
+              <thead>
+                <tr className="bg-background">
+                  <th className={TH}>Difference</th>
+                  <th className={TH}>{asset.name}</th>
+                  <th className={TH}>{story.compare.asset.name}</th>
+                </tr>
               </thead>
               <tbody>
                 {story.compare.deltas.map((d) => (
-                  <tr key={d.label} className="border-b border-[#EEF0F3] last:border-0 align-top">
-                    <td className="px-4 py-2 font-medium">{d.label}{d.note && <span className="block text-[11px] font-normal text-primary">{d.note}</span>}</td>
-                    <td className="px-3 py-2">{d.primary}</td>
-                    <td className="px-3 py-2">{d.other}</td>
+                  <tr key={d.label} className="border-b border-hair align-top last:border-0">
+                    <td className={cn(TD, 'font-medium')}>{d.label}{d.note && <span className="block text-[12px] font-normal text-primary">{d.note}</span>}</td>
+                    <td className={TD}>{d.primary}</td>
+                    <td className={TD}>{d.other}</td>
                   </tr>
                 ))}
               </tbody>

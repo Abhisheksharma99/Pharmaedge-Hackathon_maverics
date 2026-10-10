@@ -5,13 +5,11 @@ import { Button } from '@/components/ui/button'
 import { Segmented } from '@/features/assets/components/segmented'
 import { cn } from '@/lib/utils'
 import type { JourneyScope } from './api'
-import { BTN_SM, FOCUS } from './controls'
+import { BTN_SM, CHIP, CHIP_ON, FOCUS } from './controls'
 import { CATEGORIES, CATEGORY_META } from './constants'
 import { laneOf, type BranchModel, type JourneyView, type Mine } from './journey-model'
 import type { EventCategory, JourneyEventV3 } from './types'
 
-const CHIP = 'inline-flex h-[28px] items-center gap-[6px] rounded-lg border bg-card px-[10px] text-[12.5px] font-medium text-text-secondary hover:bg-accent focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none'
-const CHIP_ON = 'border-primary bg-primary-soft text-primary hover:bg-primary-soft'
 
 export interface JourneyHeaderProps {
   model: BranchModel

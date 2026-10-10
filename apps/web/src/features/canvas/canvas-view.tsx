@@ -23,12 +23,12 @@ const KIND_STYLE: Record<CanvasNode['kind'], string> = {
 function NodeLabel({ node }: { node: CanvasNode }) {
   const tone = node.kind === 'event' && node.category ? CATEGORY_META[node.category as EventCategory]?.tone : undefined
   return (
-    <span className="flex min-w-0 items-center gap-2">
-      {tone && <span aria-hidden="true" className={cn('h-7 w-1 shrink-0 rounded-full', tone)} />}
+    <span className="flex min-w-0 items-center gap-[8px]">
+      {tone && <span aria-hidden="true" className={cn('h-[28px] w-[4px] shrink-0 rounded-full', tone)} />}
       <span className="min-w-0">
-        <span className="line-clamp-2 text-[12.5px] leading-[1.25]">{node.label}</span>
+        <span className="line-clamp-2 text-[12.5px] leading-[16px]">{node.label}</span>
         {node.kind === 'event' && node.date && (
-          <span className="block font-mono text-[10.5px] leading-4 text-muted-foreground">
+          <span className="block font-mono text-[10.5px] leading-[16px] text-muted-foreground">
             {formatDate(node.date)}
             {node.upcoming && ' · upcoming'}
             {node.stale && ' · no longer in the data'}
@@ -90,8 +90,8 @@ export function CanvasView({
   }
 
   return (
-    <div className="overflow-hidden rounded-[14px] border bg-card">
-      <div role="toolbar" aria-label="Canvas tools" className="flex flex-wrap items-center gap-1.5 border-b border-[#eef0f3] px-3 py-2">
+    <div className="overflow-hidden rounded-[14px] border bg-card shadow-panel">
+      <div role="toolbar" aria-label="Canvas tools" className="flex flex-wrap items-center gap-[8px] border-b border-hair px-[16px] py-[10px]">
         <Button variant="outline" size="sm" disabled={!selected || readOnly} onClick={() => selected && setEditingId(selected.id)}>
           <Pencil /> Rename
         </Button>
@@ -112,18 +112,18 @@ export function CanvasView({
         <Button variant="outline" size="sm" disabled={!selected?.source} onClick={() => selected?.source && onOpenSource(selected.source)}>
           <ExternalLink /> Open source
         </Button>
-        <span className="mx-1 min-w-0 flex-1 truncate text-[12.5px] text-muted-foreground">
+        <span className="mx-[4px] min-w-0 flex-1 truncate text-[12.5px] text-muted-foreground">
           {selected ? selected.label : 'Select a node to edit it. Double-click to rename.'}
         </span>
         <Button variant="ghost" size="icon-sm" aria-label="Zoom out" disabled={zoom === 0} onClick={() => setZoom(zoom - 1)}>
           <Minus />
         </Button>
-        <span className="w-10 text-center font-mono text-xs text-muted-foreground">{Math.round(scale * 100)}%</span>
+        <span className="w-[40px] text-center font-mono text-[12px] text-muted-foreground">{Math.round(scale * 100)}%</span>
         <Button variant="ghost" size="icon-sm" aria-label="Zoom in" disabled={zoom === ZOOMS.length - 1} onClick={() => setZoom(zoom + 1)}>
           <Plus />
         </Button>
       </div>
-      <div ref={scroller} className="overflow-auto bg-[#fafbfc]" style={{ height: 'min(68vh, 760px)' }}>
+      <div ref={scroller} className="overflow-auto bg-background" style={{ height: 'min(68vh, 760px)' }}>
         <div style={{ width: width * scale + PAD * 2, height: height * scale + PAD * 2, padding: PAD }}>
           <div className="relative origin-top-left" style={{ width, height, transform: `scale(${scale})` }}>
             <svg aria-hidden="true" width={width} height={height} className="pointer-events-none absolute inset-0">
@@ -165,7 +165,7 @@ export function CanvasView({
                       if (e.key === 'Enter') e.currentTarget.blur()
                       if (e.key === 'Escape') setEditingId(null)
                     }}
-                    className="h-full w-full rounded-[10px] border-2 border-primary bg-card px-2.5 text-[12.5px] outline-none"
+                    className="h-full w-full rounded-[10px] border-2 border-primary bg-card px-[10px] text-[12.5px] outline-none"
                   />
                 ) : (
                   <button
@@ -175,9 +175,9 @@ export function CanvasView({
                     onDoubleClick={() => !readOnly && setEditingId(node.id)}
                     title={node.label}
                     className={cn(
-                      'h-full w-full rounded-[10px] border px-2.5 text-left shadow-[0_1px_2px_rgba(16,24,40,0.04)] outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
+                      'h-full w-full rounded-[10px] border px-[10px] text-left shadow-panel outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
                       KIND_STYLE[node.kind],
-                      node.children.length > 0 && 'pr-9',
+                      node.children.length > 0 && 'pr-[36px]',
                       node.stale && 'border-dashed bg-muted/60 text-muted-foreground',
                       highlight?.has(node.id) && 'ring-2 ring-success ring-offset-1',
                       selectedId === node.id && 'ring-2 ring-primary ring-offset-1',
@@ -187,7 +187,7 @@ export function CanvasView({
                   </button>
                 )}
                 {highlight?.has(node.id) && (
-                  <span className="absolute -top-2 left-2 rounded-full bg-success px-1.5 text-[10px] leading-4 font-semibold text-white">New</span>
+                  <span className="absolute -top-[8px] left-[8px] rounded-full bg-success px-[6px] text-[10px] leading-[16px] font-semibold text-white">New</span>
                 )}
                 {node.children.length > 0 && editingId !== node.id && (
                   <button
@@ -196,15 +196,15 @@ export function CanvasView({
                     aria-label={node.collapsed ? `Expand ${node.label}` : `Collapse ${node.label}`}
                     disabled={readOnly}
                     onClick={() => edit(node.id, (n) => ({ ...n, collapsed: n.collapsed ? undefined : true }))}
-                    className="absolute right-1.5 flex h-6 min-w-6 items-center justify-center gap-0.5 rounded-md border bg-card px-1 text-[10.5px] font-semibold text-text-secondary hover:bg-accent"
+                    className="absolute right-[6px] flex h-[24px] min-w-[24px] items-center justify-center gap-[2px] rounded-[6px] border bg-card px-[4px] text-[10.5px] font-semibold text-text-secondary hover:bg-accent"
                   >
                     {node.collapsed ? (
                       <>
                         {hiddenCount(node)}
-                        <ChevronRight className="size-3" />
+                        <ChevronRight className="size-[12px]" />
                       </>
                     ) : (
-                      <ChevronDown className="size-3" />
+                      <ChevronDown className="size-[12px]" />
                     )}
                   </button>
                 )}
