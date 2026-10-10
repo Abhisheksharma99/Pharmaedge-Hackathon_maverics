@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import type { Job, JobStep } from '@/features/jobs/api'
 import { StepBar } from '@/features/jobs/components/step-bar'
@@ -60,6 +61,11 @@ function renderCard(running: Job[]) {
   )
 }
 
+beforeAll(() => {
+  Element.prototype.hasPointerCapture ??= () => false
+  Element.prototype.setPointerCapture ??= () => {}
+  Element.prototype.releasePointerCapture ??= () => {}
+})
 afterEach(() => vi.unstubAllGlobals())
 
 describe('CrawlsCard', () => {
@@ -87,6 +93,19 @@ describe('CrawlsCard', () => {
     expect(screen.getByRole('link', { name: /Dupilumab/ })).toHaveTextContent('3m 05s')
     expect(screen.queryByRole('link', { name: /Oldest/ })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'All jobs' })).toHaveAttribute('href', '/jobs')
+  })
+
+  it('searches the finished jobs by asset and filters them by status', async () => {
+    renderCard([RUNNING])
+    await screen.findByRole('link', { name: /Sotatercept/ })
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search by asset' }), 'old')
+    expect(screen.getByRole('link', { name: /Oldest/ })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Sotatercept/ })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Clear' }))
+    await userEvent.click(screen.getByRole('combobox', { name: 'Status' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'Failed' }))
+    expect(screen.getByRole('link', { name: /Ensifentrine/ })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Dupilumab/ })).not.toBeInTheDocument()
   })
 
   it('asks for a small page of jobs, not the full list', async () => {

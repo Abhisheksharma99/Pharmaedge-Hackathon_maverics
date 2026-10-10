@@ -56,7 +56,7 @@ describe('journey story', () => {
       spec: { since: '2025-09-01' },
     }));
     expect(story.range).toEqual({ from: '2021-01-01', to: '2027-12-31', today: TODAY });
-    expect(story.lanes.map((l) => [l.category, l.events.length])).toEqual([['regulatory', 3], ['clinical', 2], ['company', 0], ['ip', 0], ['safety', 0]]); // Low left out
+    expect(story.lanes.map((l) => [l.category, l.events.length])).toEqual([['regulatory', 3], ['clinical', 2], ['company', 0], ['ip', 0]]); // Low left out
     expect(story.lanes[0]!.events.find((e) => e.id === moved._id)!.change).toMatchObject({ kind: 'changed', field: 'date', before: '2027-03-31' });
     expect(story.changes.developments.map((e) => e.title)).toEqual(['TETON-1 meets primary endpoint', 'FDA approves inhaled treprostinil for PH-ILD', 'Phase 2 trial stopped']);
     expect(story.changes.developments[0]!.impact).toMatchObject({ trading_day: '2026-10-08', day0: 10 });

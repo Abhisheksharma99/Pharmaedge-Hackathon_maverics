@@ -6,7 +6,7 @@ import { toEventV3 } from '../journey/events.js';
 import { CacheService } from '../valkey/cache.service.js';
 
 const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const EVENT_FIELDS = { asset: 1, date: 1, title: 1, type: 1, category: 1, significance: 1, is_milestone: 1, branch: 1, origin: 1, key: 1, sources: 1, nct_id: 1 };
+const EVENT_FIELDS = { asset: 1, date: 1, title: 1, type: 1, category: 1, significance: 1, is_milestone: 1, branch: 1, indications: 1, span: 1, origin: 1, key: 1, sources: 1, nct_id: 1 };
 
 /** Home portfolio timeline and ⌘K search across every tracked asset (DATA_CONTRACTS §B.1, §B.5). */
 @Injectable()
@@ -47,11 +47,11 @@ export class PortfolioService {
     const events =
       q.trim().length < 2
         ? []
-        : await this.db.collection('journey_events').find({ $or: [{ title: re }, { nct_id: re }] }, { projection: { asset: 1, title: 1, date: 1, category: 1, nct_id: 1, key: 1 } }).sort({ key: -1, date: -1 }).limit(6).toArray();
+        : await this.db.collection('journey_events').find({ $or: [{ title: re }, { nct_id: re }] }, { projection: { asset: 1, title: 1, date: 1, category: 1, branch: 1, indications: 1, nct_id: 1, key: 1 } }).sort({ key: -1, date: -1 }).limit(6).toArray();
     const names = new Map((await this.db.collection('assets').find({ _id: { $in: [...new Set(events.map((e) => e.asset))] } }, { projection: { name: 1 } }).toArray()).map((a) => [a._id, a.name as string]));
     return {
       assets: assets.map((a) => ({ id: a._id, name: a.name, kind: a.kind, company: a.company?.name ?? null, competitorOf: a.competitor_of ?? [] })),
-      events: events.map((e) => ({ id: e._id, asset: e.asset, assetName: names.get(e.asset) ?? e.asset, title: e.title, date: e.date, category: e.category, nct_id: e.nct_id ?? null })),
+      events: events.map((e) => ({ id: e._id, asset: e.asset, assetName: names.get(e.asset) ?? e.asset, title: e.title, date: e.date, category: e.category === 'safety' ? 'clinical' : e.category, branch: e.branch ?? null, indications: e.indications ?? [], nct_id: e.nct_id ?? null })),
     };
   }
 }

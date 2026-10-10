@@ -50,6 +50,8 @@ export const TreeSvg = memo(function TreeSvg({
   }
   const nodes = geo.nodes.slice(bound(yFrom, false), bound(yTo, true))
   const dim = (id: string) => focusBranch !== null && focusBranch !== id && 'opacity-[0.18]'
+  // Newest first (d = −1) time runs up: forks curve in from below, "beyond today" and tails are above.
+  const d = geo.dir
   return (
     <svg aria-hidden="true" width={geo.W} height={geo.H} className="pointer-events-none absolute top-0 left-0 z-[1] overflow-visible">
       <defs>
@@ -61,8 +63,9 @@ export const TreeSvg = memo(function TreeSvg({
         <g key={String(lit)} clipPath={lit ? `url(#${clipId})` : undefined} opacity={lit ? 0.9 : 1}>
           {geo.lanes.map((l) => {
             const c = lit ? l.color : '#e4e7ec'
-            const solidEnd = geo.yToday !== null && !l.ended ? Math.min(l.y2, geo.yToday) : l.y2
-            const labels = lit && model.multi && l.label ? Array.from({ length: Math.max(0, Math.floor((l.y2 - l.y1 - 260) / 620)) }, (_, k) => l.y1 + 300 + k * 620) : []
+            const solidEnd = geo.yToday !== null && !l.ended ? d * Math.min(d * l.y2, d * geo.yToday) : l.y2
+            const top = Math.min(l.y1, l.y2)
+            const labels = lit && model.multi && l.label ? Array.from({ length: Math.max(0, Math.floor((Math.abs(l.y2 - l.y1) - 260) / 620)) }, (_, k) => top + 300 + k * 620) : []
             return (
               <g key={l.id} data-lane={lit ? l.id : undefined} className={cn('transition-opacity duration-300', dim(l.id))}>
                 {labels.map((y) => (
@@ -70,10 +73,10 @@ export const TreeSvg = memo(function TreeSvg({
                     {l.label}
                   </text>
                 ))}
-                {l.px !== null && <path d={`M${l.px},${l.fy - 58} C${l.px},${l.fy - 26} ${l.x},${l.fy - 34} ${l.x},${l.fy - 6}`} stroke={c} strokeWidth={3} strokeLinecap="round" fill="none" />}
-                <line x1={l.x} x2={l.x} y1={l.px !== null ? l.fy - 6 : l.y1} y2={solidEnd} stroke={c} strokeWidth={l.trunk ? 4 : 3} strokeLinecap="round" />
-                {geo.yToday !== null && !l.ended && l.y2 > geo.yToday && <line x1={l.x} x2={l.x} y1={geo.yToday} y2={l.y2} stroke={c} strokeWidth={l.trunk ? 4 : 3} strokeLinecap="round" strokeDasharray="6 7" />}
-                {l.tailY !== null && <line data-tail={lit ? '' : undefined} x1={l.x} x2={l.x} y1={l.y2 + 8} y2={l.tailY} stroke={c} strokeWidth={1.5} strokeDasharray="2 5" opacity={0.5} />}
+                {l.px !== null && <path d={`M${l.px},${l.fy - 58 * d} C${l.px},${l.fy - 26 * d} ${l.x},${l.fy - 34 * d} ${l.x},${l.fy - 6 * d}`} stroke={c} strokeWidth={3} strokeLinecap="round" fill="none" />}
+                <line x1={l.x} x2={l.x} y1={l.px !== null ? l.fy - 6 * d : l.y1} y2={solidEnd} stroke={c} strokeWidth={l.trunk ? 4 : 3} strokeLinecap="round" />
+                {geo.yToday !== null && !l.ended && d * l.y2 > d * geo.yToday && <line x1={l.x} x2={l.x} y1={geo.yToday} y2={l.y2} stroke={c} strokeWidth={l.trunk ? 4 : 3} strokeLinecap="round" strokeDasharray="6 7" />}
+                {l.tailY !== null && <line data-tail={lit ? '' : undefined} x1={l.x} x2={l.x} y1={l.y2 + 8 * d} y2={l.tailY} stroke={c} strokeWidth={1.5} strokeDasharray="2 5" opacity={0.5} />}
               </g>
             )
           })}

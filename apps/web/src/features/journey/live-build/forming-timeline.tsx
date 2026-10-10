@@ -19,7 +19,7 @@ const radius = (e: JourneyEventV3) => (e.significance === 'High' ? 6 : e.signifi
 const laneY = (e: Pick<JourneyEventV3, 'category'>) => TOP + CATEGORIES.indexOf(e.category) * LANE_H + LANE_H / 2
 
 /**
- * "Journey taking shape" (README §6.1; design_files/aj/live.jsx FormingTimeline): five category lanes over a records
+ * "Journey taking shape" (README §6.1; design_files/aj/live.jsx FormingTimeline): four category lanes over a records
  * strip. Records land as ticks at their real years (the job's record-year histogram); events pop on their lane with a
  * ring and a beam. Ticks and dots are keyed by bucket / event id, so only new ones animate.
  */

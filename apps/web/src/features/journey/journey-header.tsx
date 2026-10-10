@@ -1,37 +1,51 @@
-import { Activity, Columns2, Flag, Plus, Rows2, Star } from 'lucide-react'
-import { useMemo, type CSSProperties } from 'react'
+import { Activity, Columns2, Flag, Plus, Rows2, Search, Star } from 'lucide-react'
+import { useMemo, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Segmented } from '@/features/assets/components/segmented'
 import { cn } from '@/lib/utils'
 import type { JourneyScope } from './api'
 import { BTN_SM, CHIP, CHIP_ON, FOCUS } from './controls'
 import { CATEGORIES, CATEGORY_META } from './constants'
-import { laneOf, type BranchModel, type JourneyView, type Mine } from './journey-model'
+import { laneOf, type BranchModel, type JourneyOrder, type JourneyView, type Mine } from './journey-model'
 import type { EventCategory, JourneyEventV3 } from './types'
 
+const ALL_INDICATIONS = '__all__'
 
 export interface JourneyHeaderProps {
+  assetId: string
   model: BranchModel
-  /** The events the view shows (after filters). */
+  /** The events the view shows (after filters), oldest first. */
   list: JourneyEventV3[]
   undated: number
   counts: { cats: Record<EventCategory, number>; starred: number; notes: number }
   view: JourneyView
+  order: JourneyOrder
   scope: JourneyScope
   cats: EventCategory[]
   mine: Mine | null
+  /** Indications present in the scope's events (the Indication filter's options). */
+  indications: string[]
+  ind: string | null
+  q: string
   focusBranch: string | null
   onView: (v: JourneyView) => void
+  onOrder: (o: JourneyOrder) => void
   onScope: (s: JourneyScope) => void
   onToggleCat: (c: EventCategory) => void
   onMine: (m: Mine | null) => void
+  onInd: (i: string | null) => void
+  onQuery: (q: string) => void
   onFocusBranch: (id: string | null) => void
   onClear: () => void
   onAdd: () => void
 }
 
-/** Journey header card (README §6.2 "Header", SCREENS 7): title, counts, actions, branch cards and filter chips. */
+/**
+ * Journey header card (README §6.2 "Header", SCREENS 7): title, counts, actions (orientation, order, scope, add), branch
+ * cards, and the filters: category chips, Starred / Team notes, indication and title search.
+ */
 export function JourneyHeader(p: JourneyHeaderProps) {
   const { model, list } = p
   const span = list.length ? `${list[0]!.date.slice(0, 4)}–${list[list.length - 1]!.date.slice(0, 4)}` : ''
@@ -60,7 +74,7 @@ export function JourneyHeader(p: JourneyHeaderProps) {
       </div>
       <div className="flex flex-wrap items-center gap-[8px]">
         <Button asChild variant="ghost" size="sm" className={cn(BTN_SM, 'text-primary hover:bg-primary-soft hover:text-primary dark:hover:bg-primary-soft')}>
-          <Link to="?build=1">
+          <Link to={`/assets/${encodeURIComponent(p.assetId)}/overview?build=1`}>
             <Activity /> How this journey was built
           </Link>
         </Button>
@@ -70,8 +84,18 @@ export function JourneyHeader(p: JourneyHeaderProps) {
           value={p.view}
           onChange={p.onView}
           options={[
-            { value: 'v', label: 'Tree', icon: Rows2 },
             { value: 'h', label: 'Horizontal', icon: Columns2 },
+            { value: 'v', label: 'Vertical', icon: Rows2 },
+          ]}
+        />
+        <Segmented
+          variant="compact"
+          label="Order"
+          value={p.order}
+          onChange={p.onOrder}
+          options={[
+            { value: 'oldest', label: 'Oldest first' },
+            { value: 'newest', label: 'Newest first' },
           ]}
         />
         <Segmented variant="compact" label="Events shown" value={p.scope} onChange={p.onScope} options={[{ value: 'key', label: 'Key events' }, { value: 'all', label: 'All' }]} />
@@ -138,12 +162,58 @@ export function JourneyHeader(p: JourneyHeaderProps) {
           Team notes
           <span className="font-mono text-[11px] text-muted-foreground">{p.counts.notes}</span>
         </button>
-        {(p.cats.length > 0 || p.focusBranch || p.mine) && (
+        <span aria-hidden="true" className="mx-[4px] h-[20px] w-px bg-border" />
+        {(p.indications.length > 1 || p.ind) && (
+          <Select value={p.ind ?? ALL_INDICATIONS} onValueChange={(v) => p.onInd(v === ALL_INDICATIONS ? null : v)}>
+            <SelectTrigger size="sm" aria-label="Indication" className={cn(CHIP, 'max-w-[200px] min-w-[132px] justify-between', p.ind && CHIP_ON)}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_INDICATIONS}>Indication: all</SelectItem>
+              {p.indications.map((i) => (
+                <SelectItem key={i} value={i}>
+                  {i}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        <TitleSearch value={p.q} onChange={p.onQuery} />
+        {(p.cats.length > 0 || p.focusBranch || p.mine || p.ind || p.q) && (
           <button type="button" onClick={p.onClear} className={cn('rounded-sm px-[4px] text-[12.5px] font-medium text-primary hover:underline', FOCUS)}>
             Clear
           </button>
         )}
       </div>
     </section>
+  )
+}
+
+/**
+ * Title search, typed into local state (the URL's `?q=` follows and may render a beat later, which would move the
+ * caret); a cleared filter empties it.
+ */
+function TitleSearch({ value, onChange }: { value: string; onChange: (q: string) => void }) {
+  const [text, setText] = useState(value)
+  const [prev, setPrev] = useState(value)
+  if (value !== prev) {
+    setPrev(value)
+    if (!value) setText('')
+  }
+  return (
+    <label className="relative min-w-[160px] flex-[1_1_180px] max-w-[280px] max-[900px]:max-w-none">
+      <span className="sr-only">Search event titles</span>
+      <Search className="pointer-events-none absolute top-1/2 left-[9px] size-[13px] -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+      <input
+        type="search"
+        value={text}
+        onChange={(e) => {
+          setText(e.target.value)
+          onChange(e.target.value)
+        }}
+        placeholder="Search titles"
+        className="h-[28px] w-full rounded-lg border border-input bg-card pr-[10px] pl-[28px] text-[12.5px] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+      />
+    </label>
   )
 }

@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router'
+import { CardFilters, useCardFilter } from '@/components/card-filters'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { InlineError } from '@/components/inline-error'
@@ -9,12 +10,14 @@ import { Segmented } from '@/features/assets/components/segmented'
 import { useJobProgress, useJobs, type Job } from '@/features/jobs/api'
 import { jobProgress, runningByAsset } from '@/features/jobs/steps'
 import { CATEGORIES, CATEGORY_META, COLLECTION_META, collectionMeta } from '@/features/journey/constants'
+import { eventIndications } from '@/features/journey/indications'
 import type { JourneyEventV3 } from '@/features/journey/types'
 import { formatDay, formatMonth, todayIso, yearFraction } from '@/lib/dates'
 import { useElementWidth } from '@/lib/use-element-width'
 import { useEventSheet } from '@/stores/event-sheet-store'
 import { eventsByAsset, usePortfolioTimeline, type PortfolioAsset } from '../api'
 import { DOT_RADIUS, RANGE_OPTIONS, rangeBounds, rangeTicks, type PortfolioRange } from '../portfolio-scale'
+import { NoMatches } from './no-matches'
 
 const ROW = 46
 const RIGHT_PAD = 14
@@ -33,7 +36,11 @@ export function PortfolioTimeline() {
   const [range, setRange] = useState<PortfolioRange>('3y')
   const [showCompetitors, setShowCompetitors] = useState(false)
   const data = portfolio.data
-  const rows = (data?.assets ?? []).filter((a) => a.kind === 'primary' || showCompetitors)
+  const names = new Map((data?.assets ?? []).map((a) => [a.id, a.name]))
+  // Search is by asset: it narrows the rows and the dots; the Indication filter keeps only matching events.
+  const { filtered, filters } = useCardFilter(data?.events ?? [], (e) => names.get(e.asset) ?? e.asset, [{ label: 'Indication', of: eventIndications }])
+  const q = filters.query.trim().toLowerCase()
+  const rows = (data?.assets ?? []).filter((a) => (a.kind === 'primary' || showCompetitors) && (!q || a.name.toLowerCase().includes(q)))
 
   return (
     <Panel
@@ -57,10 +64,12 @@ export function PortfolioTimeline() {
         </div>
       )}
       {portfolio.isError && <InlineError message="The portfolio timeline couldn't be loaded." onRetry={() => void portfolio.refetch()} />}
-      {data && rows.length === 0 && <EmptyState title="No assets yet">Add a drug by name with Asset AI to see its journey here.</EmptyState>}
+      {data && data.assets.length > 0 && <CardFilters {...filters} placeholder="Search assets" />}
+      {data && rows.length === 0 && !q && <EmptyState title="No assets yet">Add a drug by name with Asset AI to see its journey here.</EmptyState>}
+      {data && rows.length === 0 && q && <NoMatches what="assets" />}
       {data && rows.length > 0 && (
         <>
-          <PortfolioPlot assets={data.assets} rows={rows} events={data.events} range={range} running={onboarding} />
+          <PortfolioPlot assets={data.assets} rows={rows} events={filtered} range={range} running={onboarding} />
           <Legend />
         </>
       )}
@@ -170,6 +179,7 @@ function PortfolioPlot({
             <span className="text-[11.5px] text-[#c3c9d4]">
               {names.get(hovered.asset) ?? hovered.asset} · {whenLabel(hovered)}
             </span>
+            {eventIndications(hovered).length > 0 && <span className="text-[11.5px] text-[#c3c9d4]">Indication: {eventIndications(hovered).join(', ')}</span>}
           </div>
         )}
       </div>

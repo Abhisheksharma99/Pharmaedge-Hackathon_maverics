@@ -2,12 +2,11 @@ import { TAB_FOR_COLLECTION, type RecordTab } from '@/features/assets/api'
 import { CATEGORY_META as BASE_CATEGORY_META } from '@/features/assets/components/badges'
 import type { EventCategory, NoteTag } from './types'
 
-export const CATEGORIES: EventCategory[] = ['regulatory', 'clinical', 'safety', 'company', 'ip']
+export const CATEGORIES: EventCategory[] = ['regulatory', 'clinical', 'company', 'ip']
 
 const CATEGORY_COLORS: Record<EventCategory, { color: string; soft: string }> = {
   regulatory: { color: '#2347d9', soft: '#eef2fd' },
   clinical: { color: '#0b7a6f', soft: '#e6f4f2' },
-  safety: { color: '#b42318', soft: '#fef3f2' },
   company: { color: '#e0620f', soft: '#fdeee4' },
   ip: { color: '#6941c6', soft: '#f4f3ff' },
 }

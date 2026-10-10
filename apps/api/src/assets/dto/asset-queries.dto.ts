@@ -3,14 +3,19 @@ import { ArrayMaxSize, IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Ma
 
 const csv = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.split(',').map((v) => v.trim()).filter(Boolean) : value;
+/** Category filter: csv, with the retired 'safety' value mapped to 'clinical' instead of a 400. */
+export const categoryCsv = (p: { value: unknown }) => {
+  const v = csv(p);
+  return Array.isArray(v) ? [...new Set(v.map((c) => (c === 'safety' ? 'clinical' : c)))] : v;
+};
 const bool = ({ value }: { value: unknown }) => (value === 'true' ? true : value === 'false' ? false : value);
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 export class TimelineQueryDto {
   @IsOptional()
-  @Transform(csv)
+  @Transform(categoryCsv)
   @IsArray()
-  @IsIn(['regulatory', 'clinical', 'safety', 'company', 'ip'], { each: true })
+  @IsIn(['regulatory', 'clinical', 'company', 'ip'], { each: true })
   category?: string[];
 
   @IsOptional()
@@ -75,9 +80,9 @@ export class MarketQueryDto {
   drugs?: string[];
 
   @IsOptional()
-  @Transform(csv)
+  @Transform(categoryCsv)
   @IsArray()
-  @IsIn(['regulatory', 'clinical', 'safety', 'company', 'ip'], { each: true })
+  @IsIn(['regulatory', 'clinical', 'company', 'ip'], { each: true })
   category?: string[];
 
   @IsOptional()
@@ -110,9 +115,9 @@ export class StoryQueryDto {
   since?: string;
 
   @IsOptional()
-  @Transform(csv)
+  @Transform(categoryCsv)
   @IsArray()
-  @IsIn(['regulatory', 'clinical', 'safety', 'company', 'ip'], { each: true })
+  @IsIn(['regulatory', 'clinical', 'company', 'ip'], { each: true })
   category?: string[];
 
   @IsOptional()

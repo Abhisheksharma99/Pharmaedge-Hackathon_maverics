@@ -84,8 +84,8 @@ export function specMatch(spec: CanvasSpec): Document {
   if (spec.from || spec.to) match.date = { ...(spec.from ? { $gte: spec.from } : {}), ...(spec.to ? { $lte: spec.to } : {}) };
   return match;
 }
-const CATEGORY_ORDER = ['regulatory', 'clinical', 'safety', 'company', 'ip'];
-const CATEGORY_LABEL: Record<string, string> = { regulatory: 'Regulatory', clinical: 'Clinical', safety: 'Safety', company: 'Company', ip: 'Patents & IP' };
+const CATEGORY_ORDER = ['regulatory', 'clinical', 'company', 'ip'];
+const CATEGORY_LABEL: Record<string, string> = { regulatory: 'Regulatory', clinical: 'Clinical', company: 'Company', ip: 'Patents & IP' };
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
 /** Node id of a journey event: stable across builds, within the id charset `cleanTree` accepts. */

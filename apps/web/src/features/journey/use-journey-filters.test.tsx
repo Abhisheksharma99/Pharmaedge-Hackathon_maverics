@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import type { Mock } from 'vitest'
-import { useJourneyFilters, VIEW_STORAGE_KEY } from './use-journey-filters'
+import { useJourneyFilters } from './use-journey-filters'
 
 const json = (status: number, body?: unknown) =>
   new Response(body === undefined ? null : JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
@@ -34,32 +34,46 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('useJourneyFilters', () => {
-  it('defaults to the horizontal view with key events and no filters', async () => {
+  it('defaults to horizontal, oldest first, key events and no filters', () => {
     const { result } = setup('/assets/trep/overview')
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/me/prefs', expect.anything()))
-    expect(result.current).toMatchObject({ view: 'h', scope: 'key', cats: [], mine: null, focus: null })
+    expect(result.current).toMatchObject({ view: 'h', order: 'oldest', scope: 'key', cats: [], mine: null, ind: null, q: '', focus: null })
   })
 
-  it('reads the orientation from /me/prefs, the URL first', async () => {
+  it('is horizontal by default whatever was saved before (prefs, localStorage): only the URL opens the vertical view', async () => {
     fetchMock.mockImplementation(async (url) => (url === '/api/me/prefs' ? json(200, PREFS) : json(404)))
+    localStorage.setItem('aj.orient', 'v')
     const { result } = setup('/assets/trep/overview')
-    await waitFor(() => expect(result.current.view).toBe('v'))
-    const other = setup('/assets/trep/overview?view=h')
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
-    expect(other.result.current.view).toBe('h')
+    await new Promise((r) => setTimeout(r, 20))
+    expect(result.current.view).toBe('h')
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(setup('/journey/trep?view=v').result.current.view).toBe('v')
   })
 
-  it('falls back to localStorage when prefs are unavailable, and saves a change to prefs, storage and the URL', async () => {
-    localStorage.setItem(VIEW_STORAGE_KEY, 'v')
-    const { result, search } = setup('/assets/trep/overview')
-    expect(result.current.view).toBe('v')
+  it('toggles orientation and order in the URL, the defaults leaving no param, and saves nothing', async () => {
+    const { result, search } = setup('/journey/trep')
+    act(() => result.current.setView('v'))
+    act(() => result.current.setOrder('newest'))
+    await waitFor(() => expect(result.current).toMatchObject({ view: 'v', order: 'newest' }))
+    expect(search().toString()).toBe('view=v&order=newest')
     act(() => result.current.setView('h'))
-    await waitFor(() => expect(result.current.view).toBe('h'))
-    expect(search().get('view')).toBe('h')
-    expect(localStorage.getItem(VIEW_STORAGE_KEY)).toBe('h')
-    await waitFor(() =>
-      expect(fetchMock).toHaveBeenCalledWith('/api/me/prefs', expect.objectContaining({ method: 'PATCH', body: '{"journeyView":"h"}' })),
-    )
+    act(() => result.current.setOrder('oldest'))
+    await waitFor(() => expect(search().toString()).toBe(''))
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(localStorage.length).toBe(0)
+  })
+
+  it('keeps the indication and title search in the URL; Clear and "show everything" drop them', async () => {
+    const { result, search } = setup('/journey/trep?ind=PH-ILD&q=tyvaso')
+    expect(result.current).toMatchObject({ ind: 'PH-ILD', q: 'tyvaso' })
+    act(() => result.current.setInd('PAH'))
+    act(() => result.current.setQuery('teton'))
+    await waitFor(() => expect(search().toString()).toBe('ind=PAH&q=teton'))
+    act(() => result.current.clearFilters())
+    await waitFor(() => expect(search().toString()).toBe(''))
+    act(() => result.current.setInd('PAH'))
+    act(() => result.current.setOrder('newest'))
+    act(() => result.current.showEverything())
+    await waitFor(() => expect(search().toString()).toBe('order=newest&scope=all'))
   })
 
   it('keeps scope, categories and Starred / Team notes in the URL and ignores unknown values', async () => {

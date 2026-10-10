@@ -8,7 +8,7 @@ import { measure, type Bar, type Impact } from '../chat/market.js';
  * writes notes that cite these events.
  */
 
-export const LANES = ['regulatory', 'clinical', 'company', 'ip', 'safety'] as const;
+export const LANES = ['regulatory', 'clinical', 'company', 'ip'] as const;
 export const KEY_SIGNIFICANCE = ['High', 'Medium'];
 const MAX_EVENTS = 800;
 const CHAPTER_MERGE_DAYS = 3 * 365; // approvals this close start one chapter
@@ -53,6 +53,10 @@ export interface StoryEvent {
   origin: string;
   region?: string;
   indication?: string;
+  /** Short indication id of the journey branch, and the full indications / branches it spans. */
+  branch?: string;
+  indications?: string[];
+  span?: string[];
   phase?: string;
   /** Sponsor of a regulator record; `ownProduct` false = another company's product of the same molecule. */
   sponsor?: string;
@@ -156,7 +160,7 @@ export function toStoryEvent(e: Document, change?: Change): StoryEvent {
     id: String(e._id),
     date: String(e.date ?? ''),
     type: String(e.type ?? ''),
-    category: String(e.category ?? 'other'),
+    category: e.category === 'safety' ? 'clinical' : String(e.category ?? 'other'),
     title: String(e.title ?? 'Untitled event'),
     ...(e.summary ? { summary: String(e.summary) } : {}),
     significance: String(e.significance ?? 'Low'),
@@ -164,6 +168,9 @@ export function toStoryEvent(e: Document, change?: Change): StoryEvent {
     origin: String(e.origin ?? 'rule'),
     ...(e.region ? { region: String(e.region) } : {}),
     ...(e.indication ? { indication: String(e.indication) } : {}),
+    ...(e.branch ? { branch: String(e.branch) } : {}),
+    ...(Array.isArray(e.indications) && e.indications.length ? { indications: e.indications as string[] } : {}),
+    ...(Array.isArray(e.span) && e.span.length ? { span: e.span as string[] } : {}),
     ...(e.phase ? { phase: String(e.phase) } : {}),
     ...(e.sponsor ? { sponsor: String(e.sponsor) } : {}),
     ...(typeof e.sponsor_is_company === 'boolean' && e.category === 'regulatory' ? { ownProduct: e.sponsor_is_company } : {}),

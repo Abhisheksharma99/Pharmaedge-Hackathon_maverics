@@ -1,14 +1,17 @@
 import { ArrowRight } from 'lucide-react'
 import { Link } from 'react-router'
+import { CardFilters, useCardFilter } from '@/components/card-filters'
 import { InlineError } from '@/components/inline-error'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAssetDetails, useAssets } from '@/features/assets/api'
 import { AssetCard } from '@/features/assets/components/asset-card'
+import { shortIndication } from '@/features/assets/components/competitors/utils'
 import { EmptyState } from '@/features/assets/components/panel'
 import { useJobs } from '@/features/jobs/api'
 import { jobProgress, runningByAsset } from '@/features/jobs/steps'
 import { eventsByAsset, usePortfolioTimeline } from '../api'
+import { NoMatches } from './no-matches'
 
 /** Home "Tracked assets" (README §5.2): one card per primary asset. */
 export function TrackedAssets() {
@@ -18,6 +21,9 @@ export function TrackedAssets() {
   const all = assets.data ?? []
   const primary = all.filter((a) => a.kind === 'primary')
   const competitors = all.length - primary.length
+  const { filtered, filters } = useCardFilter(primary, (a) => [a.name, a.company.name, ...a.aliases].join(' '), [
+    { label: 'Indication', of: (a) => [...(a.tags.indications ?? []), ...(a.tags.investigational_indications ?? [])].map(shortIndication) },
+  ])
   const details = useAssetDetails(primary.map((a) => a.id))
   const byAsset = eventsByAsset(portfolio.data?.events ?? [])
 
@@ -53,9 +59,15 @@ export function TrackedAssets() {
           <EmptyState title="No assets yet">Add a drug by name with Asset AI.</EmptyState>
         </div>
       )}
-      {primary.length > 0 && (
+      {primary.length > 0 && <CardFilters {...filters} placeholder="Search assets" className="px-0 pt-0" />}
+      {primary.length > 0 && filtered.length === 0 && (
+        <div className="rounded-[14px] border bg-card">
+          <NoMatches what="assets" />
+        </div>
+      )}
+      {filtered.length > 0 && (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(270px,1fr))] gap-[16px]">
-          {primary.map((a, i) => {
+          {filtered.map((a, i) => {
             const job = running.get(a.id)
             return (
               <AssetCard

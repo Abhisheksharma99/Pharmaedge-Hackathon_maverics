@@ -8,11 +8,10 @@ const ACTIVE = new Set(['RECRUITING', 'ACTIVE_NOT_RECRUITING', 'NOT_YET_RECRUITI
 const CATEGORIES = [
   ['regulatory', 'Regulatory'],
   ['clinical', 'Clinical'],
-  ['safety', 'Safety'],
   ['company', 'Company'],
   ['ip', 'Patents'],
 ] as const;
-const brief = (e: Document) => ({ id: e._id ?? e.id, title: e.title as string, date: e.date as string });
+const brief = (e: Document) => ({ id: e._id ?? e.id, title: e.title as string, date: e.date as string, ...(e.branch && { branch: e.branch as string }) });
 const phaseIndex = (phase: unknown) => {
   const m = /PHASE(\d)/.exec(String(phase ?? ''));
   return m ? Math.min(2, Number(m[1]) - 1) : -1;
@@ -26,7 +25,9 @@ export interface PipelineRow {
   ended: string | null;
   stage: number;
   n: number;
-  next: { id: string; title: string; date: string } | null;
+  /** FDA / EMA authorisation regions of the events behind an approved stage (US, EU). */
+  regions: string[];
+  next: { id: string; title: string; date: string; branch?: string } | null;
   since: string | null;
 }
 
@@ -36,7 +37,8 @@ export function pipeline(branches: Document[], events: Document[], asset: Docume
     if (stage < 0) stage = 0;
     const next = evs.filter((e) => e.is_milestone && e.date >= today).sort((a, b) => a.date.localeCompare(b.date))[0];
     const since = evs.filter((e) => !e.is_milestone && e.date).sort((a, b) => a.date.localeCompare(b.date))[0];
-    return { id, label, full, color, ended, stage, n: evs.length, next: next ? brief(next) : null, since: since?.date ?? null };
+    const regions = stage === 4 ? [...new Set(evs.filter((e) => APPROVED.has(e.type) && !e.is_milestone && e.origin === 'rule' && e.region).map((e) => e.region as string))].sort() : [];
+    return { id, label, full, color, ended, stage, n: evs.length, regions, next: next ? brief(next) : null, since: since?.date ?? null };
   };
   if (branches.length) {
     const trunk = branches.find((b) => b.trunk)?.id;
@@ -115,21 +117,19 @@ export function patentRows(records: Document[], today: string) {
 }
 
 export function stats(
-  input: { pipeline: PipelineRow[]; trials: ReturnType<typeof trialRows>; events: Document[]; patents: ReturnType<typeof patentRows>; evidenceRecords: number },
+  input: { pipeline: PipelineRow[]; trials: ReturnType<typeof trialRows>; events: Document[]; evidenceRecords: number },
   today: string,
 ) {
   const active = input.trials.filter((t) => t.active && t.company);
   const next = input.events.filter((e) => e.is_milestone && e.date >= today).sort((a, b) => a.date.localeCompare(b.date))[0];
-  const inForce = input.patents.filter((p) => !p.invalidated && p.expiry > today);
-  const runway = inForce.length ? (Date.parse(inForce[0]!.expiry) - Date.parse(today)) / (365.25 * 86_400_000) : null;
   return {
     approvedIndications: input.pipeline.filter((p) => p.stage === 4).length,
+    approved: input.pipeline.filter((p) => p.stage === 4).map((p) => ({ indication: p.label, regions: p.regions })),
     inDevelopment: input.pipeline.filter((p) => p.stage < 4 && !p.ended).map((p) => p.label),
     activeTrials: active.length,
     phase3: active.filter((t) => t.phase === 'Phase 3').length,
     patients: active.reduce((s, t) => s + t.enrollment, 0),
     nextCatalyst: next ? brief(next) : null,
-    patentRunwayYears: runway === null ? null : Math.round(runway * 10) / 10,
     evidenceRecords: input.evidenceRecords,
   };
 }

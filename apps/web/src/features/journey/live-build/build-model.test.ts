@@ -167,7 +167,7 @@ describe('events', () => {
 
   it('counts events by category and by how they were built', () => {
     const events = [event('a'), event('b', { category: 'clinical', via: 'ai_events' }), event('c', { via: 'finalize' })]
-    expect(categoryCounts(events)).toEqual({ regulatory: 2, clinical: 1, safety: 0, company: 0, ip: 0 })
+    expect(categoryCounts(events)).toEqual({ regulatory: 2, clinical: 1, company: 0, ip: 0 })
     expect(viaCounts(events)).toEqual({ journey: 1, ai_events: 1, finalize: 1, user: 0 })
   })
 

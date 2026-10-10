@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNod
 import type { EventCategory } from '@/features/assets/api'
 import { formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import type { Story, StoryEvent, StoryNote } from './api'
+import { storyIndications, type Story, type StoryEvent, type StoryNote } from './api'
 
 /**
  * The journey story's timeline (team design: design/competitors-redesign/Timeline.dc.html): a shared time axis, the
@@ -15,14 +15,12 @@ export const CATEGORY_COLOR: Record<EventCategory, string> = {
   clinical: '#08916F',
   company: '#E0620F',
   ip: '#7A5AF8',
-  safety: '#C11574',
 }
 export const CATEGORY_LABEL: Record<EventCategory, string> = {
   regulatory: 'Regulatory',
   clinical: 'Clinical',
   company: 'Company',
   ip: 'Patents',
-  safety: 'Safety',
 }
 
 const LABEL_W = 112
@@ -74,13 +72,14 @@ function EventMark({ e, x, top, color, selected, pin, onSelect, delay, faded }: 
 }) {
   const size = SIZE[e.significance] ?? 8
   const flag = eventFlag(e)
+  const indications = storyIndications(e).join(', ')
   return (
     <button
       type="button"
       onClick={() => onSelect(e)}
       aria-pressed={selected}
-      aria-label={`${formatDate(e.date)}: ${e.title}${flag ? ` (${flag.label})` : ''}`}
-      title={`${formatDate(e.date)} · ${e.title}${flag ? ` · ${flag.label}` : ''}`}
+      aria-label={`${formatDate(e.date)}: ${e.title}${indications ? ` (${indications})` : ''}${flag ? ` (${flag.label})` : ''}`}
+      title={`${formatDate(e.date)} · ${e.title}${indications ? ` · ${indications}` : ''}${flag ? ` · ${flag.label}` : ''}`}
       className="absolute -translate-x-1/2 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
       style={{ left: x, top, width: Math.max(size, 18), height: Math.max(size, 18), marginTop: -Math.max(size, 18) / 2, zIndex: selected ? 6 : 3 }}
     >

@@ -33,7 +33,7 @@ export class AnalyticsService implements OnModuleInit {
       const t = today();
       const [branches, events, trials, patents, perColl, ledger] = await Promise.all([
         this.db.collection('asset_branches').find({ asset: id }).toArray(),
-        this.db.collection('journey_events').find({ asset: id }, { projection: { branch: 1, type: 1, category: 1, date: 1, significance: 1, is_milestone: 1, phase: 1, title: 1, origin: 1, key: 1 } }).toArray(),
+        this.db.collection('journey_events').find({ asset: id }, { projection: { branch: 1, type: 1, category: 1, region: 1, date: 1, significance: 1, is_milestone: 1, phase: 1, title: 1, origin: 1, key: 1 } }).toArray(),
         this.db.collection('trial_records').find({ assets: id }, { projection: { study: 0 } }).toArray(),
         this.db.collection('patent_records').find({ assets: id, country: 'US', kind: /^B/ }, { projection: { abstract: 0, events: 0, cpc: 0, inventors: 0 } }).toArray(),
         Promise.all(RECORD_COLLECTIONS.map(async (coll) => ({ coll, rows: await this.db.collection(coll).aggregate([{ $match: { assets: id } }, { $group: { _id: YEAR, n: { $sum: 1 } } }]).toArray() }))),
@@ -62,7 +62,7 @@ export class AnalyticsService implements OnModuleInit {
         patents: patentList,
         landscape: landscape(asset, competitors),
         significance: significanceMix(events),
-        stats: stats({ pipeline: pipe, trials: trialList, events, patents: patentList, evidenceRecords }, t),
+        stats: stats({ pipeline: pipe, trials: trialList, events, evidenceRecords }, t),
       };
       await this.db.collection('asset_analytics').updateOne({ asset: id }, { $set: { computed_at: new Date(), blocks: out } }, { upsert: true });
       return out;

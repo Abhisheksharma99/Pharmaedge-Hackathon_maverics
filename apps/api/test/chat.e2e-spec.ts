@@ -354,7 +354,7 @@ describe('Asset AI chat', () => {
     const storyId = start.storyId;
     // Opened first, then drawn layer by layer, then the card.
     const order = evs.filter((e) => ['navigate', 'story_start', 'story_layer', 'card'].includes(e.type)).map((e) => (e.type === 'story_layer' ? e.layer : e.type));
-    expect(order).toEqual(['navigate', 'story_start', 'axis', 'approvals', 'market', 'lane', 'lane', 'lane', 'lane', 'lane', 'changes', 'chapters', 'card']);
+    expect(order).toEqual(['navigate', 'story_start', 'axis', 'approvals', 'market', 'lane', 'lane', 'lane', 'lane', 'changes', 'chapters', 'card']);
     expect(evs.find((e) => e.type === 'navigate').to).toEqual({ assetId: 'trep', tab: 'canvas', storyId });
     expect(evs.find((e) => e.type === 'card').card).toMatchObject({ type: 'story', storyId, checks: 1 });
     const result = JSON.parse(requests[1].messages.at(-1).content);

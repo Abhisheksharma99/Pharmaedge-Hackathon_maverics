@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import type { AssetSummary } from '@/features/assets/api'
@@ -9,12 +10,12 @@ const json = (status: number, body?: unknown) =>
   new Response(body === undefined ? null : JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 
 const ZERO = { trials: 0, regulatory: 0, pressReleases: 0, documents: 0, news: 0, publications: 0, conferences: 0, patents: 0, events: 0 }
-const asset = (id: string, name: string, kind: AssetSummary['kind'], competitorOf: AssetSummary['competitorOf'] = []): AssetSummary => ({
+const asset = (id: string, name: string, kind: AssetSummary['kind'], competitorOf: AssetSummary['competitorOf'] = [], tags: AssetSummary['tags'] = {}): AssetSummary => ({
   id,
   name,
   aliases: [],
   company: { name: 'Co' },
-  tags: {},
+  tags,
   kind,
   status: 'ready',
   updatedAt: null,
@@ -46,6 +47,11 @@ function renderSection(assets: AssetSummary[]) {
   )
 }
 
+beforeAll(() => {
+  Element.prototype.hasPointerCapture ??= () => false
+  Element.prototype.setPointerCapture ??= () => {}
+  Element.prototype.releasePointerCapture ??= () => {}
+})
 afterEach(() => vi.unstubAllGlobals())
 
 describe('TrackedAssets', () => {
@@ -59,6 +65,21 @@ describe('TrackedAssets', () => {
     expect(screen.getByRole('link', { name: /Sotatercept/ })).toHaveTextContent('0 competitors')
     expect(screen.queryByRole('link', { name: /Nintedanib/ })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Asset Search/ })).toHaveAttribute('href', '/assets')
+  })
+
+  it('filters the cards by name and by indication from the asset tags', async () => {
+    renderSection([
+      asset('trep', 'Treprostinil', 'primary', [], { indications: ['Pulmonary arterial hypertension (PAH)'] }),
+      asset('sota', 'Sotatercept', 'primary', [], { investigational_indications: ['Pulmonary hypertension (PH-ILD)'] }),
+    ])
+    await screen.findByRole('link', { name: /Treprostinil/ })
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search assets' }), 'sota')
+    expect(screen.queryByRole('link', { name: /Treprostinil/ })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Clear' }))
+    await userEvent.click(screen.getByRole('combobox', { name: 'Indication' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'PAH' }))
+    expect(screen.getByRole('link', { name: /Treprostinil/ })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Sotatercept/ })).not.toBeInTheDocument()
   })
 
   it('invites to add an asset when none is tracked', async () => {

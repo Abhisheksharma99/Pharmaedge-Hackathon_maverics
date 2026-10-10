@@ -1,3 +1,5 @@
+import { IndicationBadges } from '@/features/assets/components/badges'
+
 /** Date chip + title list (Next milestones card, calendar results). */
 export function MilestoneList({
   items,
@@ -8,6 +10,8 @@ export function MilestoneList({
     year: string
     title: string
     sub: string
+    /** Short indication labels this milestone belongs to. */
+    indications?: string[]
   }[]
 }) {
   return (
@@ -21,6 +25,7 @@ export function MilestoneList({
           <span className="flex min-w-0 flex-col text-[12.5px] font-medium">
             {e.title}
             <em className="text-[11.5px] font-semibold text-primary not-italic">{e.sub}</em>
+            {!!e.indications?.length && <IndicationBadges items={e.indications} className="mt-[3px]" />}
           </span>
         </li>
       ))}

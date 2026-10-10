@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { InlineError } from '@/components/inline-error'
 import { CHIP, CHIP_ON } from '@/features/journey/controls'
+import { indicationOptions } from '@/features/journey/indications'
+import { IndicationBadges } from '@/features/assets/components/badges'
 import type { EventCategory, RecordTab } from '@/features/assets/api'
 import { TAB_FOR_COLLECTION } from '@/features/assets/api'
 import { RecordSheet } from '@/features/assets/components/record-sheet'
@@ -16,7 +18,7 @@ import { useAskStore } from '@/features/chat/ask-store'
 import { formatDate } from '@/lib/format'
 import { cn, safeUrl } from '@/lib/utils'
 import { useShellStore } from '@/stores/shell-store'
-import { useDeleteStory, useStory, type Chapter, type Story, type StoryEvent, type StoryFilters, type StoryNote } from './api'
+import { storyIndications, useDeleteStory, useStory, type Chapter, type Story, type StoryEvent, type StoryFilters, type StoryNote } from './api'
 import { useLiveStories } from './live-store'
 import { CATEGORY_COLOR, CATEGORY_LABEL, StoryTimeline, eventFlag } from './story-timeline'
 
@@ -27,7 +29,7 @@ import { CATEGORY_COLOR, CATEGORY_LABEL, StoryTimeline, eventFlag } from './stor
  */
 
 type Range = 'all' | 'focus' | 'recent' | 'ahead' | 'chapter'
-const CATEGORIES: EventCategory[] = ['regulatory', 'clinical', 'company', 'ip', 'safety']
+const CATEGORIES: EventCategory[] = ['regulatory', 'clinical', 'company', 'ip']
 const ROWS = 6 // per tab of "what changed" before "Show all"
 const shift = (d: string, days: number) => new Date(Date.parse(`${d}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10)
 
@@ -53,9 +55,12 @@ function EventLine({ e, onSelect, right }: { e: StoryEvent; onSelect: (e: StoryE
         <span aria-hidden="true" className="mt-[6px] size-[8px] shrink-0 rounded-full" style={{ background: CATEGORY_COLOR[e.category] ?? '#667085' }} />
         <span className="min-w-0 flex-1">
           <span className="line-clamp-2 leading-[18px]">{e.title}</span>
-          <span className="font-mono text-[11.5px] text-muted-foreground">
-            {formatDate(e.date)}
-            {flag && ` · ${flag.label}`}
+          <span className="flex flex-wrap items-center gap-x-[8px] gap-y-[2px]">
+            <span className="font-mono text-[11.5px] text-muted-foreground">
+              {formatDate(e.date)}
+              {flag && ` · ${flag.label}`}
+            </span>
+            <IndicationBadges items={storyIndications(e)} />
           </span>
         </span>
         {right}
@@ -102,7 +107,7 @@ function Inspector({ e, assetName, onEvidence, onAsk, against }: { e: StoryEvent
       <dl className="grid grid-cols-2 gap-x-[12px] gap-y-[6px] text-[12.5px]">
         <dt className="text-muted-foreground">Type</dt><dd>{e.type.replace(/_/g, ' ')}</dd>
         {e.region && (<><dt className="text-muted-foreground">Region</dt><dd>{e.region}</dd></>)}
-        {e.indication && (<><dt className="text-muted-foreground">Indication</dt><dd className="line-clamp-2">{e.indication}</dd></>)}
+        {storyIndications(e).length > 0 && (<><dt className="text-muted-foreground">Indication</dt><dd><IndicationBadges items={storyIndications(e)} max={4} /></dd></>)}
         {e.phase && (<><dt className="text-muted-foreground">Phase</dt><dd>{e.phase}</dd></>)}
         {e.sponsor && (<><dt className="text-muted-foreground">Sponsor</dt><dd>{e.sponsor}</dd></>)}
         <dt className="text-muted-foreground">Found by</dt><dd>{e.origin === 'rule' ? 'Rule · structured source' : 'AI extraction'}</dd>
@@ -135,6 +140,7 @@ export function StoryPanel({ storyId }: { storyId: string }) {
   // Several events under one cluster mark: listed in the inspector to pick from.
   const [group, setGroup] = useState<StoryEvent[] | null>(null)
   const [changeTab, setChangeTab] = useState<string | null>(null)
+  const [indication, setIndication] = useState('')
   const [allRows, setAllRows] = useState(false)
   const select = (id: string | null) => {
     setSelectedId(id)
@@ -154,12 +160,12 @@ export function StoryPanel({ storyId }: { storyId: string }) {
   const openAi = useShellStore((s) => s.setAssetAiOpen)
 
   const building = !!live?.building
-  const story = (building ? live!.story : (saved.data?.story ?? live?.story)) as (Partial<Story> & { lanes: Story['lanes'] }) | undefined
+  const full = (building ? live!.story : (saved.data?.story ?? live?.story)) as (Partial<Story> & { lanes: Story['lanes'] }) | undefined
   const notes: StoryNote[] = live?.notes.length ? live.notes : (saved.data?.notes ?? [])
   const chapterNames = { ...(saved.data?.chapterNames ?? {}), ...(live?.chapterNames ?? {}) }
   const title = live?.title ?? saved.data?.title ?? 'Journey story'
   const question = live?.question ?? saved.data?.question ?? null
-  const since = story?.changes?.since ?? story?.spec?.since ?? live?.spec.since ?? saved.data?.spec.since
+  const since = full?.changes?.since ?? full?.spec?.since ?? live?.spec.since ?? saved.data?.spec.since
 
   // A story about a focus window opens zoomed to it, so the changes have room; "All" is one click away.
   const autoFocused = useRef(false)
@@ -183,14 +189,29 @@ export function StoryPanel({ storyId }: { storyId: string }) {
 
   const byId = useMemo(() => {
     const m = new Map<string, StoryEvent>()
-    if (!story) return m
+    if (!full) return m
     const add = (e: StoryEvent) => m.set(e.id, e)
-    story.lanes.forEach((l) => l.events.forEach(add))
-    story.compare?.events.forEach(add)
-    const c = story.changes
+    full.lanes.forEach((l) => l.events.forEach(add))
+    full.compare?.events.forEach(add)
+    const c = full.changes
     if (c) [...c.developments, ...c.checks, ...c.labels, ...c.trials, ...c.upcoming].forEach(add)
     return m
-  }, [story])
+  }, [full])
+  const indications = useMemo(() => indicationOptions([...byId.values()], storyIndications), [byId])
+  // The Indication filter narrows what is drawn and listed here; the story itself is unchanged.
+  const story = useMemo(() => {
+    if (!full || !indication) return full
+    const keep = (e: StoryEvent) => storyIndications(e).includes(indication)
+    const lanes = full.lanes.map((l) => ({ ...l, events: l.events.filter(keep) }))
+    const c = full.changes
+    return {
+      ...full,
+      lanes,
+      ...(full.compare ? { compare: { ...full.compare, events: full.compare.events.filter(keep) } } : {}),
+      ...(c ? { changes: { ...c, developments: c.developments.filter(keep), checks: c.checks.filter(keep), labels: c.labels.filter(keep), trials: c.trials.filter(keep), upcoming: c.upcoming.filter(keep) } } : {}),
+      ...(full.counts ? { counts: { ...full.counts, shown: lanes.reduce((n, l) => n + l.events.length, 0), byCategory: Object.fromEntries(lanes.map((l) => [l.category, l.events.length])) } } : {}),
+    }
+  }, [full, indication])
   const selected = selectedId ? byId.get(selectedId) : undefined
 
   const setSpan = (r: Range, from?: string, to?: string) => {
@@ -352,6 +373,19 @@ export function StoryPanel({ storyId }: { storyId: string }) {
               { value: 'all', label: 'All events' },
             ]}
           />
+          {(indications.length > 1 || indication) && (
+            <label className="flex items-center gap-[8px] text-[13px] text-text-secondary">
+              Indication
+              <select
+                value={indication}
+                onChange={(e) => setIndication(e.target.value)}
+                className="h-[32px] max-w-[180px] rounded-[8px] border bg-card px-[8px] text-[13px] text-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-primary/12 focus-visible:outline-none"
+              >
+                <option value="">All indications</option>
+                {indications.map((i) => <option key={i} value={i}>{i}</option>)}
+              </select>
+            </label>
+          )}
           {compareOptions.length > 0 && (
             <label className="flex items-center gap-[8px] text-[13px] text-text-secondary">
               Compare with

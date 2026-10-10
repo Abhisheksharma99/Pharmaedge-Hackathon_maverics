@@ -1,4 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { shortIndication } from '@/features/assets/components/competitors/utils'
+import { eventIndications } from '@/features/journey/indications'
 import { toQueryString, type EventCategory, type MarketImpact, type Significance } from '@/features/assets/api'
 import { apiFetch } from '@/lib/api'
 
@@ -32,6 +34,10 @@ export interface StoryEvent {
   origin: 'rule' | 'ai'
   region?: string
   indication?: string
+  /** Short indication id of the journey branch, the branches it also spans, and enrichment's full indication names. */
+  branch?: string
+  span?: string[]
+  indications?: string[]
   phase?: string
   sponsor?: string
   /** false: another company's product of the same molecule */
@@ -106,6 +112,12 @@ export interface SavedStory {
 }
 
 export type StorySummary = Pick<SavedStory, 'id' | 'assetId' | 'title' | 'question' | 'updatedAt'>
+
+/** The indications a story event belongs to: its branch / enrichment indications, else those its free-text indication names ("PAH; PH-ILD"). */
+export function storyIndications(e: StoryEvent): string[] {
+  const found = eventIndications(e)
+  return found.length || !e.indication ? found : [...new Set(e.indication.split(';').map((x) => shortIndication(x.trim())).filter(Boolean))]
+}
 
 /** Filters the analyst applies on top of the story's own spec; `compare: 'none'` turns the comparison off. */
 export interface StoryFilters {

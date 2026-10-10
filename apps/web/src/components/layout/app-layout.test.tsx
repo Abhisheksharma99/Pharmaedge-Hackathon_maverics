@@ -71,8 +71,8 @@ afterEach(() => vi.unstubAllGlobals())
 describe('AppLayout', () => {
   it('toggles the command palette with ⌘K and Ctrl+K on any page', async () => {
     fakeApi()
-    renderAt('/uploads')
-    await screen.findByText('Coming soon')
+    renderAt('/nowhere')
+    await screen.findByRole('heading', { name: 'Page not found' })
     await userEvent.keyboard('{Meta>}k{/Meta}')
     expect(await screen.findByRole('dialog', { name: 'Search PharmaEdge' })).toBeInTheDocument()
     await userEvent.keyboard('{Control>}k{/Control}')
@@ -82,8 +82,8 @@ describe('AppLayout', () => {
 
   it('opens the event sheet for an event picked in the palette', async () => {
     fakeApi()
-    renderAt('/uploads')
-    await screen.findByText('Coming soon')
+    renderAt('/nowhere')
+    await screen.findByRole('heading', { name: 'Page not found' })
     await userEvent.keyboard('{Meta>}k{/Meta}')
     await userEvent.type(await screen.findByRole('combobox', { name: 'Search PharmaEdge' }), 'TETON')
     await screen.findByRole('option', { name: /Phase 3 trial started: TETON-1/ })
@@ -94,8 +94,8 @@ describe('AppLayout', () => {
 
   it('returns focus to the element that had it when the palette closes', async () => {
     fakeApi()
-    renderAt('/uploads')
-    await screen.findByText('Coming soon')
+    renderAt('/nowhere')
+    await screen.findByRole('heading', { name: 'Page not found' })
     const button = document.body.appendChild(document.createElement('button'))
     button.textContent = 'Opener'
     button.focus()
@@ -109,8 +109,8 @@ describe('AppLayout', () => {
 
   it('returns focus to the element that had it when the event sheet closes', async () => {
     fakeApi()
-    renderAt('/uploads')
-    await screen.findByText('Coming soon')
+    renderAt('/nowhere')
+    await screen.findByRole('heading', { name: 'Page not found' })
     const button = document.body.appendChild(document.createElement('button'))
     button.textContent = 'Opener'
     button.focus()
@@ -124,8 +124,8 @@ describe('AppLayout', () => {
 
   it('returns focus to the original element when the sheet was opened from the palette', async () => {
     fakeApi()
-    renderAt('/uploads')
-    await screen.findByText('Coming soon')
+    renderAt('/nowhere')
+    await screen.findByRole('heading', { name: 'Page not found' })
     const button = document.body.appendChild(document.createElement('button'))
     button.textContent = 'Opener'
     button.focus()
@@ -142,8 +142,8 @@ describe('AppLayout', () => {
 
   it('ignores key repeat on ⌘K', async () => {
     fakeApi()
-    renderAt('/uploads')
-    await screen.findByText('Coming soon')
+    renderAt('/nowhere')
+    await screen.findByRole('heading', { name: 'Page not found' })
     fireEvent.keyDown(window, { key: 'k', metaKey: true })
     await screen.findByRole('dialog', { name: 'Search PharmaEdge' })
     fireEvent.keyDown(window, { key: 'k', metaKey: true, repeat: true })

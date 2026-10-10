@@ -14,6 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { todayIso, yearFraction } from '@/lib/dates'
 import { formatPhase } from '@/lib/format'
 import { collectionMeta, PHASE_COLORS, trialStatusColor } from '@/features/journey/constants'
+import { statusLabel } from './card-filter-defs'
 import { useTabInsights, type Counted, type InsightsTab, type TabInsightsData } from './tab-insights-api'
 
 const PAL = ['#2347d9', '#0b7a6f', '#e0620f', '#6941c6', '#98a2b3', '#5873e8', '#b42318', '#b54708']
@@ -29,12 +30,6 @@ const TAB_COLLECTION: Record<InsightsTab, string> = {
   patents: 'patent_records',
   documents: 'company_records',
   evidence: 'crawl_ledger',
-}
-
-/** "ACTIVE_NOT_RECRUITING" → "Active, not recruiting". */
-const statusLabel = (v: string) => {
-  const s = v.toLowerCase().replace(/_/g, ' ').replace(/^active not/, 'active, not')
-  return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
 const range = (a: number, b: number) => Array.from({ length: Math.max(0, b - a + 1) }, (_, i) => a + i)

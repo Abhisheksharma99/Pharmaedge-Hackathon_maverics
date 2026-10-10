@@ -7,7 +7,7 @@ const branches = [
   { id: 'PH-COPD', label: 'PH-COPD', full: 'PH due to COPD', color: '#b54708', trunk: false, ended: 'Terminated' },
 ];
 const events = [
-  { _id: 'a', branch: 'PAH', type: 'approval', category: 'regulatory', date: '2002-05-21', significance: 'High', is_milestone: false },
+  { _id: 'a', branch: 'PAH', type: 'approval', origin: 'rule', region: 'US', category: 'regulatory', date: '2002-05-21', significance: 'High', is_milestone: false },
   { _id: 'b', branch: 'IPF', type: 'trial_start', category: 'clinical', phase: 'PHASE3', date: '2021-06-01', significance: 'High', is_milestone: false },
   { _id: 'c', branch: 'IPF', type: 'regulatory_submission', category: 'regulatory', date: '2026-09-30', significance: 'High', is_milestone: false },
   { _id: 'd', branch: 'IPF', type: 'regulatory_decision_expected', category: 'regulatory', date: '2027-07-30', significance: 'High', is_milestone: true, title: 'FDA decision expected (PDUFA date): Tyvaso' },
@@ -59,22 +59,16 @@ describe('trials, patents, stats', () => {
   it('marks company trials and keeps phase labels', () => {
     expect(trials.map((t) => [t.nct, t.phase, t.company])).toEqual([['NCT1', 'Phase 3', true], ['NCT2', 'Phase 2', false]]);
   });
-  it('lists patents with the in-force runway', () => {
+  it('lists patents, invalidated first', () => {
     const rows = patentRows([{ publication_number: 'US1', title: 'T', grant_date: '2015-01-27', expiry_date: '2032-04-20', legal_status: 'Active' }, { publication_number: 'US2', grant_date: '', expiry_date: '2030-01-01', legal_status: 'Revoked' }], TODAY);
     expect(rows.map((r) => [r.number, r.invalidated])).toEqual([['US2', true], ['US1', false]]);
-    const s = stats({ pipeline: pipeline(branches, events, { tags: {} }, TODAY), trials, events, patents: rows, evidenceRecords: 12 }, TODAY);
+    const s = stats({ pipeline: pipeline(branches, events, { tags: {} }, TODAY), trials, events, evidenceRecords: 12 }, TODAY);
     expect(s).toMatchObject({ approvedIndications: 1, inDevelopment: ['IPF'], activeTrials: 1, phase3: 1, patients: 598, evidenceRecords: 12 });
+    expect(s.approved).toEqual([{ indication: 'PAH', regions: ['US'] }]);
     expect(s.nextCatalyst).toMatchObject({ id: 'd' });
-    expect(s.patentRunwayYears).toBeCloseTo(5.5, 0);
-  });
-  it('measures the runway to the next in-force expiry', () => {
-    const rows = patentRows([{ publication_number: 'LATE', expiry_date: '2040-01-01', legal_status: 'Active' }, { publication_number: 'SOON', expiry_date: '2028-01-01', legal_status: 'Active' }], TODAY);
-    expect(rows.map((r) => r.number)).toEqual(['SOON', 'LATE']);
-    const s = stats({ pipeline: [], trials: [], events: [], patents: rows, evidenceRecords: 0 }, TODAY);
-    expect(s.patentRunwayYears).toBeCloseTo(1.2, 1);
   });
   it('returns null stats when nothing is known', () => {
-    expect(stats({ pipeline: [], trials: [], events: [], patents: [], evidenceRecords: 0 }, TODAY)).toMatchObject({ nextCatalyst: null, patentRunwayYears: null });
+    expect(stats({ pipeline: [], trials: [], events: [], evidenceRecords: 0 }, TODAY)).toMatchObject({ nextCatalyst: null });
   });
 });
 
@@ -85,10 +79,10 @@ describe('bare asset (no trials, patents, competitors)', () => {
     const pipe = pipeline([], [], bare, TODAY);
     const trials = trialRows([], undefined);
     const patents = patentRows([], TODAY);
-    const out = { pipe, trials, patents, activity: activityByYear([]), sig: significanceMix([]), land: landscape(bare, []), st: stats({ pipeline: pipe, trials, events: [], patents, evidenceRecords: 0 }, TODAY) };
+    const out = { pipe, trials, patents, activity: activityByYear([]), sig: significanceMix([]), land: landscape(bare, []), st: stats({ pipeline: pipe, trials, events: [], evidenceRecords: 0 }, TODAY) };
     expect(out.pipe).toEqual([]);
     expect(out.land.rows).toHaveLength(1);
-    expect(out.st).toEqual({ approvedIndications: 0, inDevelopment: [], activeTrials: 0, phase3: 0, patients: 0, nextCatalyst: null, patentRunwayYears: null, evidenceRecords: 0 });
+    expect(out.st).toEqual({ approvedIndications: 0, approved: [], inDevelopment: [], activeTrials: 0, phase3: 0, patients: 0, nextCatalyst: null, evidenceRecords: 0 });
     expect(finite(out)).toBe(true);
   });
 });

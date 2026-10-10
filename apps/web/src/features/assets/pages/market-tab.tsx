@@ -1,11 +1,13 @@
 import { lazy, Suspense, useMemo, useRef, useState, type ReactNode } from 'react'
+import { CardFilters, useCardFilter } from '@/components/card-filters'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { CHIP, CHIP_ON } from '@/features/journey/controls'
+import { eventIndications } from '@/features/journey/indications'
 import { formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { useMarket, type EventCategory, type MarketImpact, type Significance } from '../api'
-import { CATEGORY_META, CategoryIcon, SignificanceBadge } from '../components/badges'
+import { CATEGORY_META, CategoryIcon, IndicationBadges, SignificanceBadge } from '../components/badges'
 import { TAB_FOR_COLLECTION } from '../api'
 import { LoadError } from '../components/competitors/load-error'
 import { EmptyState, Panel } from '../components/panel'
@@ -87,6 +89,7 @@ function EventCard({ e, onEvidence, onClose }: { e: MeasuredEvent; onEvidence: (
             {formatDate(e.date)} · {e.drug.name} · {CATEGORY_META[e.category]?.label ?? e.category}
             {m.trading_day !== e.date && ` · measured from ${formatDate(m.trading_day)}`}
           </p>
+          <IndicationBadges items={eventIndications(e)} max={4} className="mt-[6px]" />
         </div>
         <div className="flex gap-[12px]">
           {onEvidence && (
@@ -158,6 +161,15 @@ export function MarketTab() {
     return { bars, measured, rows, change }
   }, [data, range, order])
 
+  const multiDrug = !!data?.listed && data.drugs.filter((d) => d.selected).length > 1
+  const { filtered: rows, filters } = useCardFilter(
+    view?.rows ?? [],
+    (e) => `${e.title} ${e.drug.name} ${e.type}`,
+    [
+      { label: 'Indication', of: eventIndications },
+      { label: 'Drug', of: (e) => [e.drug.name] },
+    ],
+  )
   const selected = view?.measured.find((e) => e.id === selectedId) ?? null
   const toggle = <T,>(set: (f: (cur: T[]) => T[]) => void, v: T) => set((cur) => (cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v]))
   const evidenceTab = (e: MeasuredEvent | null) => (e?.source ? TAB_FOR_COLLECTION[e.source.collection] : undefined)
@@ -175,7 +187,6 @@ export function MarketTab() {
   }
 
   const last = view.bars[view.bars.length - 1]
-  const multiDrug = data.drugs.filter((d) => d.selected).length > 1
   // Events of one trading day share its move: say it once, then what happened.
   const hint = hovered ? (
     <>
@@ -290,7 +301,7 @@ export function MarketTab() {
 
       <Panel
         title="Moves after each event"
-        description={`${view.rows.length} events${view.change !== null ? ` · price ${view.change >= 0 ? '+' : ''}${view.change.toFixed(0)}% over the range` : ''}`}
+        description={`${rows.length === view.rows.length ? view.rows.length : `${rows.length} of ${view.rows.length}`} events${view.change !== null ? ` · price ${view.change >= 0 ? '+' : ''}${view.change.toFixed(0)}% over the range` : ''}`}
         actions={
           <Segmented
             label="Order"
@@ -303,7 +314,8 @@ export function MarketTab() {
           />
         }
       >
-        {view.rows.length === 0 ? (
+        {view.rows.length > 0 && <CardFilters {...filters} placeholder="Search events" />}
+        {rows.length === 0 ? (
           <EmptyState title="No events match these filters" />
         ) : (
           <div>
@@ -319,7 +331,7 @@ export function MarketTab() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(allRows ? view.rows : view.rows.slice(0, ROWS_SHOWN)).map((e) => {
+                {(allRows ? rows : rows.slice(0, ROWS_SHOWN)).map((e) => {
                   const measurable = view.measured.some((m) => m.id === e.id)
                   return (
                     <TableRow key={e.id} className={cn('border-b border-hair hover:bg-background', selectedId === e.id && 'bg-primary-soft hover:bg-primary-soft')}>
@@ -345,6 +357,7 @@ export function MarketTab() {
                               <span className="font-mono">{formatDate(e.date)}</span>
                               <SignificanceBadge value={e.significance} />
                               {multiDrug && <span>{e.drug.name}</span>}
+                              <IndicationBadges items={eventIndications(e)} />
                               {e.note && <span>{e.note}</span>}
                             </div>
                           </div>
@@ -360,13 +373,13 @@ export function MarketTab() {
                 })}
               </TableBody>
             </Table>
-            {view.rows.length > ROWS_SHOWN && (
+            {rows.length > ROWS_SHOWN && (
               <button
                 type="button"
                 className="w-full border-t border-hair px-[20px] py-[12px] text-left font-medium text-primary hover:bg-background"
                 onClick={() => setAllRows((v) => !v)}
               >
-                {allRows ? 'Show fewer' : `Show all ${view.rows.length} events`}
+                {allRows ? 'Show fewer' : `Show all ${rows.length} events`}
               </button>
             )}
           </div>

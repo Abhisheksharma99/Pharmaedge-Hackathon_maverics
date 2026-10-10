@@ -2,12 +2,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
-import type { Branch, JourneyEventV3 } from '../types'
+import type { JourneyEventV3 } from '../types'
 import { TreeCard, type TreeCardProps } from './tree-card'
 
 const json = (status: number, body?: unknown) =>
   new Response(body === undefined ? null : JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
-const IPF: Branch = { id: 'IPF', label: 'IPF', full: 'Idiopathic pulmonary fibrosis', color: '#6941c6', off: 3, status: 'Phase 3', origin: 'ai' }
 const LINKED: JourneyEventV3 = { id: 'rule:fda:x/1', asset: 'trep', date: '2025-09-30', type: 'regulatory_submission', category: 'regulatory', title: 'FDA accepts Tyvaso sNDA for IPF', significance: 'High', is_milestone: false, sources: [], via: 'journey' }
 const NONKEY: JourneyEventV3 = { ...LINKED, id: 'rule:trial_completion:ctgov:NCT04708782', title: 'TETON-1 completed', date: '2025-01-01' }
 const E: JourneyEventV3 = {
@@ -22,7 +21,7 @@ function Harness(over: Partial<TreeCardProps>) {
   const [open, setOpen] = useState(false)
   return (
     <TreeCard
-      assetId="trep" e={E} lane={IPF} open={open} onToggle={() => setOpen(!open)} starred={false} nComments={2}
+      assetId="trep" e={E} open={open} onToggle={() => setOpen(!open)} starred={false} nComments={2}
       onStar={vi.fn()} onOpen={vi.fn()} onJump={vi.fn()} resolve={(id) => (id === LINKED.id ? LINKED : undefined)} {...over}
     />
   )
@@ -38,11 +37,12 @@ const renderCard = (over: Partial<TreeCardProps> = {}) =>
   )
 
 describe('TreeCard', () => {
-  it('shows category, branch, date, significance, targets, details, why it matters and how it was built', () => {
+  it('shows category, indication, date, significance, targets, details, why it matters and how it was built', () => {
     renderCard()
     expect(screen.getByText('Clinical')).toBeInTheDocument()
     expect(screen.getByText('trial start')).toBeInTheDocument()
     expect(screen.getAllByText('IPF')).toHaveLength(2)
+    expect(screen.getByTitle('Indication: IPF')).toBeInTheDocument()
     expect(screen.getByText('Jun 1, 2021')).toBeInTheDocument()
     expect(screen.getByText('Tyvaso')).toBeInTheDocument()
     expect(screen.getByText('Change in FVC at week 52')).toBeInTheDocument()

@@ -2,7 +2,9 @@ import { FileText } from 'lucide-react'
 import { formatDay } from '@/lib/dates'
 import { formatPhase, formatStatus } from '@/lib/format'
 import type { AssetDetail, RecordTab, SourceRecord } from '../api'
+import { IndicationBadges } from './badges'
 import { fdaStatus, shortIndication } from './competitors/utils'
+import { recordIndications } from './record-indications'
 import { recordTitle } from './record-sheet'
 import { DASH, Mono, StatusBadge, Tag } from './records-cells'
 import type { Column } from './records-view'
@@ -57,6 +59,8 @@ const dateText = (v: string | undefined) => (v ? formatDay(v) : '—')
 /** The trial window reads "2023-08 → 2027-06" in the prototype: year-month keeps the column narrow. */
 const monthText = (v: string | undefined) => (v ? v.slice(0, 7) : '—')
 const dateCell = (r: SourceRecord) => <Mono muted>{dateText(r.date)}</Mono>
+/** Which indication(s) a record names (none for records without such a field). */
+const indicationCell = (r: SourceRecord) => (recordIndications(r).length ? <IndicationBadges items={recordIndications(r)} /> : DASH)
 const titleCell = (r: SourceRecord) => <span className="block max-w-[520px] min-w-[240px] text-pretty">{recordTitle(r)}</span>
 
 /** "Late-breaking" abstracts get the danger tag. */
@@ -78,7 +82,7 @@ export const RECORDS_CONFIG: Record<'clinical' | 'regulatory' | 'publications' |
     step: 'clinical',
     searchPlaceholder: 'Search clinical trials',
     toggle: { param: 'companyOnly', label: 'Company-sponsored only' },
-    facetLabel: { phases: formatPhase, overall_status: formatStatus },
+    facetLabel: { phases: formatPhase, overall_status: formatStatus, conditions: shortIndication },
     columns: (asset) => [
       { header: 'NCT ID', cell: (r) => monoText(r.nct_id) },
       {
@@ -105,20 +109,7 @@ export const RECORDS_CONFIG: Record<'clinical' | 'regulatory' | 'publications' |
         },
       },
       { header: 'Status', cell: (r) => <StatusBadge value={r.overall_status ? formatStatus(str(r.overall_status)) : ''} /> },
-      {
-        header: 'Indication',
-        cell: (r) => {
-          const [first, ...rest] = strs(r.conditions)
-          if (!first) return DASH
-          return (
-            <span title={strs(r.conditions).join(', ')} className="inline-flex h-[22px] max-w-[170px] items-center rounded-full bg-success-soft px-[8px] text-[12px] font-semibold whitespace-nowrap text-success">
-              {/* The prototype shows the short indication tag (PAH, PPF); long condition names truncate, full list in the title. */}
-              <span className="truncate">{shortIndication(first)}</span>
-              {rest.length > 0 && <span className="ml-[4px] shrink-0 font-normal">+{rest.length}</span>}
-            </span>
-          )
-        },
-      },
+      { header: 'Indication', cell: indicationCell },
       {
         header: 'Sponsor',
         cell: (r) => {
@@ -152,6 +143,7 @@ export const RECORDS_CONFIG: Record<'clinical' | 'regulatory' | 'publications' |
       { header: 'Record', cell: (r) => <span>{RECORD_TYPE_LABEL[str(r.record_type)] ?? str(r.record_type)}</span> },
       { header: 'Application', cell: (r) => monoText(r.application_number) },
       { header: 'Product', cell: (r) => <b className="font-medium">{recordTitle(r)}</b> },
+      { header: 'Indication', cell: indicationCell },
       { header: 'Class', cell: (r) => (str(r.submission_class) ? <span className="text-muted-foreground">{str(r.submission_class)}</span> : DASH) },
       { header: 'Status', cell: (r) => <StatusBadge value={statusOf(r)} /> },
     ],

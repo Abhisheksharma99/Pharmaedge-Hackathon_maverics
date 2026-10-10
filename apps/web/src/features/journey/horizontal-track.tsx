@@ -1,20 +1,22 @@
 import { ChevronLeft, ChevronRight, MessageCircle, Plus, Star } from 'lucide-react'
 import { memo, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from 'react'
-import { CategoryIcon, SignificanceBadge } from '@/features/assets/components/badges'
+import { CategoryIcon, IndicationBadges, SignificanceBadge } from '@/features/assets/components/badges'
 import { formatDay, todayIso } from '@/lib/dates'
 import { findScroller, offsetIn, onScroll, scrollToTop, viewportHeight, viewportTop } from '@/lib/scroll'
 import { useMediaQuery } from '@/lib/use-media-query'
 import { cn } from '@/lib/utils'
 import { BranchChip, NoteTagChip, Targets } from './chips'
 import { eventDate } from './format'
+import { eventIndications } from './indications'
 import { noteColor } from './constants'
 import { laneOf, spanOf } from './journey-model'
-import { HZ, trackActive, trackHoverAt, trackLayout, trackOffsetFor, trackSeen, trackWindow, type TrackHover } from './track-layout'
+import { HZ, trackActive, trackHoverAt, trackLayout, trackOffsetFor, trackSeen, trackWindow, type TrackHover, type TrackLane } from './track-layout'
 import type { Branch, JourneyEventV3 } from './types'
 import type { JourneyViewProps } from './view-types'
 
-/** One flag per lane: has its start come within 0.75·vw of the viewport's left edge (pinned label fully shown)? */
-const labelFlags = (lanes: { trunk: boolean; x1: number }[], p: number, vw: number) => lanes.map((l) => (l.trunk || l.x1 <= p + 0.75 * vw ? '1' : '0')).join('')
+/** One flag per lane: has its left end come within 0.75·vw of the viewport's left edge (pinned label fully shown)? */
+const labelFlags = (lanes: TrackLane[], p: number, vw: number) =>
+  lanes.map((l) => (l.trunk || Math.min(l.x1, l.x2, l.tailX ?? Infinity) <= p + 0.75 * vw ? '1' : '0')).join('')
 
 interface Win {
   first: number
@@ -27,8 +29,9 @@ interface Win {
 /**
  * Horizontal journey (README §6.3, the default view): a sticky pin inside a block `maxP + vh` tall; scrolling down
  * moves the track left by `p`. Only cards near the viewport are rendered, so 1,000+ event journeys stay smooth.
+ * Newest first, the latest event is on the left and the lanes run from the right (layout `dir` −1).
  */
-export function HorizontalTrack({ list, model, closures, stars, comments, focusBranch, onOpen, onAdd, onActive, ref }: JourneyViewProps) {
+export function HorizontalTrack({ list, newestFirst, model, closures, stars, comments, focusBranch, onOpen, onAdd, onActive, ref }: JourneyViewProps) {
   const outerRef = useRef<HTMLDivElement>(null)
   const pinRef = useRef<HTMLDivElement>(null)
   const trackRef = useRef<HTMLDivElement>(null)
@@ -44,8 +47,8 @@ export function HorizontalTrack({ list, model, closures, stars, comments, focusB
   const [win, setWin] = useState<Win>(() => ({ first: 0, last: Math.min(n - 1, 12), active: 0, seen: -1, lab: '' }))
   const { vw, vh } = size
   const L = useMemo(
-    () => trackLayout({ list, branches: model.list, laneOf: (e) => laneOf(e, model), vw, vh, closures, today: todayIso() }),
-    [list, model, vw, vh, closures],
+    () => trackLayout({ list, newestFirst, branches: model.list, laneOf: (e) => laneOf(e, model), vw, vh, closures, today: todayIso() }),
+    [list, newestFirst, model, vw, vh, closures],
   )
   const starred = useMemo(() => new Set(stars), [stars])
 
@@ -162,6 +165,7 @@ export function HorizontalTrack({ list, model, closures, stars, comments, focusB
   const lane = (e: JourneyEventV3) => model.byId.get(laneOf(e, model))!
   const dim = (id: string) => focusBranch !== null && focusBranch !== id
   const nR = L.rows.length
+  const d = L.dir
   // Until the first scroll update, use the flags for p = 0 so labels don't flash faded for a frame.
   const labs = win.lab.length === L.lanes.length ? win.lab : labelFlags(L.lanes, 0, vw)
   const shown = n ? list.slice(win.first, win.last + 1).map((e, k) => ({ e, i: win.first + k })) : []
@@ -206,17 +210,19 @@ export function HorizontalTrack({ list, model, closures, stars, comments, focusB
               </g>
             ))}
             <line x1={L.todayX} x2={L.todayX} y1={L.bandTop - 16} y2={L.bandBot + 16} stroke="#101828" strokeDasharray="3 3" />
-            <text x={L.todayX} y={L.bandTop - 22} textAnchor="middle" className="fill-foreground text-[10.5px] font-semibold">
+            {/* Newest first with Today before the first column, the first card (above the band) would cover the label. */}
+            <text x={L.todayX} y={d < 0 && L.todayX < HZ.PADL ? L.bandBot + 30 : L.bandTop - 22} textAnchor="middle" className="fill-foreground text-[10.5px] font-semibold">
               Today
             </text>
             {L.lanes.map((l) => (
               <g key={l.id} data-lane={l.id} className={cn('transition-opacity duration-300', dim(l.id) && 'opacity-[0.18]')}>
-                {l.py !== null && <path d={`M${l.x1 - 64},${l.py} C${l.x1 - 30},${l.py} ${l.x1 - 34},${l.y} ${l.x1},${l.y}`} stroke={l.color} strokeWidth={3} strokeLinecap="round" fill="none" />}
-                <line x1={l.x1} x2={Math.min(l.x2, L.todayX)} y1={l.y} y2={l.y} stroke={l.color} strokeWidth={l.trunk ? 4 : 3} strokeLinecap="round" />
-                {!l.ended && l.x2 > L.todayX && <line x1={Math.max(l.x1, L.todayX)} x2={l.x2} y1={l.y} y2={l.y} stroke={l.color} strokeWidth={l.trunk ? 4 : 3} strokeLinecap="round" strokeDasharray="6 7" />}
-                {l.tailX !== null && <line data-tail x1={l.capX! + 8} x2={l.tailX} y1={l.y} y2={l.y} stroke={l.color} strokeWidth={1.5} strokeDasharray="2 5" opacity={0.5} />}
+                {l.py !== null && <path d={`M${l.x1 - 64 * d},${l.py} C${l.x1 - 30 * d},${l.py} ${l.x1 - 34 * d},${l.y} ${l.x1},${l.y}`} stroke={l.color} strokeWidth={3} strokeLinecap="round" fill="none" />}
+                {/* Solid up to today, dashed beyond it; `d` flips which side is "beyond". */}
+                <line x1={l.x1} x2={d * Math.min(d * l.x2, d * L.todayX)} y1={l.y} y2={l.y} stroke={l.color} strokeWidth={l.trunk ? 4 : 3} strokeLinecap="round" />
+                {!l.ended && d * l.x2 > d * L.todayX && <line x1={d * Math.max(d * l.x1, d * L.todayX)} x2={l.x2} y1={l.y} y2={l.y} stroke={l.color} strokeWidth={l.trunk ? 4 : 3} strokeLinecap="round" strokeDasharray="6 7" />}
+                {l.tailX !== null && <line data-tail x1={l.capX! + 8 * d} x2={l.tailX} y1={l.y} y2={l.y} stroke={l.color} strokeWidth={1.5} strokeDasharray="2 5" opacity={0.5} />}
                 {!l.trunk && l.label && (
-                  <g transform={`translate(${l.x1 + 6},${l.y - 9})`}>
+                  <g transform={`translate(${d > 0 ? l.x1 + 6 : l.x1 - 6 - (l.label.length * 6.6 + 14)},${l.y - 9})`}>
                     <rect width={l.label.length * 6.6 + 14} height={18} rx={9} fill="#fff" stroke={l.color} />
                     <text x={7} y={12.5} fill={l.color} className="text-[10.5px] font-bold">
                       {l.label}
@@ -300,8 +306,6 @@ export function HorizontalTrack({ list, model, closures, stars, comments, focusB
               flash={flash === e.id}
               starred={starred.has(e.id)}
               nComments={comments[e.id]?.length ?? 0}
-              branch={lane(e)}
-              multi={model.multi}
               onOpen={cardApi.onOpen}
               onMove={cardApi.onMove}
               register={cardApi.register}
@@ -332,10 +336,13 @@ export function HorizontalTrack({ list, model, closures, stars, comments, focusB
           <ChevronRight className="size-[18px]" />
         </button>
         {n > 0 && <Hud cur={list[Math.min(win.active, n - 1)]!} index={Math.min(win.active, n - 1)} n={n} lane={model.multi ? model.byId.get(laneOf(list[Math.min(win.active, n - 1)]!, model)) : undefined} />}
-        <div className="absolute right-[16px] bottom-[14px] z-[4] inline-flex items-center gap-[5px] rounded-full border border-hair bg-card/90 px-[9px] py-[3px] text-[11.5px] text-muted-foreground">
-          <Plus className="size-[12px]" aria-hidden="true" />
-          Hover a branch to see the date · click to add a note there
-        </div>
+        {/* The hint needs room beside the centred HUD (narrow tracks, e.g. beside the Asset Journey list). */}
+        {vw >= 1060 && (
+          <div className="absolute right-[16px] bottom-[14px] z-[4] inline-flex items-center gap-[5px] rounded-full border border-hair bg-card/90 px-[9px] py-[3px] text-[11.5px] text-muted-foreground">
+            <Plus className="size-[12px]" aria-hidden="true" />
+            Hover a branch to see the date · click to add a note there
+          </div>
+        )}
       </div>
     </div>
   )
@@ -355,15 +362,13 @@ interface TrackCardProps {
   flash: boolean
   starred: boolean
   nComments: number
-  branch: Branch
-  multi: boolean
   onOpen: (id: string) => void
   onMove: (to: number) => void
   register: (i: number, el: HTMLButtonElement | null) => void
 }
 
 /** One event card of the pinned track; memoised on primitives so a scroll or hover render only touches cards whose state changed. */
-const TrackCard = memo(function TrackCard({ e, i, n, left, edge, up, active, seen, dimmed, flash, starred, nComments, branch: b, multi, onOpen, onMove, register }: TrackCardProps) {
+const TrackCard = memo(function TrackCard({ e, i, n, left, edge, up, active, seen, dimmed, flash, starred, nComments, onOpen, onMove, register }: TrackCardProps) {
   const note = e.user ? noteColor(e.user.tag) : null
   const style: CSSProperties = {
     left,
@@ -413,8 +418,9 @@ const TrackCard = memo(function TrackCard({ e, i, n, left, edge, up, active, see
       <span className={cn('line-clamp-2 leading-[1.3] font-semibold text-pretty', e.significance === 'High' ? 'text-[15px]' : 'text-[14px]')}>{e.title}</span>
       <span className="flex flex-wrap gap-[4px]">
         {e.user && <NoteTagChip tag={e.user.tag} />}
-        {multi && <BranchChip branch={b} small />}
-        <Targets e={e} label={false} small limit={2} />
+        <IndicationBadges items={eventIndications(e)} max={2} />
+        {/* Product only: the indications are the badges. */}
+        <Targets e={e} small limit={0} />
       </span>
     </button>
   )

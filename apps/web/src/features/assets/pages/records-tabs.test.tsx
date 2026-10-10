@@ -88,7 +88,7 @@ const headers = () => screen.getAllByRole('columnheader').map((h) => h.textConte
 describe('records tabs: columns per tab (README §5.5)', () => {
   it.each([
     ['clinical', <ClinicalTab key="ClinicalTab" />, ['NCT ID', 'Study', 'Phase', 'Status', 'Indication', 'Sponsor', 'Enrolment', 'Start → primary completion', 'Journey'], { ...TRIAL }],
-    ['regulatory', <RegulatoryTab key="RegulatoryTab" />, ['Date', 'Region', 'Record', 'Application', 'Product', 'Class', 'Status', 'Journey'], { key: 'fda:1', record_type: 'fda_submission', date: '2009-07-30', title: 'TYVASO' }],
+    ['regulatory', <RegulatoryTab key="RegulatoryTab" />, ['Date', 'Region', 'Record', 'Application', 'Product', 'Indication', 'Class', 'Status', 'Journey'], { key: 'fda:1', record_type: 'fda_submission', date: '2009-07-30', title: 'TYVASO' }],
     ['publications', <PublicationsTab key="PublicationsTab" />, ['PMID', 'Title', 'Journal', 'Year', 'Design', 'Journey'], { key: 'pubmed:1', title: 'A paper' }],
     ['conferences', <ConferencesTab key="ConferencesTab" />, ['Congress', 'Date', 'Abstract', 'Format', 'Journey'], { key: 'c:1', title: 'An abstract', conference: 'ATS' }],
     ['documents', <DocumentsTab key="DocumentsTab" />, ['Document', 'Type', 'Date', 'Pages', 'Journey'], { key: 'd:1', title: 'PI.pdf', record_type: 'prescribing_info' }],
@@ -112,7 +112,8 @@ describe('clinical records panel', () => {
     expect(within(screen.getAllByRole('row')[1]).getByText('Phase 3')).toBeInTheDocument()
     expect(screen.getAllByText('Recruiting').length).toBeGreaterThan(0)
     expect(screen.getAllByText('IPF').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('+1').length).toBeGreaterThan(0)
+    // Every condition is an indication badge in the row.
+    expect(screen.getAllByTitle('Indication: PH-ILD').length).toBeGreaterThan(0)
     expect(screen.getAllByText('576').length).toBeGreaterThan(0)
     expect(screen.getAllByText('2021-03 → 2026-06').length).toBeGreaterThan(0)
     expect(screen.getByText('74 records collected')).toBeInTheDocument()
@@ -223,14 +224,29 @@ describe('footer and header total', () => {
 })
 
 describe('records presentation and paging', () => {
-  it('shows the short indication tag with the remaining count, and the full list on hover', async () => {
+  it('shows the short indication badges with the remaining count, and the rest on hover', async () => {
     const record = { ...TRIAL, conditions: ['Pulmonary arterial hypertension (PAH)', 'Interstitial lung disease', 'PH-ILD'] }
     respond({ '/api/assets/trep/records/clinical': page([record]) })
     renderTab(<ClinicalTab />, 'clinical')
-    const tag = (await screen.findByTitle('Pulmonary arterial hypertension (PAH), Interstitial lung disease, PH-ILD')) as HTMLElement
-    expect(tag).toHaveTextContent('PAH')
-    expect(tag).toHaveTextContent('+2')
-    expect(tag).not.toHaveTextContent('Pulmonary')
+    expect(await screen.findByTitle('Indication: PAH')).toHaveTextContent('PAH')
+    expect(screen.getByTitle('Indication: Interstitial lung disease')).toBeInTheDocument()
+    expect(screen.getByTitle('PH-ILD')).toHaveTextContent('+1')
+    expect(screen.queryByText(/Pulmonary arterial/)).not.toBeInTheDocument()
+  })
+
+  it('shows an EMA record\'s therapeutic area and an orphan designation\'s intended use as its indication, and nothing for FDA submissions', async () => {
+    respond({
+      '/api/assets/trep/series': [],
+      '/api/assets/trep/records/regulatory': page([
+        { key: 'ema:1', record_type: 'ema_epar', date: '2020-01-01', name_of_medicine: 'Orepaxam', therapeutic_area_mesh: 'Hypertension, Pulmonary' },
+        { key: 'ema:2', record_type: 'ema_orphan_designation', date: '2020-01-02', title: 'Orphan', intended_use: 'Treatment of idiopathic pulmonary fibrosis' },
+        { key: 'fda:1', record_type: 'fda_submission', date: '2009-07-30', title: 'TYVASO' },
+      ]),
+    })
+    renderTab(<RegulatoryTab />, 'regulatory')
+    expect(await screen.findByTitle('Indication: Hypertension, Pulmonary')).toBeInTheDocument()
+    expect(screen.getByTitle('Indication: idiopathic pulmonary fibrosis')).toBeInTheDocument()
+    expect(screen.getAllByTitle(/^Indication:/)).toHaveLength(2)
   })
 
   it('writes dates the US way (Mon D, YYYY)', async () => {

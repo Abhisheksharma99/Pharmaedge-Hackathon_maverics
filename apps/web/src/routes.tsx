@@ -25,6 +25,7 @@ import { ChatPage } from '@/features/chat/chat-page'
 import { JobPage, JobsPage } from '@/features/jobs/jobs-pages'
 import { ProtectedRoute, RoleRoute } from '@/features/auth/route-guards'
 import { HomePage } from '@/features/home/home-page'
+import { JourneyPage } from '@/features/journey/journey-page'
 import { SettingsPage } from '@/features/settings/settings-page'
 import { UsersPage } from '@/features/settings/users-page'
 
@@ -68,6 +69,8 @@ export const routes: RouteObject[] = [
               { path: 'canvas/story/:storyId', element: <CanvasTab /> },
             ],
           },
+          { path: '/journey', element: <JourneyPage /> },
+          { path: '/journey/:assetId', element: <JourneyPage /> },
           { path: '/chat', element: <ChatPage /> },
           { path: '/chat/:sessionId', element: <ChatPage /> },
           { path: '/jobs', element: <JobsPage /> },

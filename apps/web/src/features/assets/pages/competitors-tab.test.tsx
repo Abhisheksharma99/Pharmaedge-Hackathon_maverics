@@ -173,6 +173,7 @@ function renderTab(asset: AssetDetail = ASSET) {
 
 beforeAll(() => {
   // jsdom has no pointer capture; sonner's toasts call it on pointerdown.
+  Element.prototype.hasPointerCapture ??= () => false
   Element.prototype.setPointerCapture ??= () => {}
   Element.prototype.releasePointerCapture ??= () => {}
 })
@@ -196,11 +197,11 @@ describe('CompetitorsTab', () => {
     expect(card).toHaveTextContent('Winrevair · Merck & Co.')
     expect(within(card).getByText('Approved', { selector: 'span.rounded-\\[5px\\]' })).toBeInTheDocument()
     expect(within(card).getByText('Activin signaling inhibitor')).toBeInTheDocument()
-    expect(within(card).getByText('Shared indication and mechanism')).toBeInTheDocument()
+    expect(within(card).getByText('Shared indication and mechanism · overlap 1 of 2')).toBeInTheDocument()
 
     const ralinepag = screen.getByText('Ralinepag').closest('div.rounded-\\[12px\\]') as HTMLElement
     expect(within(ralinepag).getByText('Phase 3')).toBeInTheDocument()
-    expect(within(ralinepag).getByText('Shared mechanism')).toBeInTheDocument()
+    expect(within(ralinepag).getByText('Shared mechanism · overlap 1 of 2')).toBeInTheDocument()
     expect(screen.queryByText('This asset')).not.toBeInTheDocument()
 
     await userEvent.click(within(card).getByRole('link', { name: /Open journey/ }))
@@ -220,6 +221,25 @@ describe('CompetitorsTab', () => {
     const ralinepag = screen.getByText('Ralinepag').closest('div.rounded-\\[12px\\]') as HTMLElement
     expect(within(ralinepag).getByTitle('Pulmonary arterial hypertension (PAH): Investigational')).toHaveTextContent('PAH')
     expect(within(ralinepag).getByTitle('PH-ILD: Not indicated')).toBeInTheDocument()
+  })
+
+  it('shows each competitor\'s other indications and filters the cards by search and indication', async () => {
+    fetchMock.mockResolvedValue(json(200, OVERVIEW))
+    renderTab()
+    await screen.findByText('Sotatercept')
+    const sotatercept = screen.getByText('Sotatercept').closest('div.rounded-\\[12px\\]') as HTMLElement
+    expect(within(sotatercept).getByTitle('Indication: CTEPH')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('combobox', { name: 'Indication' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'CTEPH' }))
+    expect(screen.getByText('Sotatercept')).toBeInTheDocument()
+    expect(screen.queryByText('Ralinepag')).not.toBeInTheDocument()
+    expect(screen.getByText('1 of 2')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Clear' }))
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search competitors' }), 'prostacyclin')
+    expect(screen.queryByText('Sotatercept')).not.toBeInTheDocument()
+    expect(screen.getByText('Ralinepag')).toBeInTheDocument()
   })
 
   it('offers to identify competitors when none are tracked, and starts only the competitors step', async () => {

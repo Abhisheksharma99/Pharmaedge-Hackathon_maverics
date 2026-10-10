@@ -6,6 +6,7 @@ import { Command, CommandGroup, CommandList } from '@/components/ui/command'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { assetMatches, byKindThenName, useAssets } from '@/features/assets/api'
 import { AssetTile } from '@/features/assets/components/asset-tile'
+import { eventIndications } from '@/features/journey/indications'
 import { CATEGORY_META } from '@/features/journey/constants'
 import { SEARCH_MIN_CHARS, useSearch } from '@/features/search/api'
 import { formatDay } from '@/lib/dates'
@@ -88,7 +89,7 @@ function PaletteBody({ onDone }: { onDone: () => void }) {
       : (search.data?.events ?? []).map((e) => ({
           value: `event:${e.asset}:${e.id}`,
           label: e.title,
-          sub: [e.assetName, formatDay(e.date), e.nct_id].filter(Boolean).join(' · '),
+          sub: [e.assetName, eventIndications(e).join(', '), formatDay(e.date), e.nct_id].filter(Boolean).join(' · '),
           icon: CATEGORY_META[e.category]?.icon ?? Route,
           run: () => {
             onDone()

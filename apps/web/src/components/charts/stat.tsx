@@ -8,12 +8,15 @@ export function Stat({
   value,
   sub,
   color,
+  children,
 }: {
   icon: LucideIcon
   label: string
   value: ReactNode
   sub?: string
   color?: string
+  /** Extra lines under the value (replaces `sub`). */
+  children?: ReactNode
 }) {
   return (
     <div className="flex min-w-0 animate-fade-up flex-col gap-[4px] bg-card px-[16px] py-[14px]">
@@ -27,7 +30,8 @@ export function Stat({
       >
         {value}
       </span>
-      {sub && <span className="truncate text-[12px] text-muted-foreground">{sub}</span>}
+      {children}
+      {!children && sub && <span className="truncate text-[12px] text-muted-foreground">{sub}</span>}
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { Mock } from 'vitest'
 import { createMemoryRouter, RouterProvider } from 'react-router'
@@ -105,10 +105,9 @@ describe('AppSidebar', () => {
       [/^Home$/, '/'],
       [/^Asset Search$/, '/assets'],
       [/^Asset AI$/, '/chat'],
-      [/^Asset Journey$/, '/assets/trep/overview'],
+      [/^Asset Journey$/, '/journey'],
       [/^Company IR$/, '/assets/trep/company-ir'],
       [/^Conferences$/, '/assets/trep/conferences'],
-      [/^Uploads/, '/uploads'],
       [/^Crawl jobs/, '/jobs'],
       [/^Treprostinil/, '/assets/trep/overview'],
       [/^Sotatercept/, '/assets/sota/overview'],
@@ -117,6 +116,19 @@ describe('AppSidebar', () => {
     for (const [name, path] of expected) {
       await userEvent.click(screen.getByRole('link', { name }))
       expect(router.state.location.pathname).toBe(path)
+    }
+  })
+
+  it('has no Uploads entry, and lights Asset Journey on /journey and on a single journey', async () => {
+    fakeApi()
+    for (const path of ['/journey', '/journey/trep']) {
+      renderSidebar(path)
+      const nav = screen.getByRole('navigation', { name: 'Main' })
+      await within(nav).findByRole('link', { name: /^Treprostinil/ })
+      expect(within(nav).queryByRole('link', { name: /Uploads/ })).not.toBeInTheDocument()
+      expect(within(nav).getByRole('link', { name: 'Asset Journey' })).toHaveAttribute('aria-current', 'page')
+      expect(within(nav).getByRole('link', { name: 'Asset Search' })).not.toHaveAttribute('aria-current')
+      cleanup()
     }
   })
 

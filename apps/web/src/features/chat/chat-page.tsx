@@ -1,13 +1,13 @@
 import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { useCreateChatSession } from './api'
 import { ChatConversation } from './components/chat-conversation'
-import { ADD_ASSET_DRAFT, ChatEmptyState } from './components/chat-empty-state'
+import { ChatEmptyState } from './components/chat-empty-state'
 import { ChatHistory } from './components/chat-history'
 import { useStarterQuestions } from './starters'
 import { useOfferNavigation } from './navigation'
 
 /**
- * Full-page Asset AI (`/chat`, `/chat/:sessionId`); `?intent=add` starts with "Add " in the composer and
+ * Full-page Asset AI (`/chat`, `/chat/:sessionId`); `?intent=add` focuses the composer and
  * `?ask=<question>` sends the question in a new chat (Home, ⌘K and the starter questions link here).
  */
 export function ChatPage() {
@@ -35,8 +35,7 @@ export function ChatPage() {
           onSessionCreated={(id) => navigate(`/chat/${encodeURIComponent(id)}`, { replace: askParam !== '' })}
           suggestions={starters.slice(0, 3)}
           EmptyState={ChatEmptyState}
-          emptyPlaceholder="Ask about your assets, or type “Add” and a drug name…"
-          initialDraft={addIntent ? ADD_ASSET_DRAFT : ''}
+          emptyPlaceholder="Ask about your assets, or name a drug to add, e.g. sotatercept"
           initialQuestion={askParam || undefined}
           autoFocus={addIntent}
           contentClassName="mx-auto w-full max-w-[860px] px-[24px] max-[900px]:px-[16px]"
