@@ -108,7 +108,7 @@ export function SlideBody({ record }: { record: SourceRecord }) {
   const text = ((record.slide_text as string) || '').trim()
 
   return (
-    <div className="space-y-6 px-4 pb-6">
+    <div className="mt-[16px] space-y-[24px]">
       <div className="flex flex-wrap items-center gap-2">
         {slideLink && (
           <a href={slideLink} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 font-medium text-primary hover:underline">

@@ -83,7 +83,10 @@ export const SOURCE_TABS: Record<string, SourceTab> = {
     omitInList: ['content', 'slide_text', 'claims', 'metrics', 'evidence'],
     keyField: 'record_key',
     insightFacets: ['mentions'],
-    facets: [{ key: 'category', label: 'Category', expr: { $arrayElemAt: [{ $ifNull: ['$tags', []] }, 0] } }],
+    facets: [
+      { key: 'record_type', label: 'Type', expr: '$record_type' },
+      { key: 'category', label: 'Category', expr: { $arrayElemAt: [{ $ifNull: ['$tags', []] }, 0] } },
+    ],
   },
   news: {
     collections: ['articles'],

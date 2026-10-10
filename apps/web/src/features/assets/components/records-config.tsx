@@ -45,6 +45,8 @@ const RECORD_TYPE_LABEL: Record<string, string> = {
   company_document: 'Company document',
   company_page: 'Company web page',
   press_release: 'Press release',
+  presentation_slide: 'Investor presentation',
+  sec_fda_action: 'SEC filing (PDUFA / CRL)',
 }
 
 const str = (v: unknown) => (typeof v === 'string' ? v : '')
@@ -220,12 +222,21 @@ export const RECORDS_CONFIG: Record<'clinical' | 'regulatory' | 'publications' |
     countKey: 'pressReleases',
     showTotal: true,
     title: 'Company IR',
-    description: 'Press releases from the company newsroom, newest first',
+    description: 'Press releases and investor-presentation slides from the company IR site, newest first',
     step: 'company_news',
-    searchPlaceholder: 'Search company IR',
+    searchPlaceholder: 'Search releases and slides',
+    facetLabel: { record_type: (v) => RECORD_TYPE_LABEL[v] ?? v },
     columns: (asset) => [
       { header: 'Date', cell: dateCell },
-      { header: 'Press release', cell: titleCell },
+      {
+        header: 'Title',
+        cell: (r) => (
+          <span className="block max-w-[520px] min-w-[240px] text-pretty">
+            {r.record_type === 'presentation_slide' && <Tag className="mr-[6px] align-middle">Slide</Tag>}
+            {recordTitle(r)}
+          </span>
+        ),
+      },
       {
         // Curated releases carry tags; the rest show the category AI triage gave them for this asset.
         header: 'Category',

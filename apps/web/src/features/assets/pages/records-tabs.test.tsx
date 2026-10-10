@@ -92,7 +92,7 @@ describe('records tabs: columns per tab (README §5.5)', () => {
     ['publications', <PublicationsTab key="PublicationsTab" />, ['PMID', 'Title', 'Journal', 'Year', 'Design', 'Journey'], { key: 'pubmed:1', title: 'A paper' }],
     ['conferences', <ConferencesTab key="ConferencesTab" />, ['Congress', 'Date', 'Abstract', 'Format', 'Journey'], { key: 'c:1', title: 'An abstract', conference: 'ATS' }],
     ['documents', <DocumentsTab key="DocumentsTab" />, ['Document', 'Type', 'Date', 'Pages', 'Journey'], { key: 'd:1', title: 'PI.pdf', record_type: 'prescribing_info' }],
-    ['company-ir', <CompanyIrTab key="CompanyIrTab" />, ['Date', 'Press release', 'Category', 'Journey'], { key: 'p:1', title: 'A release' }],
+    ['company-ir', <CompanyIrTab key="CompanyIrTab" />, ['Date', 'Title', 'Category', 'Journey'], { key: 'p:1', title: 'A release' }],
     ['patents', <PatentsTab key="PatentsTab" />, ['Patent', 'Title', 'Covers', 'Assignee', 'Granted', 'Expiry', 'Status', 'Journey'], { key: 'pat:1', title: 'A patent', publication_number: 'US1B2' }],
   ] as const)('%s', async (path, element, expected, record) => {
     respond({ '/api/assets/trep/series': [], [`/api/assets/trep/records/${path}`]: page([record as SourceRecord]) })

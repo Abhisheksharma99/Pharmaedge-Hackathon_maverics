@@ -273,8 +273,8 @@ describe('records', () => {
     });
     try {
       const res = (await get(`/api/assets/${A}/record/company-ir?key=${encodeURIComponent(`uthr:press_release:${PR_URL}`)}`)).json();
-      expect(res.journeyEvents).toEqual([
-        { id: 'ai:pr-evidence', type: 'approval', category: 'regulatory', date: '2021-04-01', title: 'FDA approves Tyvaso for PH-ILD', significance: 'High', is_milestone: false },
+      expect(res.journey_events).toEqual([
+        { id: 'ai:pr-evidence', category: 'regulatory', date: '2021-04-01', title: 'FDA approves Tyvaso for PH-ILD', significance: 'High' },
       ]);
       expect((await get(`/api/assets/${A}/records/company-ir?type=prescribing_info`)).json().total).toBe(0);
     } finally {

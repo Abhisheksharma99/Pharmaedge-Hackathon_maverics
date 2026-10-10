@@ -30,6 +30,8 @@ export async function createTestApp(env: Record<string, string> = {}): Promise<T
     CRAWLER_SERVICE_KEY: 'test-service-key-0123456789',
     AI_RATE_PER_MINUTE: '1000',
     AI_RATE_PER_HOUR: '10000',
+    // Hermetic: a developer .env may switch real web search on; tests that need it mock WebSearchService.
+    ANALYTICS_WEB_SEARCH: '0',
     ...env,
   });
   const { AppModule } = await import('../../src/app.module.js');
