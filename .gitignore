@@ -41,3 +41,8 @@ backups/
 .playwright-mcp/
 .superpowers/
 .ruff_cache/
+
+# Internal AI planning docs and local scratch (kept locally, not published)
+docs/superpowers/plans/
+.superpowers/
+apps/web/vite.preview.local.ts
