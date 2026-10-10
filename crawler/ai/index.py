@@ -26,6 +26,7 @@ from datetime import datetime, timezone
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
 
 from pymongo import ReplaceOne
+from pymongo.errors import OperationFailure
 from pymongo.operations import SearchIndexModel
 
 from storage.mongo_storage import get_db
@@ -41,6 +42,9 @@ DOCUMENT_TYPES = ["prescribing_info", "annual_report", "presentation_slide"]  # 
 EMBED_VERSION = "2"
 FLUSH_INPUTS = 256  # chunks held before an embeddings round (a few requests of llm.EMBED_BATCH)
 FDA_EVIDENCE_TYPES = ["fda_calendar_event", "sec_fda_action"]
+# mongot rejects search-index commands for up to a minute after the host wakes from sleep ("Topology cache is
+# unavailable", infra/mongo/README.md); it re-checks once a minute, so waiting this long covers it.
+TOPOLOGY_RETRIES, TOPOLOGY_WAIT = 3, 30
 
 Record = Dict[str, Any]
 
@@ -58,7 +62,7 @@ def ensure_vector_index(db) -> None:
     """The vector index and the lexical index Asset AI fuses with it (both on mongot; verified on MongoDB 9.0.2 +
     mongot 1.70.5, including $rankFusion over the two). Created once; existing definitions are left alone."""
     coll = db.record_chunks
-    existing = {i.get("name") for i in coll.list_search_indexes()}
+    existing = {i.get("name") for i in _list_search_indexes(coll)}
     if INDEX_NAME not in existing:
         coll.create_search_index(SearchIndexModel(name=INDEX_NAME, type="vectorSearch", definition={"fields": [
             {"type": "vector", "path": "embedding", "numDimensions": llm.EMBEDDING_DIMENSIONS, "similarity": "cosine"},
@@ -73,6 +77,17 @@ def ensure_vector_index(db) -> None:
                 "title": {"type": "string", "analyzer": "lucene.english"},
                 "assets": {"type": "token"}, "collection": {"type": "token"}, "record_type": {"type": "token"},
                 "date": {"type": "token"}}}}))
+
+
+def _list_search_indexes(coll) -> List[Dict[str, Any]]:
+    for attempt in range(TOPOLOGY_RETRIES + 1):
+        try:
+            return list(coll.list_search_indexes())
+        except OperationFailure as e:
+            if attempt == TOPOLOGY_RETRIES or "Topology cache is unavailable" not in str(e):
+                raise
+            time.sleep(TOPOLOGY_WAIT)
+    return []
 
 
 def _lines(*pairs: Tuple[str, Any]) -> str:
