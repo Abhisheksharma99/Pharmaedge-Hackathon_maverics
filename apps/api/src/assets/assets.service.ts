@@ -226,7 +226,7 @@ export class AssetsService {
    */
   market(id: string, query: MarketQueryDto) {
     // The view name carries the response version: a cached entry of an older shape is never served after a deploy.
-    return this.cached(id, 'market:v2', query, async () => {
+    return this.cached(id, 'market:v3', query, async () => {
       const asset = await this.getAsset(id);
       const listings = await this.db.collection('market_listings').find({ asset: id, stale: { $ne: true } }).toArray();
       const primary = listings.find((l) => (l.roles as string[] | undefined)?.includes('asset_company')) ?? listings[0];
@@ -259,7 +259,7 @@ export class AssetsService {
       const [events, counts] = await Promise.all([
         coll
           .find(query.category?.length ? { ...base, category: { $in: query.category } } : base, {
-            projection: { asset: 1, title: 1, date: 1, category: 1, type: 1, significance: 1, sources: { $slice: 1 } },
+            projection: { asset: 1, title: 1, date: 1, category: 1, type: 1, significance: 1, branch: 1, span: 1, indications: 1, sources: { $slice: 1 } },
           })
           .sort({ date: 1 })
           .limit(1000)

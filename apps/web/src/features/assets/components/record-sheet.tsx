@@ -6,9 +6,10 @@ import { formatDay } from '@/lib/dates'
 import { formatPhase, formatStatus } from '@/lib/format'
 import { safeUrl } from '@/lib/utils'
 import { useEventSheet } from '@/stores/event-sheet-store'
-import { CategoryIcon, SignificanceBadge } from './badges'
+import { CategoryIcon, IndicationBadges, SignificanceBadge } from './badges'
 import { useRecord, type RecordEventRef, type RecordTab, type SourceRecord } from '../api'
 import { DocumentText, MentionExcerpts } from './document-text'
+import { recordIndications } from './record-indications'
 import { SlideBody, isSlide, slideHeading } from './slide-record'
 
 const TAB_TITLE: Record<RecordTab, string> = {
@@ -131,6 +132,7 @@ function RecordBody({ assetId, record, onClose }: { assetId: string; record: Sou
   const text = (record.content as string) || (record.abstract as string) || (record.therapeutic_indication as string) || ''
   const url = sourceUrl(record)
   const names = Array.isArray(record.mentions) ? (record.mentions as string[]) : []
+  const indications = recordIndications(record)
 
   return (
     <div className="space-y-[16px]">
@@ -138,6 +140,12 @@ function RecordBody({ assetId, record, onClose }: { assetId: string; record: Sou
         <a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 font-medium text-primary hover:underline">
           Open original <ExternalLink className="size-3.5" />
         </a>
+      )}
+      {indications.length > 0 && (
+        <div className="flex flex-wrap items-center gap-[8px]">
+          <span className="text-[12px] text-muted-foreground">Indication</span>
+          <IndicationBadges items={indications} max={indications.length} />
+        </div>
       )}
       {fields.length > 0 && (
         <dl className="mt-[16px] grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-x-[12px] gap-y-[12px]">
