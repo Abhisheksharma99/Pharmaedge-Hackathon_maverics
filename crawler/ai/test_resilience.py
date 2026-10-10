@@ -1,8 +1,11 @@
 """A failed LLM / embedding call must not lose the rest of a step. Run: cd crawler && ../.venv/bin/python -m pytest ai -q"""
 
 import json
+from types import SimpleNamespace
 
 import pytest
+
+from pymongo.errors import OperationFailure
 
 from ai import events, index
 
@@ -182,7 +185,6 @@ def test_consolidation_skips_a_cluster_whose_call_failed(monkeypatch):
 
 
 def test_usage_accounting_handles_embedding_responses():
-    from types import SimpleNamespace
     from ai import llm
     before = llm.usage_snapshot()
     llm._record_usage(SimpleNamespace(usage=SimpleNamespace(prompt_tokens=7, total_tokens=7)))  # embeddings
@@ -450,3 +452,30 @@ def test_a_new_prompt_version_rejudges_older_decisions(monkeypatch):
     assert triage.pending_query("t") == {"triage.t": {"$exists": False}}  # version 1: only never-judged records
     monkeypatch.setattr(triage, "PROMPT_VERSION", 2)
     assert triage.pending_query("t") == {"triage.t.v": {"$not": {"$gte": 2}}}  # unversioned (v1) and v1 decisions again
+
+
+class _Chunks:
+    def __init__(self, failures):
+        self.failures, self.created = failures, []
+
+    def list_search_indexes(self):
+        if self.failures:
+            self.failures -= 1
+            raise OperationFailure("Executor error :: caused by :: Topology cache is unavailable.", code=125)
+        return iter([{"name": index.INDEX_NAME}, {"name": index.TEXT_INDEX_NAME}])
+
+    def create_search_index(self, model):
+        self.created.append(model)
+
+
+def test_search_index_check_waits_out_mongot_after_host_sleep(monkeypatch):
+    monkeypatch.setattr(index, "TOPOLOGY_WAIT", 0)
+    chunks = _Chunks(failures=2)
+    index.ensure_vector_index(SimpleNamespace(record_chunks=chunks))
+    assert chunks.failures == 0 and chunks.created == []
+
+
+def test_search_index_check_gives_up_after_the_retries(monkeypatch):
+    monkeypatch.setattr(index, "TOPOLOGY_WAIT", 0)
+    with pytest.raises(OperationFailure):
+        index.ensure_vector_index(SimpleNamespace(record_chunks=_Chunks(failures=index.TOPOLOGY_RETRIES + 1)))
