@@ -1,22 +1,21 @@
 import { ArrowRight, ChevronRight, Flag, List, MessageCircle, Sparkle, Star } from 'lucide-react'
 import { useState, type CSSProperties } from 'react'
-import { CategoryIcon, SignificanceBadge } from '@/features/assets/components/badges'
+import { CategoryIcon, IndicationBadges, SignificanceBadge } from '@/features/assets/components/badges'
 import { cn } from '@/lib/utils'
 import { useJourneyEvents } from '../api'
-import { BranchChip, CountdownChip, DetailsGrid, Targets } from '../chips'
+import { CountdownChip, DetailsGrid, Targets } from '../chips'
 import { eventDate } from '../format'
+import { eventIndications } from '../indications'
 import { CATEGORY_META, noteColor } from '../constants'
 import { FOCUS } from '../controls'
 import { subtree, subtreeSize, viaLabel, type SubtreeNode } from '../journey-model'
-import type { Branch, JourneyEventV3 } from '../types'
+import type { JourneyEventV3 } from '../types'
 
 export interface TreeCardProps {
   assetId: string
   /** id of the title button, for the article's accessible name. */
   titleId?: string
   e: JourneyEventV3
-  /** Branch chip; null on a single-trunk journey. */
-  lane: Branch | null
   open: boolean
   onToggle: () => void
   starred: boolean
@@ -35,7 +34,7 @@ const TITLE = { High: 'text-[21px]', Medium: 'text-[18px]', Low: 'mt-[8px] text-
 const PAD = { High: 'px-[24px] py-[22px]', Medium: 'px-[20px] py-[18px]', Low: 'px-[16px] py-[12px]' } as const
 
 /** Tree event card (README §6.2 "Card", SCREENS 10). */
-export function TreeCard({ assetId, titleId, e, lane, open, onToggle, starred, nComments, onStar, onOpen, onJump, resolve, className }: TreeCardProps) {
+export function TreeCard({ assetId, titleId, e, open, onToggle, starred, nComments, onStar, onOpen, onJump, resolve, className }: TreeCardProps) {
   const meta = CATEGORY_META[e.category] ?? CATEGORY_META.regulatory
   const nodes = subtree(e, resolve)
   const tag = e.user ? noteColor(e.user.tag) : null
@@ -69,7 +68,7 @@ export function TreeCard({ assetId, titleId, e, lane, open, onToggle, starred, n
           </b>
           <span className="text-[11.5px] text-muted-foreground capitalize">{e.type.replace(/_/g, ' ')}</span>
         </span>
-        {lane?.label && <BranchChip branch={lane} />}
+        <IndicationBadges items={eventIndications(e)} max={2} />
         <span className="flex-1" />
         <span className="font-mono text-[12px] text-text-secondary">{eventDate(e)}</span>
         {e.is_milestone && <CountdownChip date={e.date} />}

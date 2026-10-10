@@ -159,3 +159,50 @@ describe('tree windowing, active row and hover', () => {
     expect(treeHoverAt(geo, byId, geo.tx - 199, d.y + 10)!.lane).toBe('PH-COPD')
   })
 })
+
+describe('newest first', () => {
+  const REV = [...LIST].reverse()
+  const rows = treeRows(REV, MODEL, CLOSURES, '2026-10-09', true)
+  const heights = rows.map(estimateRowHeight)
+  const { tops, H } = rowTops(heights)
+  const geo = treeGeometry({ W: 1300, rows, tops, heights, H, model: MODEL, spanOf: (e) => spanOf(e, MODEL), newestFirst: true })
+  const mid = (key: string) => {
+    const i = rows.findIndex((r) => r.key === key)
+    return tops[i]! + heights[i]! / 2
+  }
+
+  it('lists the same rows bottom-up: end marker on top, each year above its events, forks below a first event, root last', () => {
+    expect(keys(rows)).toEqual([
+      'finish', 'y2027', 'i', 'today', 'y2024', 'h', 'y2023', 'g', 'xPH-COPD', 'y2022', 'f', 'y2021', 'e', 'fIPF', 'y2018', 'd', 'fPH-COPD',
+      'y2017', 'c', 'fPH-ILD', 'y2004', 'b', 'y2002', 'a', 'root',
+    ])
+    // Event rows index the newest-first list.
+    expect(rows.flatMap((r) => (r.kind === 'event' ? [`${r.key}:${r.i}`] : [])).slice(0, 3)).toEqual(['i:0', 'h:1', 'g:2'])
+  })
+
+  it('runs lanes up from their fork, caps ended ones above with the tail upwards, and the trunk from the root to the end', () => {
+    expect(geo.dir).toBe(-1)
+    const ild = geo.lanes.find((l) => l.id === 'PH-ILD')!
+    expect(ild.fy).toBe(mid('fPH-ILD'))
+    expect(ild.y2).toBe(geo.yToday)
+    expect(ild.y2).toBeLessThan(ild.y1)
+    const copd = geo.lanes.find((l) => l.id === 'PH-COPD')!
+    expect(copd.y2).toBe(mid('xPH-COPD'))
+    expect(copd.tailY).toBe(geo.nodes.find((n) => n.k === 'h')!.y)
+    expect(copd.tailY!).toBeLessThan(copd.y2)
+    const trunk = geo.lanes.find((l) => l.trunk)!
+    expect(trunk.y1).toBeGreaterThan(trunk.y2)
+    // IPF forks from PH-ILD, whose fork is below it.
+    expect(geo.lanes.find((l) => l.id === 'IPF')!.px).toBe(ild.x)
+  })
+
+  it('hovers in time: prev is the earlier event below the pointer', () => {
+    const byId = new Map(LIST.map((e) => [e.id, e]))
+    const y = (geo.nodes.find((n) => n.k === 'b')!.y + geo.nodes.find((n) => n.k === 'a')!.y) / 2
+    const h = treeHoverAt(geo, byId, geo.tx, y, '2026-10-09')!
+    expect(h.lane).toBe('PAH')
+    expect(h.prev?.id).toBe('a')
+    expect(h.next?.id).toBe('b')
+    expect(h.date > '2002-05-21' && h.date < '2004-11-23').toBe(true)
+  })
+})

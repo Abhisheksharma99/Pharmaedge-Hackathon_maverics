@@ -14,20 +14,29 @@ const LIST = [ev('a', '2002-05-21', 'PAH'), ev('b', '2017-02-01', 'PH-ILD', { ca
 
 function setup(over: Partial<JourneyHeaderProps> = {}) {
   const props: JourneyHeaderProps = {
-    model: MODEL, list: LIST, undated: 0, counts: journeyCounts(LIST, ['a']), view: 'h', scope: 'key', cats: [], mine: null, focusBranch: null,
-    onView: vi.fn(), onScope: vi.fn(), onToggleCat: vi.fn(), onMine: vi.fn(), onFocusBranch: vi.fn(), onClear: vi.fn(), onAdd: vi.fn(), ...over,
+    assetId: 'trep', model: MODEL, list: LIST, undated: 0, counts: journeyCounts(LIST, ['a']), view: 'h', order: 'oldest', scope: 'key', cats: [], mine: null,
+    indications: ['PAH', 'PH-COPD', 'PH-ILD'], ind: null, q: '', focusBranch: null,
+    onView: vi.fn(), onOrder: vi.fn(), onScope: vi.fn(), onToggleCat: vi.fn(), onMine: vi.fn(), onInd: vi.fn(), onQuery: vi.fn(), onFocusBranch: vi.fn(), onClear: vi.fn(), onAdd: vi.fn(), ...over,
   }
-  const router = createMemoryRouter([{ path: '*', element: <JourneyHeader {...props} /> }], { initialEntries: ['/assets/trep/overview'] })
+  const router = createMemoryRouter([{ path: '*', element: <JourneyHeader {...props} /> }], { initialEntries: ['/journey/trep'] })
   render(<RouterProvider router={router} />)
   return { props, router }
 }
+
+// Radix Select uses pointer capture, which jsdom lacks.
+beforeAll(() => {
+  Element.prototype.hasPointerCapture ??= () => false
+  Element.prototype.setPointerCapture ??= () => {}
+  Element.prototype.releasePointerCapture ??= () => {}
+})
 
 describe('JourneyHeader', () => {
   it('summarises the journey and links to how it was built', () => {
     const { router } = setup({ undated: 2 })
     expect(screen.getByText(/^4 events, 2002–2028 · 3 indication branches\. Each new indication forks off/)).toHaveTextContent('2 undated events are not placed on the timeline.')
+    // From the Asset Journey page too, the build lives on the asset's Overview.
     expect(screen.getByRole('link', { name: 'How this journey was built' })).toHaveAttribute('href', '/assets/trep/overview?build=1')
-    expect(router.state.location.pathname).toBe('/assets/trep/overview')
+    expect(router.state.location.pathname).toBe('/journey/trep')
   })
 
   it('shows a card per branch with its parent, count, status and first year; empty branches are disabled', async () => {
@@ -41,10 +50,39 @@ describe('JourneyHeader', () => {
     expect(props.onFocusBranch).toHaveBeenCalledWith('PH-COPD')
   })
 
-  it('switches orientation and scope, filters by category / starred / team notes, and clears', async () => {
-    const { props } = setup({ cats: ['clinical'] })
-    await userEvent.click(screen.getByRole('button', { name: 'Tree' }))
+  it('offers Horizontal | Vertical (horizontal first) and Oldest | Newest first', async () => {
+    const { props } = setup()
+    const orientation = within(screen.getByRole('group', { name: 'Orientation' })).getAllByRole('button')
+    expect(orientation.map((b) => b.textContent)).toEqual(['Horizontal', 'Vertical'])
+    expect(orientation[0]).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.click(orientation[1]!)
     expect(props.onView).toHaveBeenCalledWith('v')
+    const order = within(screen.getByRole('group', { name: 'Order' })).getAllByRole('button')
+    expect(order.map((b) => b.textContent)).toEqual(['Oldest first', 'Newest first'])
+    expect(order[0]).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.click(order[1]!)
+    expect(props.onOrder).toHaveBeenCalledWith('newest')
+  })
+
+  it('filters by indication and title; either shows Clear', async () => {
+    const { props } = setup()
+    expect(screen.queryByRole('button', { name: 'Clear' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('combobox', { name: 'Indication' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'PH-ILD' }))
+    expect(props.onInd).toHaveBeenCalledWith('PH-ILD')
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search event titles' }), 'ab')
+    expect(props.onQuery).toHaveBeenLastCalledWith('ab')
+  })
+
+  it('shows the picked indication and the search from the URL', () => {
+    setup({ ind: 'PAH', q: 'tyvaso' })
+    expect(screen.getByRole('combobox', { name: 'Indication' })).toHaveTextContent('PAH')
+    expect(screen.getByRole('searchbox', { name: 'Search event titles' })).toHaveValue('tyvaso')
+    expect(screen.getByRole('button', { name: 'Clear' })).toBeInTheDocument()
+  })
+
+  it('switches scope, filters by category / starred / team notes, and clears', async () => {
+    const { props } = setup({ cats: ['clinical'] })
     await userEvent.click(screen.getByRole('button', { name: 'All' }))
     expect(props.onScope).toHaveBeenCalledWith('all')
     const filters = within(screen.getByRole('group', { name: 'Filter the journey' }))

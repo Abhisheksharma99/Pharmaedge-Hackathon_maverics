@@ -176,3 +176,36 @@ describe('trackHoverAt', () => {
     expect(trackHoverAt(M, LIST, m.capX! + 40, M.rowY('PH-COPD')!)).toBeNull()
   })
 })
+
+describe('newest first', () => {
+  const REV = [...LIST].reverse()
+  const fwd = layout()
+  const rev = layout({ list: REV, newestFirst: true })
+  const mirror = fwd.xs[0]! + fwd.xs[LIST.length - 1]!
+
+  it('mirrors the chronological track: same columns and width, lanes start on the right and run left', () => {
+    expect(rev.dir).toBe(-1)
+    expect(rev.xs).toEqual(fwd.xs)
+    expect(rev.TW).toBe(fwd.TW)
+    expect(rev.todayX).toBe(mirror - fwd.todayX)
+    const ild = rev.lanes.find((l) => l.id === 'PH-ILD')!
+    expect(ild.x1).toBe(mirror - fwd.lanes.find((l) => l.id === 'PH-ILD')!.x1)
+    expect(ild.x1).toBeGreaterThan(ild.x2)
+    const copd = rev.lanes.find((l) => l.id === 'PH-COPD')!
+    expect(copd.tailX!).toBeLessThan(copd.capX!)
+    // The ruler starts with the newest year at the left.
+    expect(rev.years.map((y) => y.y).slice(0, 3)).toEqual(['2027', '2025', '2024'])
+    expect(rev.years[0]!.x).toBe(rev.xs[0])
+  })
+
+  it('hovers in time: prev is the earlier event (on the right), the date between them, lanes bounded leftwards', () => {
+    const x = (rev.xs[5]! + rev.xs[6]!) / 2 // between e (2021, column 5) and d (2020, column 6)
+    const h = trackHoverAt(rev, REV, x, rev.rowY('CTEPH')!, '2026-10-09')!
+    expect(h.prev?.id).toBe('d')
+    expect(h.next?.id).toBe('e')
+    expect(h.date > '2020-04-03' && h.date < '2021-06-01').toBe(true)
+    const start = rev.lanes.find((l) => l.id === 'PH-ILD')!.x1
+    expect(trackHoverAt(rev, REV, start + 10, rev.rowY('PH-ILD')!)).toBeNull()
+    expect(trackHoverAt(rev, REV, start - 10, rev.rowY('PH-ILD')!)?.lane).toBe('PH-ILD')
+  })
+})

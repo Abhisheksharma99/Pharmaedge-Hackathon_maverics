@@ -20,8 +20,30 @@ export const branchSide = (b: Pick<Branch, 'off'>): Side => (b.off < 0 ? 'l' : '
  * Root, then per event: Today (before the first event after today), a year marker, a "New branch" fork row before a
  * branch's first event, the event; a "Branch closed" row once an ended branch's closure date has passed (or after
  * its last event when the closure is unknown); then the end marker. Trunk events alternate sides.
+ *
+ * `newestFirst` (`list` newest first): the same rows bottom-up — the end marker on top, then each year's marker above
+ * its events, forks below a branch's first event, the root at the bottom. Event rows keep their index into `list`.
  */
-export function treeRows(list: JourneyEventV3[], model: BranchModel, closures: Record<string, Closure>, today: string): TreeRow[] {
+export function treeRows(list: JourneyEventV3[], model: BranchModel, closures: Record<string, Closure>, today: string, newestFirst = false): TreeRow[] {
+  if (!newestFirst) return chronologicalRows(list, model, closures, today)
+  const n = list.length
+  const rows = chronologicalRows([...list].reverse(), model, closures, today)
+  const years = new Map(rows.flatMap((r) => (r.kind === 'year' ? [[r.year, r] as const] : [])))
+  const out: TreeRow[] = []
+  let year: string | null = null
+  for (const r of rows.reverse()) {
+    if (r.kind === 'year') continue
+    if (r.kind === 'event') {
+      const y = r.e.date.slice(0, 4)
+      if (y !== year) out.push(years.get(y)!)
+      year = y
+      out.push({ ...r, i: n - 1 - r.i })
+    } else out.push(r)
+  }
+  return out
+}
+
+function chronologicalRows(list: JourneyEventV3[], model: BranchModel, closures: Record<string, Closure>, today: string): TreeRow[] {
   const out: TreeRow[] = [{ kind: 'root', key: 'root' }]
   const lanes = list.map((e) => laneOf(e, model))
   const count = new Map<string, number>()

@@ -28,7 +28,7 @@ const OVERSCAN = 1200
  * Journey tree (README §6.2, the alternate view): branch lanes fork off their parent programme; cards alternate around
  * the trunk. Geometry comes from row heights (measured or estimated), so only rows near the viewport are rendered.
  */
-export function JourneyTree({ assetId, list, model, closures, stars, comments, focusBranch, onOpen, onAdd, onActive, onStar, onJump, ref }: JourneyTreeProps) {
+export function JourneyTree({ assetId, list, newestFirst = false, model, closures, stars, comments, focusBranch, onOpen, onAdd, onActive, onStar, onJump, ref }: JourneyTreeProps) {
   const flowRef = useRef<HTMLDivElement>(null)
   const clipRef = useRef<SVGRectElement>(null)
   const labelsRef = useRef<HTMLDivElement>(null)
@@ -37,8 +37,8 @@ export function JourneyTree({ assetId, list, model, closures, stars, comments, f
   const revealAll = reduced || typeof IntersectionObserver === 'undefined'
   // Undated events are left off the view (they still open in the sheet); node indices refer to this dated list.
   const dated = useMemo(() => list.filter(isDated), [list])
-  const rows = useMemo(() => treeRows(dated, model, closures, todayIso()), [dated, model, closures])
-  const { geo, tops, heights, register, sizes, indexOf } = useTreeLayout(flowRef, rows, model)
+  const rows = useMemo(() => treeRows(dated, model, closures, todayIso(), newestFirst), [dated, model, closures, newestFirst])
+  const { geo, tops, heights, register, sizes, indexOf } = useTreeLayout(flowRef, rows, model, newestFirst)
   const [win, setWin] = useState<[number, number]>([0, Math.min(rows.length - 1, 14)])
   const [active, setActive] = useState(0)
   const [revealed, setRevealed] = useState<Set<string>>(() => new Set())
@@ -225,15 +225,17 @@ export function JourneyTree({ assetId, list, model, closures, stars, comments, f
 
   const renderRow = (r: TreeRow) => {
     switch (r.kind) {
-      case 'root':
+      case 'root': {
+        // Newest first the root closes the tree at the bottom.
+        const first = dated[newestFirst ? dated.length - 1 : 0]
         return (
-          <div className="pb-[12px] text-[12.5px] text-text-secondary">
+          <div className={cn('text-[12.5px] text-text-secondary', newestFirst ? 'pt-[12px]' : 'pb-[12px]')}>
             <Marker style={marker} narrow={geo.narrow}>
               <span className="flex size-[30px] items-center justify-center rounded-full bg-primary text-white shadow-[0_0_0_6px_var(--background),0_0_0_7px_#e4e7ec]">
                 <Pill className="size-[14px]" aria-hidden="true" />
               </span>
               <span>
-                Journey begins · <b className="text-foreground">{dated[0] ? formatMonth(dated[0].date) : ''}</b>
+                Journey begins · <b className="text-foreground">{first ? formatMonth(first.date) : ''}</b>
                 {model.multi && (
                   <>
                     {' · '}
@@ -244,6 +246,7 @@ export function JourneyTree({ assetId, list, model, closures, stars, comments, f
             </Marker>
           </div>
         )
+      }
       case 'year':
         return (
           <div className={cn('relative pt-[40px] pb-[18px] transition-opacity duration-600', isRevealed(r.key) ? 'opacity-100' : 'opacity-0')}>
@@ -271,7 +274,7 @@ export function JourneyTree({ assetId, list, model, closures, stars, comments, f
                 <i aria-hidden="true" className="size-[6px] animate-blink-dot rounded-full bg-white" />
                 Today · {formatDay(todayIso())}
               </span>
-              <span className="bg-background px-[6px] text-[12px] text-muted-foreground">Expected milestones below</span>
+              <span className="bg-background px-[6px] text-[12px] text-muted-foreground">Expected milestones {newestFirst ? 'above' : 'below'}</span>
             </Marker>
           </div>
         )
@@ -325,7 +328,6 @@ export function JourneyTree({ assetId, list, model, closures, stars, comments, f
               assetId={assetId}
               titleId={`${clipId}-t-${r.i}`}
               e={e}
-              lane={model.multi ? (model.byId.get(r.lane) ?? null) : null}
               open={openT.has(e.id)}
               onToggle={() => setOpenT((s) => (s.has(e.id) ? new Set([...s].filter((x) => x !== e.id)) : new Set([...s, e.id])))}
               starred={starred.has(e.id)}
@@ -348,12 +350,18 @@ export function JourneyTree({ assetId, list, model, closures, stars, comments, f
       }
       case 'finish':
         return (
-          <div className="mt-[28px] text-[12.5px] text-text-secondary">
+          <div className={cn('text-[12.5px] text-text-secondary', newestFirst ? 'mb-[28px]' : 'mt-[28px]')}>
             <Marker style={marker} narrow={geo.narrow}>
               <span className="flex size-[30px] items-center justify-center rounded-full border-[1.5px] border-dashed border-faint bg-card text-text-secondary">
                 <Flag className="size-[13px]" aria-hidden="true" />
               </span>
-              <span>{r.milestones ? 'Projected milestones are dashed' : 'End of the recorded journey'}</span>
+              <span>
+                {newestFirst
+                  ? `Newest first${r.milestones ? ' · projected milestones are dashed' : ''}`
+                  : r.milestones
+                    ? 'Projected milestones are dashed'
+                    : 'End of the recorded journey'}
+              </span>
             </Marker>
           </div>
         )
@@ -370,7 +378,7 @@ export function JourneyTree({ assetId, list, model, closures, stars, comments, f
                 {geo.lanes.map((l) => (
                   <span
                     key={l.id}
-                    data-ly={l.y1}
+                    data-ly={Math.min(l.y1, l.y2, l.tailY ?? Infinity)}
                     className="inline-flex items-center gap-[5px] rounded-full border px-[7px] py-px text-[11px] font-semibold opacity-35 transition-opacity data-[on]:opacity-100"
                     style={{
                       color: l.color,
@@ -388,7 +396,7 @@ export function JourneyTree({ assetId, list, model, closures, stars, comments, f
                 .map((l, i) => (
                   <span
                     key={l.id}
-                    data-ly={l.y1}
+                    data-ly={Math.min(l.y1, l.y2, l.tailY ?? Infinity)}
                     className={cn(
                       'absolute -translate-x-1/2 -translate-y-[6px] rounded-full border bg-card/95 px-[8px] py-[2px] text-[11px] font-semibold whitespace-nowrap opacity-0 shadow-[0_2px_6px_rgba(16,24,40,0.06)] transition-[opacity,translate] duration-300 data-[on]:translate-y-0 data-[on]:opacity-100',
                       dim(l.id) && 'data-[on]:opacity-35',
