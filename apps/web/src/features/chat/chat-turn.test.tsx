@@ -151,9 +151,10 @@ describe('Asset AI chat', () => {
     const router = renderAt('/chat?intent=add')
 
     const input = await screen.findByLabelText('Ask Asset AI')
-    expect(input).toHaveValue('Add ')
+    expect(input).toHaveValue('')
+    expect(input).toHaveAttribute('placeholder', expect.stringContaining('name a drug to add'))
     await waitFor(() => expect(input).toHaveFocus())
-    await userEvent.type(input, 'sotatercept{Enter}')
+    await userEvent.type(input, 'Add sotatercept{Enter}')
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/chat/s2'))
     expect(await screen.findByText('Add sotatercept')).toBeInTheDocument()

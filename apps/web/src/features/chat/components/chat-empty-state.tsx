@@ -3,9 +3,6 @@ import { Button } from '@/components/ui/button'
 import type { ConversationActions } from './chat-conversation'
 import { useStarterQuestions } from '../starters'
 
-/** Composer text for adding an asset ("Add sotatercept"). */
-export const ADD_ASSET_DRAFT = 'Add '
-
 /** First screen of a new chat (prototype `.ch-empty`): prompt, portfolio starters and "Add an asset". */
 export function ChatEmptyState({ ask, prefill }: ConversationActions) {
   const starters = useStarterQuestions()
@@ -31,7 +28,7 @@ export function ChatEmptyState({ ask, prefill }: ConversationActions) {
           </button>
         ))}
       </div>
-      <Button variant="outline" size="sm" className="mt-[10px]" onClick={() => prefill(ADD_ASSET_DRAFT)}>
+      <Button variant="outline" size="sm" className="mt-[10px]" onClick={() => prefill('')}>
         <Plus /> Add an asset
       </Button>
     </div>

@@ -135,6 +135,15 @@ describe('CommandPalette', () => {
     expect(router.state.location.search).toBe('?ask=sett')
   })
 
+  it('shows the indication of an event result, and copes with results that carry none', async () => {
+    const withBranch = { ...TETON.events[0], id: 'e-pah', title: 'TETON-2 readout', branch: 'PAH', span: ['CTEPH'] }
+    fetchMock.mockImplementation(async (url) => (url === '/api/assets' ? json(200, ASSETS) : json(200, { assets: [], events: [withBranch, TETON.events[0]] })))
+    renderPalette()
+    await userEvent.type(await searchBox(), 'TETON')
+    expect(await screen.findByRole('option', { name: /TETON-2 readout/ })).toHaveTextContent('Treprostinil · PAH, CTEPH · Jun 1, 2021')
+    expect(screen.getByRole('option', { name: /TETON-1/ })).toHaveTextContent('Treprostinil · Jun 1, 2021')
+  })
+
   it('does not search events for a single character', async () => {
     renderPalette()
     await userEvent.type(await searchBox(), 't')

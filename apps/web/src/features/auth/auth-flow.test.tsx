@@ -126,13 +126,6 @@ describe('signed in', () => {
     expect(screen.getByRole('switch', { name: /Ana Analyst/ })).toBeEnabled()
   })
 
-  it('shows a coming-soon page for sections not built yet', async () => {
-    fakeApi(ADMIN)
-    renderAt('/uploads')
-    expect(await screen.findByText('Coming soon')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Uploads' })).toBeInTheDocument()
-  })
-
   it('signs out from the account menu', async () => {
     fakeApi(ADMIN)
     const router = renderAt('/')

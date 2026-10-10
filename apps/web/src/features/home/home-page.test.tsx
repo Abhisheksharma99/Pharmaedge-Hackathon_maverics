@@ -135,14 +135,14 @@ describe('HomePage', () => {
     )
   })
 
-  it('fills the KPI strip from assets, key events and running crawls', async () => {
+  it('fills the KPI strip from assets and key events', async () => {
     renderHome()
     const kpis = await screen.findByRole('region', { name: 'Key metrics' })
     await waitFor(() => expect(kpis).toHaveTextContent('Tracked assets21 competitor monitored'))
     await waitFor(() => expect(kpis).toHaveTextContent('New events3Last 90 days, across all assets'))
     expect(kpis).toHaveTextContent('Upcoming milestones2Next 12 months')
-    expect(kpis).toHaveTextContent('Records collected639FDA, EMA, trials, PubMed, news')
-    await waitFor(() => expect(kpis).toHaveTextContent('Crawls running1Treprostinil · 50%'))
+    expect(kpis).not.toHaveTextContent('Records collected')
+    expect(kpis).not.toHaveTextContent('Crawls running')
   })
 
   it('lays out every Home block', async () => {

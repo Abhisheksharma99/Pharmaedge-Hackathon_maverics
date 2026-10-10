@@ -36,14 +36,14 @@ const PORTFOLIO: PortfolioTimeline = {
     { id: 'nint', name: 'Nintedanib', kind: 'competitor', company: 'Boehringer Ingelheim', status: 'ready', progress: null, competitorOf: ['trep'] },
   ],
   events: [
-    ev('d1', 'trep', '2026-10-05', { title: 'FDA accepts Tyvaso sNDA for IPF', via: 'ai_events', sources: [src(1), src(2), src(3), src(4)] }),
-    ev('d2', 'sota', '2026-09-20', { title: 'HYPERION results presented', significance: 'Medium', category: 'clinical' }),
-    ev('d3', 'nint', '2026-08-01', { title: 'Ofev included in Medicare negotiation', significance: 'Medium', category: 'company' }),
+    ev('d1', 'trep', '2026-10-05', { branch: 'PAH', title: 'FDA accepts Tyvaso sNDA for IPF', via: 'ai_events', sources: [src(1), src(2), src(3), src(4)] }),
+    ev('d2', 'sota', '2026-09-20', { branch: 'PH-ILD', title: 'HYPERION results presented', significance: 'Medium', category: 'clinical' }),
+    ev('d3', 'nint', '2026-08-01', { branch: 'IPF', title: 'Ofev included in Medicare negotiation', significance: 'Medium', category: 'company' }),
     ev('old', 'trep', '2026-01-01', { title: 'Old news' }),
-    ev('m1', 'trep', '2026-12-01', { title: 'TETON-2 readout', is_milestone: true, significance: 'Medium', category: 'clinical' }),
-    ev('m2', 'sota', '2027-03-31', { title: 'EU decision expected', is_milestone: true }),
-    ev('m3', 'nint', '2028-01-01', { title: 'Ofev patent expiry', is_milestone: true, category: 'ip' }),
-    ev('m4', 'nint', '2027-02-01', { title: 'Ofev label update expected', is_milestone: true }),
+    ev('m1', 'trep', '2026-12-01', { branch: 'PAH', title: 'TETON-2 readout', is_milestone: true, significance: 'Medium', category: 'clinical' }),
+    ev('m2', 'sota', '2027-03-31', { branch: 'PAH', span: ['CTEPH'], title: 'EU decision expected', is_milestone: true }),
+    ev('m3', 'nint', '2028-01-01', { branch: 'IPF', title: 'Ofev patent expiry', is_milestone: true, category: 'ip' }),
+    ev('m4', 'nint', '2027-02-01', { branch: 'IPF', title: 'Ofev label update expected', is_milestone: true }),
   ],
 }
 
@@ -61,6 +61,11 @@ function renderWith(ui: ReactElement, portfolio: PortfolioTimeline = PORTFOLIO) 
   )
 }
 
+beforeAll(() => {
+  Element.prototype.hasPointerCapture ??= () => false
+  Element.prototype.setPointerCapture ??= () => {}
+  Element.prototype.releasePointerCapture ??= () => {}
+})
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date('2026-10-09T09:00:00'))
@@ -88,6 +93,34 @@ describe('WhatChanged', () => {
     expect(useEventSheet.getState().current).toEqual({ assetId: 'trep', eventId: 'd1' })
   })
 
+  it('badges every row with its indication', async () => {
+    renderWith(<WhatChanged />)
+    const week = await screen.findByRole('region', { name: 'Last 7 days' })
+    expect(within(week).getByTitle('Indication: PAH')).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: 'Last 30 days' })).getByTitle('Indication: PH-ILD')).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: 'Last 90 days' })).getByTitle('Indication: IPF')).toBeInTheDocument()
+  })
+
+  it('narrows the list by search and by indication, and clears', async () => {
+    renderWith(<WhatChanged />)
+    await screen.findByRole('region', { name: 'Last 7 days' })
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search title or asset' }), 'sotatercept')
+    expect(screen.getByText('HYPERION results presented')).toBeInTheDocument()
+    expect(screen.queryByText('FDA accepts Tyvaso sNDA for IPF')).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Last 7 days' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Clear' }))
+
+    await userEvent.click(screen.getByRole('combobox', { name: 'Indication' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'IPF' }))
+    expect(screen.getByText('Ofev included in Medicare negotiation')).toBeInTheDocument()
+    expect(screen.queryByText('HYPERION results presented')).not.toBeInTheDocument()
+
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search title or asset' }), 'zzz')
+    expect(screen.getByText('No events match these filters')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Clear' }))
+    expect(screen.getByText('HYPERION results presented')).toBeInTheDocument()
+  })
+
   it('reads "Quiet quarter" when nothing changed', async () => {
     renderWith(<WhatChanged />, { ...PORTFOLIO, events: [] })
     expect(await screen.findByText('Quiet quarter')).toBeInTheDocument()
@@ -111,6 +144,26 @@ describe('NextMilestones', () => {
   })
 })
 
+describe('NextMilestones filters', () => {
+  it('shows each milestone\'s indications, including spanned ones', async () => {
+    renderWith(<NextMilestones />)
+    const eu = await screen.findByRole('button', { name: /EU decision expected/ })
+    expect(within(eu).getByTitle('Indication: PAH')).toBeInTheDocument()
+    expect(within(eu).getByTitle('Indication: CTEPH')).toBeInTheDocument()
+  })
+
+  it('filters by asset and says when nothing matches', async () => {
+    renderWith(<NextMilestones />)
+    await screen.findByRole('button', { name: /TETON-2 readout/ })
+    await userEvent.click(screen.getByRole('combobox', { name: 'Asset' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'Sotatercept' }))
+    expect(screen.getByRole('button', { name: /EU decision expected/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /TETON-2 readout/ })).not.toBeInTheDocument()
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search title or asset' }), 'zzz')
+    expect(screen.getByText('No milestones match these filters')).toBeInTheDocument()
+  })
+})
+
 describe('CompetitiveSignals', () => {
   it('lists recent competitor moves, then near-term milestones, skipping far-future ones', async () => {
     renderWith(<CompetitiveSignals />)
@@ -122,5 +175,14 @@ describe('CompetitiveSignals', () => {
     expect(rows[1]).toHaveTextContent('Ofev label update expected')
     expect(rows[1]).toHaveTextContent('expected Feb 2027')
     expect(screen.queryByText('Ofev patent expiry')).not.toBeInTheDocument()
+  })
+
+  it('badges rows with their indication and filters by it', async () => {
+    renderWith(<CompetitiveSignals />)
+    const rows = await screen.findAllByRole('button', { name: /Ofev/ })
+    expect(within(rows[0]).getByTitle('Indication: IPF')).toBeInTheDocument()
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search title or competitor' }), 'label')
+    expect(screen.getAllByRole('button', { name: /Ofev/ })).toHaveLength(1)
+    expect(screen.queryByText('Ofev included in Medicare negotiation')).not.toBeInTheDocument()
   })
 })

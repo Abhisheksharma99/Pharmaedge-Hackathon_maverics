@@ -1,5 +1,6 @@
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router";
+import { CardFilters, useCardFilter } from "@/components/card-filters";
 import { InlineError } from "@/components/inline-error";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -22,11 +23,19 @@ import {
 import type { JobProgress } from "@/features/journey/types";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { NoMatches } from "./no-matches";
 
 const JOB_TYPE: Record<Job["type"], string> = {
   onboard: "onboarding",
   refresh: "refresh",
   competitor: "competitor crawl",
+};
+
+const STATUS_LABEL: Partial<Record<Job["status"], string>> = {
+  completed: "Completed",
+  completed_with_errors: "Completed with errors",
+  failed: "Failed",
+  cancelled: "Cancelled",
 };
 
 /** Home "Crawls" (README §5.2): the running crawl, live, and the last three finished jobs. */
@@ -35,10 +44,14 @@ export function CrawlsCard() {
   const recent = useJobs({ limit: 10 });
   const live = running.data?.[0];
   const progress = useJobProgress(live?.id ?? null);
-  const finished = (recent.data ?? [])
-    .filter((j) => !isActive(j.status))
-    .slice(0, 3);
-  const last = live ? undefined : finished[0];
+  const finishedAll = (recent.data ?? []).filter((j) => !isActive(j.status));
+  const { filtered, filters } = useCardFilter(
+    finishedAll,
+    (j) => j.assetName ?? j.asset,
+    [{ label: "Status", of: (j) => [STATUS_LABEL[j.status] ?? j.status] }],
+  );
+  const finished = filtered.slice(0, 3);
+  const last = live ? undefined : finishedAll[0];
   const lastProgress = useJobProgress(last?.id ?? null);
 
   return (
@@ -60,11 +73,15 @@ export function CrawlsCard() {
       {recent.isError && (
         <InlineError message="Crawl jobs couldn't be loaded." onRetry={() => void recent.refetch()} className="p-[8px]" />
       )}
-      {recent.data && !live && finished.length === 0 && (
+      {recent.data && !live && finishedAll.length === 0 && (
         <EmptyState title="No crawls yet">
           Add an asset to start collecting its data.
         </EmptyState>
       )}
+      {finishedAll.length > 0 && (
+        <CardFilters {...filters} placeholder="Search by asset" className="px-0 pt-[4px]" />
+      )}
+      {finishedAll.length > 0 && finished.length === 0 && <NoMatches what="crawls" />}
       {finished.length > 0 && (
         <ul>
           {finished.map((j) => (

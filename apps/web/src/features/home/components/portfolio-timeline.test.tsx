@@ -47,8 +47,8 @@ const PORTFOLIO: Portfolio = {
     { id: 'nint', name: 'Nintedanib', kind: 'competitor', company: 'Boehringer Ingelheim', status: 'ready', progress: null, competitorOf: ['trep'] },
   ],
   events: [
-    ev('e1', 'trep', '2025-03-01', { title: 'Phase 3 trial started: TETON-1', category: 'clinical' }),
-    ev('e2', 'trep', '2027-03-31', { title: 'TETON-2 readout expected', category: 'clinical', is_milestone: true, significance: 'Medium' }),
+    ev('e1', 'trep', '2025-03-01', { branch: 'PAH', title: 'Phase 3 trial started: TETON-1', category: 'clinical' }),
+    ev('e2', 'trep', '2027-03-31', { branch: 'CTEPH', title: 'TETON-2 readout expected', category: 'clinical', is_milestone: true, significance: 'Medium' }),
     ev('e3', 'nint', '2026-03-09', { title: 'Ofev approved for PPF' }),
     ev('e4', 'sota', '2005-05-21', { title: 'First patent filed', category: 'ip', significance: 'Low' }),
     ev('e5', 'trep', '', { title: 'Undated event' }),
@@ -89,6 +89,11 @@ function renderTimeline() {
   )
 }
 
+beforeAll(() => {
+  Element.prototype.hasPointerCapture ??= () => false
+  Element.prototype.setPointerCapture ??= () => {}
+  Element.prototype.releasePointerCapture ??= () => {}
+})
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date('2026-10-09T09:00:00'))
@@ -147,11 +152,31 @@ describe('PortfolioTimeline', () => {
     const dot = await screen.findByRole('button', { name: /Phase 3 trial started: TETON-1/ })
     await userEvent.hover(dot)
     expect(screen.getByRole('tooltip')).toHaveTextContent('Treprostinil · Mar 1, 2025')
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Indication: PAH')
     await userEvent.click(dot)
     expect(useEventSheet.getState().current).toEqual({ assetId: 'trep', eventId: 'e1' })
     act(() => useEventSheet.getState().closeEvent())
     fireEvent.keyDown(screen.getByRole('button', { name: /TETON-2/ }), { key: 'Enter' })
     expect(useEventSheet.getState().current).toEqual({ assetId: 'trep', eventId: 'e2' })
+  })
+
+  it('keeps only the dots of the picked indication, and searches rows by asset', async () => {
+    serve()
+    renderTimeline()
+    expect(await screen.findByRole('button', { name: /TETON-1/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /TETON-2/ })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('combobox', { name: 'Indication' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'CTEPH' }))
+    expect(screen.queryByRole('button', { name: /TETON-1/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /TETON-2/ })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Clear' }))
+
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search assets' }), 'sota')
+    expect(screen.queryByRole('link', { name: /Treprostinil/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Sotatercept/ })).toBeInTheDocument()
+    await userEvent.clear(screen.getByRole('searchbox', { name: 'Search assets' }))
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search assets' }), 'zzz')
+    expect(screen.getByText('No assets match these filters')).toBeInTheDocument()
   })
 
   it('fills the row of an asset being built with record ticks by year', async () => {
