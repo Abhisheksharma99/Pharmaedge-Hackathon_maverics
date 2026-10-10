@@ -27,7 +27,7 @@ import { CATEGORY_COLOR, CATEGORY_LABEL, StoryTimeline, eventFlag } from './stor
  */
 
 type Range = 'all' | 'focus' | 'recent' | 'ahead' | 'chapter'
-const CATEGORIES: EventCategory[] = ['regulatory', 'clinical', 'company', 'ip', 'safety']
+const CATEGORIES: EventCategory[] = ['regulatory', 'clinical', 'company', 'ip']
 const ROWS = 6 // per tab of "what changed" before "Show all"
 const shift = (d: string, days: number) => new Date(Date.parse(`${d}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10)
 

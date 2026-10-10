@@ -2,7 +2,8 @@ import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 
 export type Significance = 'High' | 'Medium' | 'Low'
-export type EventCategory = 'regulatory' | 'clinical' | 'safety' | 'company' | 'ip'
+/** Safety events (recalls, safety communications) are clinical: one lane, one filter. */
+export type EventCategory = 'regulatory' | 'clinical' | 'company' | 'ip'
 
 export interface AssetSummary {
   id: string

@@ -1,4 +1,4 @@
-import { FlaskConical, Landmark, Megaphone, ShieldAlert, Stamp, type LucideIcon } from 'lucide-react'
+import { FlaskConical, Landmark, Megaphone, Stamp, type LucideIcon } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import type { EventCategory, Significance } from '../api'
@@ -20,7 +20,6 @@ export function SignificanceBadge({ value }: { value: Significance }) {
 export const CATEGORY_META: Record<EventCategory, { label: string; icon: LucideIcon; tone: string }> = {
   regulatory: { label: 'Regulatory', icon: Landmark, tone: 'bg-primary-soft text-primary' },
   clinical: { label: 'Clinical', icon: FlaskConical, tone: 'bg-success-soft text-success' },
-  safety: { label: 'Safety', icon: ShieldAlert, tone: 'bg-danger-soft text-destructive' },
   company: { label: 'Company', icon: Megaphone, tone: 'bg-orange-soft text-orange' },
   ip: { label: 'Patents', icon: Stamp, tone: 'bg-violet-soft text-violet' },
 }
@@ -74,5 +73,26 @@ export function KindBadge({ kind, competitorOf }: { kind: 'primary' | 'competito
       </TooltipTrigger>
       <TooltipContent>{tip}</TooltipContent>
     </Tooltip>
+  )
+}
+
+/** Which indication(s) a row belongs to (PAH, PH-ILD): small primary chips, the rest folded into "+N". */
+export function IndicationBadges({ items, max = 2, className }: { items: string[]; max?: number; className?: string }) {
+  if (!items.length) return null
+  const shown = items.slice(0, max)
+  const rest = items.slice(max)
+  return (
+    <span className={cn('inline-flex min-w-0 flex-wrap items-center gap-[4px]', className)}>
+      {shown.map((i) => (
+        <span key={i} title={`Indication: ${i}`} className="inline-flex h-[20px] max-w-[160px] items-center truncate rounded-[6px] bg-primary-soft px-[6px] text-[11.5px] font-semibold text-primary">
+          {i}
+        </span>
+      ))}
+      {rest.length > 0 && (
+        <span title={rest.join(', ')} className="inline-flex h-[20px] items-center rounded-[6px] bg-muted px-[6px] text-[11.5px] font-semibold text-secondary-foreground">
+          +{rest.length}
+        </span>
+      )}
+    </span>
   )
 }

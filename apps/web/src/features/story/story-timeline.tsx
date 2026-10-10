@@ -15,14 +15,12 @@ export const CATEGORY_COLOR: Record<EventCategory, string> = {
   clinical: '#08916F',
   company: '#E0620F',
   ip: '#7A5AF8',
-  safety: '#C11574',
 }
 export const CATEGORY_LABEL: Record<EventCategory, string> = {
   regulatory: 'Regulatory',
   clinical: 'Clinical',
   company: 'Company',
   ip: 'Patents',
-  safety: 'Safety',
 }
 
 const LABEL_W = 112

@@ -76,7 +76,7 @@ describe('chronological / filterJourney / journeyCounts', () => {
     expect(filterJourney(all, { cats: [], mine: 'starred' }, [star.id])).toEqual([star])
     expect(filterJourney(all, { cats: [], mine: 'notes' }, [])).toEqual([note])
     expect(journeyCounts(all, [star.id, 'elsewhere'])).toEqual({
-      cats: { regulatory: 1, clinical: 1, safety: 0, company: 0, ip: 1 },
+      cats: { regulatory: 1, clinical: 1, company: 0, ip: 1 },
       starred: 1,
       notes: 1,
     })

@@ -133,7 +133,7 @@ describe('journey story', () => {
     await waitFor(() => expect(lastUrl()).toMatch(/^\/api\/stories\/s1\?significance=High&from=2024-09-01&to=\d{4}-\d{2}-\d{2}$/))
     expect(screen.getByRole('button', { name: 'Since 1 Sep 2025' })).toHaveAttribute('aria-pressed', 'true')
     await userEvent.click(screen.getByRole('button', { name: /^Company/ }))
-    expect(lastUrl()).toContain('category=regulatory,clinical,ip,safety')
+    expect(lastUrl()).toContain('category=regulatory,clinical,ip')
     await userEvent.click(screen.getByRole('button', { name: 'All events' }))
     expect(lastUrl()).toContain('significance=High,Medium,Low')
     await userEvent.click(screen.getByRole('button', { name: /IPF push/ }))

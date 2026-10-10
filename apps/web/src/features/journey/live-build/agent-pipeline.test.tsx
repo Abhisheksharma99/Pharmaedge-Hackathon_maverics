@@ -119,7 +119,7 @@ describe('AgentPipeline', () => {
     const journey = node('o:journey')!
     expect(journey).toHaveTextContent('Building')
     expect(journey).toHaveTextContent('3events')
-    expect(journey).toHaveTextContent('Regulatory1Clinical1Safety0Company1Patents0')
+    expect(journey).toHaveTextContent('Regulatory1Clinical1Company1Patents0')
     expect(journey).toHaveTextContent('rules 2 · ai 1 · rebuild 0')
     expect(node('o:assetai')).toHaveTextContent('1,240 passages · 0 questions')
     expect(node('o:compset')).toHaveTextContent('YutrepiaUptravi')
