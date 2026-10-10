@@ -102,3 +102,11 @@ instance, rotate or delete the Atlas user.
 
 - **Certificate renewal.** The server certificate is valid for 825 days; the CA for 10 years. To renew, re-run `setup.sh` with the same hosts, then `docker compose up -d mongo`.
 - **mongot disk space.** mongot pauses index replication when its disk is about 90% full, and resumes below about 85%. Search indexes then stop updating, so watch the `mongot-data` volume.
+- **"Topology cache is unavailable" (code 125) after the host sleeps.** mongot 1.70.5 refreshes its topology cache
+  every minute (timed with the monotonic clock) and rejects `$search`, `$vectorSearch` and `$listSearchIndexes` when
+  the last refresh is more than 3 minutes old by wall-clock time. While a Mac sleeps, the Docker VM is frozen. On
+  wake, its wall clock jumps forward by the sleep length but the monotonic clock does not, so every sleep longer than
+  about 2 minutes makes search fail for up to 1 minute after wake. It then recovers by itself, with no restart or
+  config change needed. On battery with the lid closed, macOS cycles about 8 minutes of sleep with 45-second dark
+  wakes, so mongot logs this every ~9 minutes. Keep the host awake while you crawl or serve (on AC power,
+  `caffeinate -s`); `pmset -g log | grep -E 'Sleep|DarkWake'` shows the cycles.
