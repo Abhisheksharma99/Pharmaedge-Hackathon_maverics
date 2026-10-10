@@ -56,7 +56,7 @@ const BLOCKS: AnalyticsBlocks = {
   significance: { High: 2, Medium: 1, Low: 0 },
     recordsByYear: [],
   triageFunnel: { screened: 0, relevant: 0, ingested: 0, candidates: 0, journey: 0 },
-  stats: { approvedIndications: 0, inDevelopment: [], activeTrials: 0, phase3: 0, patients: 0, nextCatalyst: null, patentRunwayYears: null, evidenceRecords: 0 },
+  stats: { approvedIndications: 0, inDevelopment: [], activeTrials: 0, phase3: 0, patients: 0, nextCatalyst: null, evidenceRecords: 0 },
 }
 const NO_TRIALS: AnalyticsBlocks = { ...BLOCKS, trials: [] }
 const SPEC: AnalyticsSpec = {
@@ -114,6 +114,19 @@ describe('OverviewAnalytics', () => {
     expect(screen.getAllByRole('button', { name: /Add analytics/ })).toHaveLength(2)
   })
 
+  it('badges each milestone with its indication and filters the cards by search', async () => {
+    setup(BLOCKS)
+    const user = userEvent.setup()
+    const ms = await screen.findByRole('region', { name: 'Next milestones' })
+    expect(within(ms).getByText('PAH')).toBeInTheDocument()
+    await user.type(within(ms).getByRole('searchbox'), 'nothing-like-this')
+    expect(within(ms).getByText('Nothing matches these filters.')).toBeInTheDocument()
+    const enrol = screen.getByRole('region', { name: 'Enrolment by indication' })
+    expect(within(enrol).getByText('IPF')).toBeInTheDocument()
+    await user.type(within(enrol).getByRole('searchbox'), 'zzz')
+    expect(within(enrol).queryByText('IPF')).not.toBeInTheDocument()
+  })
+
   it('shows activity, milestones and significance without trial data (milestones hidden when none are expected)', async () => {
     setup({ ...NO_TRIALS, pipeline: [] })
     expect(await screen.findByRole('region', { name: 'Journey activity by year' })).toBeInTheDocument()
@@ -141,6 +154,7 @@ describe('OverviewAnalytics', () => {
   })
 
   it('hides a card whose data is missing, without an error', async () => {
+    // 'patents' is a retired card id: it is skipped like any unknown pin.
     setup(NO_TRIALS, [{ key: 'enrol' }, { key: 'patents' }, { key: 'sig' }])
     expect(await screen.findByRole('region', { name: 'Significance mix' })).toBeInTheDocument()
     expect(cards()).toEqual(['Pinned analytics', 'Significance mix'])

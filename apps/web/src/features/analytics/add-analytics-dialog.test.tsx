@@ -26,7 +26,7 @@ const BLOCKS = {
   significance: { High: 1, Medium: 0, Low: 0 },
     recordsByYear: [],
   triageFunnel: { screened: 0, relevant: 0, ingested: 0, candidates: 0, journey: 0 },
-  stats: { approvedIndications: 0, inDevelopment: [], activeTrials: 0, phase3: 0, patients: 0, nextCatalyst: null, patentRunwayYears: null, evidenceRecords: 0 },
+  stats: { approvedIndications: 0, inDevelopment: [], activeTrials: 0, phase3: 0, patients: 0, nextCatalyst: null, evidenceRecords: 0 },
 } as AnalyticsBlocks
 const SUGGESTIONS = [
   {
