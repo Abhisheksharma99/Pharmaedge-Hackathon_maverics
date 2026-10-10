@@ -15,7 +15,7 @@ const FALLBACK_WIDTH = 1200
  * When a row above the viewport turns out taller or shorter than estimated, the scroller is moved by the difference
  * (a manual scroll anchor), so scrolling up never makes the content jump.
  */
-export function useTreeLayout(flowRef: RefObject<HTMLDivElement | null>, rows: TreeRow[], model: BranchModel) {
+export function useTreeLayout(flowRef: RefObject<HTMLDivElement | null>, rows: TreeRow[], model: BranchModel, newestFirst = false) {
   const W = useElementWidth(flowRef) || FALLBACK_WIDTH
   const [measured, setMeasured] = useState<{
     w: number
@@ -109,9 +109,10 @@ export function useTreeLayout(flowRef: RefObject<HTMLDivElement | null>, rows: T
       H,
       model,
       spanOf: (e) => spanOf(e, model),
+      newestFirst,
     })
     return { W, heights, tops, H, geo, register, sizes, indexOf }
-  }, [W, rows, sizes, model, register])
+  }, [W, rows, sizes, model, register, newestFirst])
   useLayoutEffect(() => {
     heightsRef.current = layout.heights
     indexRef.current = layout.indexOf

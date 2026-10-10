@@ -14,9 +14,9 @@ export interface TrackLane {
   color: string
   trunk: boolean
   ended: boolean
-  /** Lane start; the trunk starts at PADL − 110, a branch 74px before its first event. */
+  /** Lane start, on its first event's side: 110px before the first column on the trunk, 74px before a branch's first event. */
   x1: number
-  /** End of the solid/dashed lane: near the track end, or the ⊗ cap of an ended branch. */
+  /** End of the solid/dashed lane (the present's side): near the track end, or the ⊗ cap of an ended branch. */
   x2: number
   capX: number | null
   /** An ended branch's events after its closure (late publications) hang on a dotted tail up to here. */
@@ -28,6 +28,8 @@ export interface TrackLane {
 }
 
 export interface TrackLayout {
+  /** 1 = oldest first (time runs left to right), −1 = newest first (the lanes are mirrored: time runs right to left). */
+  dir: 1 | -1
   /** Branch rows, sorted by `off` (negative above the trunk); branches with no event in `list` have no row. */
   rows: Branch[]
   H: number
@@ -47,8 +49,9 @@ export interface TrackLayout {
 }
 
 export interface TrackInput {
-  /** Chronological, filtered events. */
+  /** Filtered events, chronological or (with `newestFirst`) newest first. */
   list: JourneyEventV3[]
+  newestFirst?: boolean
   branches: Branch[]
   laneOf: (e: JourneyEventV3) => string
   /** Pinned viewport width and height. */
@@ -72,7 +75,45 @@ export function xForDate(date: string, list: Pick<JourneyEventV3, 'date'>[], xs:
   return xs[a]! + t * (xs[b]! - xs[a]!)
 }
 
-export function trackLayout({ list, branches, laneOf, vw, vh, closures, today }: TrackInput): TrackLayout {
+/**
+ * Newest first is the chronological layout mirrored about the event columns (x → xs[0] + xs[n−1] − x): event i of the
+ * reversed list lands on column i, lanes start on the right and run left to the present, caps and tails follow. Only
+ * the year ruler is rebuilt, so each year's label sits at its leftmost (newest) column.
+ */
+export function trackLayout(input: TrackInput): TrackLayout {
+  if (!input.newestFirst) return chronologicalLayout(input)
+  const list = input.list
+  const L = chronologicalLayout({ ...input, list: [...list].reverse() })
+  const n = list.length
+  const m = (x: number) => (n ? L.xs[0]! + L.xs[n - 1]! : 2 * HZ.PADL) - x
+  const { years, bgYears } = yearMarks(list, L.xs)
+  return {
+    ...L,
+    dir: -1,
+    // Past every event, Today would land under the pinned lane labels (left 200px): keep it just clear of them.
+    todayX: Math.max(m(L.todayX), HZ.PADL - 30),
+    lanes: L.lanes.map((l) => ({ ...l, x1: m(l.x1), x2: m(l.x2), capX: l.capX === null ? null : m(l.capX), tailX: l.tailX === null ? null : m(l.tailX) })),
+    years,
+    bgYears,
+  }
+}
+
+/** Year ruler marks (at the first column of each run of a year) and the parallax numerals (0.55×, at least 520px apart). */
+function yearMarks(list: Pick<JourneyEventV3, 'date'>[], xs: number[]) {
+  const years: { y: string; x: number }[] = []
+  list.forEach((e, i) => {
+    const y = e.date.slice(0, 4)
+    if (years[years.length - 1]?.y !== y) years.push({ y, x: xs[i]! })
+  })
+  const bgYears: { y: string; bx: number }[] = []
+  for (const y of years) {
+    const bx = y.x * 0.55
+    if (!bgYears.length || bx - bgYears[bgYears.length - 1]!.bx >= 520) bgYears.push({ y: y.y, bx })
+  }
+  return { years, bgYears }
+}
+
+function chronologicalLayout({ list, branches, laneOf, vw, vh, closures, today }: TrackInput): TrackLayout {
   // A branch with no event in the current list (filtered out, or none yet) has no lane to draw: no row (its card stays in the header).
   const used = new Set(list.map(laneOf))
   const rows = branches.filter((b) => b.trunk || used.has(b.id)).sort((a, b) => a.off - b.off)
@@ -122,17 +163,8 @@ export function trackLayout({ list, branches, laneOf, vw, vh, closures, today }:
     ]
   })
 
-  const years: { y: string; x: number }[] = []
-  list.forEach((e, i) => {
-    const y = e.date.slice(0, 4)
-    if (years[years.length - 1]?.y !== y) years.push({ y, x: xs[i]! })
-  })
-  const bgYears: { y: string; bx: number }[] = []
-  for (const y of years) {
-    const bx = y.x * 0.55
-    if (!bgYears.length || bx - bgYears[bgYears.length - 1]!.bx >= 520) bgYears.push({ y: y.y, bx })
-  }
-  return { rows, H, top0, bandTop, bandBot, xs, TW, maxP, todayX, lanes, years, bgYears, rowY }
+  const { years, bgYears } = yearMarks(list, xs)
+  return { dir: 1, rows, H, top0, bandTop, bandBot, xs, TW, maxP, todayX, lanes, years, bgYears, rowY }
 }
 
 /** Which cards to render at scroll offset `p` (windowing for 1,000+ event journeys): [first, last], inclusive. */
@@ -167,16 +199,20 @@ export interface TrackHover {
  * are already track coordinates (never add the scroll offset, README §6.3).
  */
 export function trackHoverAt(layout: TrackLayout, list: JourneyEventV3[], x: number, y: number, today?: string): TrackHover | null {
-  const { rows, bandTop, bandBot, xs, rowY } = layout
+  const { dir, rows, bandTop, bandBot, xs, rowY } = layout
   if (!rows.length || y < bandTop - 6 || y > bandBot + 6) return null
   const row = rows[Math.min(rows.length - 1, Math.max(0, Math.floor((y - bandTop) / HZ.ROW)))]!
   // Only a lane that exists at this x: from its start (the trunk's, or 74px before a branch's first event), and, on an
-  // ended branch, up to the cap — or the dotted tail when later events follow it.
+  // ended branch, up to the cap — or the dotted tail when later events follow it. Newest first, the lane runs leftwards.
   const lane = layout.lanes.find((l) => l.id === row.id)
-  if (!lane || x < lane.x1 || x > (lane.tailX ?? lane.x2) + 8) return null
+  if (!lane) return null
+  const end = (lane.tailX ?? lane.x2) + 8 * dir
+  if (x < Math.min(lane.x1, end) || x > Math.max(lane.x1, end)) return null
   const [a, b] = neighbours(xs, x)
-  const prev = a >= 0 ? list[a]! : null
-  const next = b < list.length ? list[b]! : null
-  const date = hoverDate(prev && { pos: xs[a]!, date: prev.date }, next && { pos: xs[b]!, date: next.date }, x, today)
+  const left = a >= 0 ? list[a]! : null
+  const right = b < list.length ? list[b]! : null
+  // `prev` / `next` are in time: newest first, the earlier event is on the right (positions negated for hoverDate).
+  const [prev, next, pp, np] = dir > 0 ? [left, right, xs[a]!, xs[b]!] : [right, left, -xs[b]!, -xs[a]!]
+  const date = hoverDate(prev && { pos: pp, date: prev.date }, next && { pos: np, date: next.date }, x * dir, today)
   return { x, ly: rowY(row.id)!, lane: row.id, date, prev, next }
 }

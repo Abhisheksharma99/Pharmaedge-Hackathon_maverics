@@ -12,8 +12,10 @@ export interface JourneyViewHandle {
 /** Props shared by both journey views. */
 export interface JourneyViewProps {
   assetId: string
-  /** Chronological, filtered events. */
+  /** Filtered events, oldest first, or newest first when `newestFirst`. */
   list: JourneyEventV3[]
+  /** `list` runs newest first: the track starts at the latest event on the left, the tree at the top. */
+  newestFirst?: boolean
   model: BranchModel
   closures: Record<string, Closure>
   stars: string[]

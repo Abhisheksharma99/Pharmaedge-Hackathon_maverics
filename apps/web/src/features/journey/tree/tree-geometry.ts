@@ -128,6 +128,7 @@ export interface TreeNode {
 }
 
 export interface TreeLane {
+  /** y of the lane's start (`y1`, `fy`) and end (`y2`, `tailY`) are in time: newest first, the end is above the start. */
   id: string
   label: string
   color: string
@@ -148,6 +149,8 @@ export interface TreeLane {
 }
 
 export interface TreeGeometry {
+  /** 1 = oldest first (time runs down), −1 = newest first (time runs up). */
+  dir: 1 | -1
   W: number
   H: number
   tx: number
@@ -172,10 +175,15 @@ export interface TreeGeometryInput {
   model: BranchModel
   /** Other branches covered by an event (journey-model `spanOf`). */
   spanOf: (e: JourneyEventV3) => string[]
+  /** Rows from `treeRows(…, newestFirst)`: lanes start at their fork below and run up to the present. */
+  newestFirst?: boolean
 }
 
 /** Lanes, nodes and connectors computed from the row layout (no DOM reads), so off-screen rows have geometry too. */
-export function treeGeometry({ W, rows, tops, heights, H, model, spanOf }: TreeGeometryInput): TreeGeometry {
+export function treeGeometry({ W, rows, tops, heights, H, model, spanOf, newestFirst = false }: TreeGeometryInput): TreeGeometry {
+  const dir = newestFirst ? -1 : 1
+  /** The later of two y in time: the lower one oldest first, the upper one newest first. */
+  const later = (a: number, b: number) => dir * Math.max(dir * a, dir * b)
   const narrow = W < TREE.NARROW
   const gap = narrow ? TREE.GAP_N : TREE.GAP_W
   const { mn, gl, gr, nw } = treeGutters(model)
@@ -209,8 +217,9 @@ export function treeGeometry({ W, rows, tops, heights, H, model, spanOf }: TreeG
     } else if (r.kind === 'fork') forkAt.set(r.branch.id, i)
     else if (r.kind === 'end') endAt.set(r.branch.id, i)
     else if (r.kind === 'today') yToday = mid(i)
-    else if (r.kind === 'root') yRoot = tops[i]! + 15
-    else if (r.kind === 'finish') yEnd = tops[i]! + 14
+    // The root's dot centre and the end marker's near edge (newest first the root is at the bottom, the end on top).
+    else if (r.kind === 'root') yRoot = tops[i]! + (newestFirst ? 27 : 15)
+    else if (r.kind === 'finish') yEnd = newestFirst ? tops[i]! + heights[i]! - 14 : tops[i]! + 14
   })
 
   const lanes: TreeLane[] = []
@@ -222,18 +231,18 @@ export function treeGeometry({ W, rows, tops, heights, H, model, spanOf }: TreeG
     const f = forkAt.get(b.id)
     if (b.id === trunk.id || f === undefined) continue
     const fy = mid(f)
-    const parent = b.from && (started.get(b.from) ?? Infinity) < fy ? b.from : trunk.id
+    const parent = b.from && dir * (started.get(b.from) ?? dir * Infinity) < dir * fy ? b.from : trunk.id
     const mine = nodes.filter((n) => n.lane === b.id)
-    const last = mine[mine.length - 1]
+    const last = newestFirst ? mine[0] : mine[mine.length - 1]
     const end = endAt.get(b.id)
     let y2: number
     let tailY: number | null = null
     if (end !== undefined) {
       y2 = mid(end)
-      tailY = last && last.y > y2 ? last.y : null
+      tailY = last && later(last.y, y2) !== y2 ? last.y : null
     } else {
       const lastY = last ? last.y : fy
-      y2 = Math.max(lastY, yToday !== null && !last?.up ? Math.min(yToday, yEnd) : lastY)
+      y2 = later(lastY, yToday !== null && !last?.up ? dir * Math.min(dir * yToday, dir * yEnd) : lastY)
     }
     const fork = rows[f] as Extract<TreeRow, { kind: 'fork' }>
     lanes.push({
@@ -243,7 +252,7 @@ export function treeGeometry({ W, rows, tops, heights, H, model, spanOf }: TreeG
     started.set(b.id, fy)
   }
   const xs = lanes.map((l) => l.x)
-  return { W, H, tx, gap, narrow, cardW, nodes, lanes, yToday, yEnd, xMin: Math.min(...xs), xMax: Math.max(...xs) }
+  return { dir, W, H, tx, gap, narrow, cardW, nodes, lanes, yToday, yEnd, xMin: Math.min(...xs), xMax: Math.max(...xs) }
 }
 
 /** The event row nearest the scroll probe (HUD, active card): index into the view's list. */
@@ -270,13 +279,18 @@ export interface TreeHover {
  * event nodes above and below (`x`, `y` relative to the flow).
  */
 export function treeHoverAt(geo: TreeGeometry, byId: Map<string, JourneyEventV3>, x: number, y: number, today?: string): TreeHover | null {
-  const live = geo.lanes.filter((l) => y >= (l.px !== null ? l.fy : l.y1) && y <= (l.tailY ?? l.y2) + 20)
+  const d = geo.dir
+  const live = geo.lanes.filter((l) => d * y >= d * (l.px !== null ? l.fy : l.y1) && d * y <= d * (l.tailY ?? l.y2) + 20)
   const pool = live.length ? live : geo.lanes.filter((l) => l.trunk)
   const lane = pool.reduce<(typeof pool)[number] | null>((best, l) => (!best || Math.abs(l.x - x) < Math.abs(best.x - x) ? l : best), null)
   if (!lane) return null
   const [a, b] = nodeNeighbours(geo.nodes, y)
-  const A = a >= 0 ? (byId.get(geo.nodes[a]!.k) ?? null) : null
-  const B = b < geo.nodes.length ? (byId.get(geo.nodes[b]!.k) ?? null) : null
-  const date = hoverDate(A && { pos: geo.nodes[a]!.y, date: A.date }, B && { pos: geo.nodes[b]!.y, date: B.date }, y, today)
-  return { y, lx: lane.x, lane: lane.id, color: lane.color, label: lane.label, date, prev: A, next: B }
+  const above = a >= 0 ? (byId.get(geo.nodes[a]!.k) ?? null) : null
+  const below = b < geo.nodes.length ? (byId.get(geo.nodes[b]!.k) ?? null) : null
+  // `prev` / `next` are in time: newest first, the earlier event is below (positions negated for hoverDate).
+  const ya = geo.nodes[a]?.y ?? 0
+  const yb = geo.nodes[b]?.y ?? 0
+  const [prev, next, pp, np] = d > 0 ? [above, below, ya, yb] : [below, above, -yb, -ya]
+  const date = hoverDate(prev && { pos: pp, date: prev.date }, next && { pos: np, date: next.date }, d * y, today)
+  return { y, lx: lane.x, lane: lane.id, color: lane.color, label: lane.label, date, prev, next }
 }

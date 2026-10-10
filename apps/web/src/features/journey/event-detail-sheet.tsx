@@ -14,6 +14,7 @@ import { useAnnotations, useToggleStar } from './annotations-api'
 import { useBranches, useEvent, useJourneyEvents } from './api'
 import { BranchChip, CountdownChip, DetailsGrid, NoteTagChip, Targets } from './chips'
 import { eventDate } from './format'
+import { eventIndications } from './indications'
 import { CATEGORY_META } from './constants'
 import { BTN_SM, FOCUS, ICON_BTN } from './controls'
 import { branchModel, chronological, laneOf } from './journey-model'
@@ -200,6 +201,8 @@ function Body({ assetId, detail, onClose, onOpenRecord }: { assetId: string; det
   const linked = (event.links ?? []).map((id) => byId.get(id)).filter((e) => !!e)
   const color = CATEGORY_META[event.category]?.color ?? CATEGORY_META.regulatory.color
   const inPlace = journeyAsset === assetId
+  // Enrichment's indications (full names) when present, else the event's branch(es): every event says its indication.
+  const indications = event.indications?.length ? event.indications : eventIndications(event)
 
   const locate = () => {
     if (inPlace) {
@@ -227,9 +230,9 @@ function Body({ assetId, detail, onClose, onOpenRecord }: { assetId: string; det
           <BranchLineage event={event} model={model} stats={branchStats} />
         </SheetSection>
       )}
-      {((event.indications?.length ?? 0) > 0 || event.product) && (
-        <SheetSection title="Targets">
-          <Targets e={event} label={false} />
+      {(indications.length > 0 || event.product) && (
+        <SheetSection title={indications.length ? 'Indications' : 'Targets'}>
+          <Targets e={{ ...event, indications }} label={false} />
         </SheetSection>
       )}
       <RecordTerms records={records} color={color} product={event.product} />

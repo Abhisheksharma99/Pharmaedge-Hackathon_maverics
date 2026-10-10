@@ -7,6 +7,7 @@ import { useEventSheet } from '@/stores/event-sheet-store'
 import { useAnnotations, useToggleStar } from './annotations-api'
 import { useBranches, useEndedBranchEvents, useJourneyEvents } from './api'
 import { HorizontalTrack } from './horizontal-track'
+import { eventIndications, indicationOptions } from './indications'
 import { JourneyHeader } from './journey-header'
 import { JourneySkeleton } from './journey-skeleton'
 import { branchClosures, branchModel, chronological, filterJourney, journeyCounts } from './journey-model'
@@ -19,8 +20,9 @@ const NO_STARS: string[] = []
 const NO_COMMENTS = {}
 
 /**
- * The Overview's journey (README §6.2–6.3): header + horizontal track (default, with its HUD) or tree, filters in the URL,
- * `?focus=<eventId>` deep links and in-place "Locate on timeline" from the event sheet.
+ * The asset journey (README §6.2–6.3), on the Overview and the Asset Journey page: header + horizontal track (default,
+ * with its HUD) or tree, oldest or newest first, filters in the URL, `?focus=<eventId>` deep links and in-place
+ * "Locate on timeline" from the event sheet.
  */
 export function JourneySection({ asset }: { asset: Pick<AssetDetail, 'id' | 'name'> }) {
   const assetId = asset.id
@@ -41,8 +43,15 @@ export function JourneySection({ asset }: { asset: Pick<AssetDetail, 'id' | 'nam
   const filterStars = f.mine === 'starred' ? stars : NO_STARS
   const comments = annotations.data?.comments ?? NO_COMMENTS
   const catsKey = f.cats.join(',')
-  const list = useMemo(() => filterJourney(dated, { cats: catsKey ? (catsKey.split(',') as typeof f.cats) : [], mine: f.mine }, filterStars), [dated, catsKey, f.mine, filterStars])
+  const list = useMemo(
+    () => filterJourney(dated, { cats: catsKey ? (catsKey.split(',') as typeof f.cats) : [], mine: f.mine, ind: f.ind, q: f.q }, filterStars),
+    [dated, catsKey, f.mine, f.ind, f.q, filterStars],
+  )
+  const newestFirst = f.order === 'newest'
+  /** The views' order; the header keeps the chronological list (its "2002–2025" span). */
+  const ordered = useMemo(() => (newestFirst ? [...list].reverse() : list), [list, newestFirst])
   const counts = useMemo(() => journeyCounts(dated, stars), [dated, stars])
+  const indications = useMemo(() => indicationOptions(dated, eventIndications), [dated])
   const [focusBranch, setFocusBranch] = useState<string | null>(null)
   const [draft, setDraft] = useState<NoteDraft | null>(null)
   const viewRef = useRef<JourneyViewHandle>(null)
@@ -74,7 +83,7 @@ export function JourneySection({ asset }: { asset: Pick<AssetDetail, 'id' | 'nam
   // Primitive deps (and refs for the callbacks), so the retry fires exactly when the data arrives, not on every render.
   const focusId = f.focus
   const fScope = f.scope
-  const unfiltered = !f.cats.length && !f.mine
+  const unfiltered = !f.cats.length && !f.mine && !f.ind && !f.q
   const filterApi = useRef(f)
   useEffect(() => {
     filterApi.current = f
@@ -106,7 +115,7 @@ export function JourneySection({ asset }: { asset: Pick<AssetDetail, 'id' | 'nam
       if (!viewRef.current?.jump(savedId)) return
       openEvent(assetId, savedId)
       setSavedId(null)
-    } else if (events.isSuccess && !savedShown.current && (f.scope !== 'all' || f.cats.length > 0 || f.mine)) {
+    } else if (events.isSuccess && !savedShown.current && (f.scope !== 'all' || f.cats.length > 0 || f.mine || f.ind || f.q)) {
       savedShown.current = true
       f.showEverything()
     }
@@ -121,10 +130,11 @@ export function JourneySection({ asset }: { asset: Pick<AssetDetail, 'id' | 'nam
   }
 
   const n = list.length
-  const filtered = f.cats.length > 0 || f.mine !== null
+  const filtered = f.cats.length > 0 || f.mine !== null || f.ind !== null || f.q !== ''
   const viewProps = {
     assetId,
-    list,
+    list: ordered,
+    newestFirst,
     model,
     closures,
     stars,
@@ -137,19 +147,27 @@ export function JourneySection({ asset }: { asset: Pick<AssetDetail, 'id' | 'nam
   return (
     <section aria-label="Asset journey" className="relative flex flex-col">
       <JourneyHeader
+        assetId={assetId}
         model={model}
         list={list}
         undated={(all?.length ?? 0) - dated.length}
         counts={counts}
         view={f.view}
+        order={f.order}
         scope={f.scope}
         cats={f.cats}
         mine={f.mine}
+        indications={indications}
+        ind={f.ind}
+        q={f.q}
         focusBranch={focusBranch}
         onView={f.setView}
+        onOrder={f.setOrder}
         onScope={f.setScope}
         onToggleCat={f.toggleCat}
         onMine={f.setMine}
+        onInd={f.setInd}
+        onQuery={f.setQuery}
         onFocusBranch={setFocusBranch}
         onClear={() => {
           f.clearFilters()
@@ -178,9 +196,9 @@ export function JourneySection({ asset }: { asset: Pick<AssetDetail, 'id' | 'nam
       )}
       {n > 0 && !branches.isPending &&
         (f.view === 'h' ? (
-          <HorizontalTrack ref={viewRef} {...viewProps} />
+          <HorizontalTrack key={f.order} ref={viewRef} {...viewProps} />
         ) : (
-          <JourneyTree ref={viewRef} {...viewProps} onStar={(id) => toggleStar.mutate({ eventId: id, on: !stars.includes(id) })} onJump={jumpTo} />
+          <JourneyTree key={f.order} ref={viewRef} {...viewProps} onStar={(id) => toggleStar.mutate({ eventId: id, on: !stars.includes(id) })} onJump={jumpTo} />
         ))}
       <NoteComposer
         assetId={assetId}

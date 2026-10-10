@@ -1,5 +1,6 @@
 import { yearFraction } from '@/lib/dates'
 import { CATEGORIES, CATEGORY_META, collectionMeta } from './constants'
+import { eventIndications } from './indications'
 import type { Branch, EventCategory, JourneyEventV3, SourceRef } from './types'
 
 /** The asset's indication branches as lanes. Without branch docs the journey is one unlabeled trunk (DATA_CONTRACTS §B.1). */
@@ -46,21 +47,31 @@ export function chronological(events: JourneyEventV3[]): JourneyEventV3[] {
 /** h = horizontal track (default, spec §3), v = tree. */
 export type JourneyView = 'h' | 'v'
 
+/** Oldest first (default) or newest first; both views read their list in this order. */
+export type JourneyOrder = 'oldest' | 'newest'
+
 export type Mine = 'starred' | 'notes'
 
 export interface ListFilters {
   cats: EventCategory[]
   mine: Mine | null
+  /** Short indication label (PAH, PH-ILD…); null = every indication. */
+  ind?: string | null
+  /** Title search. */
+  q?: string
 }
 
-/** The events a journey view shows: selected categories (none = all), then Starred or Team notes. */
+/** The events a journey view shows: selected categories (none = all), Starred or Team notes, the indication, the title search. */
 export function filterJourney(events: JourneyEventV3[], f: ListFilters, stars: string[]): JourneyEventV3[] {
   const starred = new Set(stars)
+  const q = f.q?.trim().toLowerCase() ?? ''
   return events.filter(
     (e) =>
       (!f.cats.length || f.cats.includes(e.category)) &&
       (f.mine !== 'starred' || starred.has(e.id)) &&
-      (f.mine !== 'notes' || e.via === 'user'),
+      (f.mine !== 'notes' || e.via === 'user') &&
+      (!f.ind || eventIndications(e).includes(f.ind)) &&
+      (!q || e.title.toLowerCase().includes(q)),
   )
 }
 

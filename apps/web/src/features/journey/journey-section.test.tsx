@@ -46,18 +46,59 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('JourneySection', () => {
-  it('shows the horizontal journey by default with the HUD, and the tree when chosen (saved to prefs)', async () => {
+  it('shows the horizontal journey by default with the HUD, and the vertical tree when chosen (never saved)', async () => {
+    localStorage.setItem('aj.orient', 'v')
     const router = renderAt('/assets/trep/overview')
     expect(await screen.findByTestId('journey-horizontal')).toBeInTheDocument()
     expect(screen.getByText(/^3 events, 2002–2018 · 3 indication branches\./)).toBeInTheDocument()
     expect(screen.getByTestId('journey-hud')).toHaveTextContent('2002PAH01/03')
     expect(useEventSheet.getState().journeyAsset).toBe('trep')
-    await userEvent.click(screen.getByRole('button', { name: 'Tree' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Vertical' }))
     expect(await screen.findByTestId('journey-tree')).toBeInTheDocument()
     expect(screen.queryByTestId('journey-hud')).not.toBeInTheDocument() // the tree renders its own HUD
     expect(new URLSearchParams(router.state.location.search).get('view')).toBe('v')
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/me/prefs', expect.objectContaining({ method: 'PATCH' })))
     expect(await screen.findByText('Terminated Nov 2022 · Event stop')).toBeInTheDocument()
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/me/prefs', expect.anything())
+  })
+
+  it('reverses the horizontal track: the newest event first, on the left, the HUD counting from it', async () => {
+    const router = renderAt('/assets/trep/overview')
+    await screen.findByTestId('journey-horizontal')
+    await userEvent.click(screen.getByRole('button', { name: 'Newest first' }))
+    await waitFor(() => expect(screen.getByTestId('journey-hud')).toHaveTextContent('2018PH-COPD01/03'))
+    expect(new URLSearchParams(router.state.location.search).get('order')).toBe('newest')
+    const left = (id: string) => parseFloat((document.querySelector(`[data-card="${id}"]`) as HTMLElement).style.left)
+    expect(left('c')).toBeLessThan(left('b'))
+    expect(left('b')).toBeLessThan(left('a'))
+    // The header still reads in time.
+    expect(screen.getByText(/^3 events, 2002–2018/)).toBeInTheDocument()
+    // Locate still finds an event in the reversed track.
+    act(() => useEventSheet.getState().requestLocate('trep', 'a'))
+    expect(document.querySelector('[data-card="a"]')).toHaveClass('animate-journey-flash')
+  })
+
+  it('reverses the tree: newest at the top under its year, the journey start at the bottom', async () => {
+    renderAt('/assets/trep/overview?view=v&order=newest')
+    await screen.findByTestId('journey-tree')
+    const keys = [...document.querySelectorAll<HTMLElement>('[data-row]')].map((el) => el.dataset.row!)
+    expect(keys[0]).toBe('finish')
+    expect(keys.filter((k) => ['a', 'b', 'c'].includes(k))).toEqual(['c', 'b', 'a'])
+    expect(keys.at(-1)).toBe('root')
+    expect(keys.indexOf('y2018')).toBeLessThan(keys.indexOf('c'))
+    expect(screen.getByText(/Journey begins/)).toHaveTextContent('May 2002')
+  })
+
+  it('filters by indication and title through the URL', async () => {
+    renderAt('/assets/trep/overview?ind=PH-ILD')
+    expect(await screen.findByText(/^1 event, 2017–2017/)).toBeInTheDocument()
+    expect(screen.getByTestId('journey-hud')).toHaveTextContent('2017PH-ILD01/01')
+    expect(document.querySelector('[data-card="b"]')).toHaveTextContent('PH-ILD')
+    cleanup()
+    renderAt('/assets/trep/overview?q=EVENT%20A')
+    expect(await screen.findByText(/^1 event, 2002–2002/)).toBeInTheDocument()
+    cleanup()
+    renderAt('/assets/trep/overview?q=nothing')
+    expect(await screen.findByText('No events match these filters')).toBeInTheDocument()
   })
 
   it('filters by category through the URL and says when nothing matches', async () => {
