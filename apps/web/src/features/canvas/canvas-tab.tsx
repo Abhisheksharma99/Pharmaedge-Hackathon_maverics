@@ -4,6 +4,10 @@ import { NavLink, useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
+import { InlineError } from '@/components/inline-error'
+import { CHIP, CHIP_ON } from '@/features/journey/controls'
+import { EmptyState } from '@/features/assets/components/panel'
 import { RecordSheet } from '@/features/assets/components/record-sheet'
 import { TAB_FOR_COLLECTION } from '@/features/assets/api'
 import { useAssetContext } from '@/features/assets/pages/asset-layout'
@@ -95,9 +99,9 @@ function CanvasEditor({ canvas, highlight, onAdded }: { canvas: Canvas; highligh
     )
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <Input aria-label="Canvas title" value={title} maxLength={160} onChange={(e) => setTitle(e.target.value)} className="h-9 max-w-md flex-1 font-semibold" />
+    <div className="flex flex-col gap-[20px]">
+      <div className="flex flex-wrap items-center gap-[10px] rounded-[14px] border bg-card px-[20px] py-[14px] shadow-panel">
+        <Input aria-label="Canvas title" value={title} maxLength={160} onChange={(e) => setTitle(e.target.value)} className="max-w-[448px] min-w-[200px] flex-1 rounded-[10px] text-[15px] font-semibold md:text-[15px]" />
         <span className="text-[12.5px] text-muted-foreground">
           {countNodes(tree)} nodes · saved {formatDate(canvas.updatedAt)}
           {dirty && ' · unsaved changes'}
@@ -128,8 +132,8 @@ function CanvasEditor({ canvas, highlight, onAdded }: { canvas: Canvas; highligh
         </Button>
       </div>
       {job && (
-        <p role="status" className="flex items-center gap-2 rounded-lg border border-[#d1e9ff] bg-[#f5faff] px-3 py-2 text-[12.5px] text-text-secondary">
-          <span className="size-2 shrink-0 animate-pulse rounded-full bg-primary" aria-hidden="true" />
+        <p role="status" className="flex items-center gap-[8px] rounded-[10px] border border-[#d1e9ff] bg-[#f5faff] px-[14px] py-[10px] text-text-secondary">
+          <span className="size-[8px] shrink-0 animate-pulse rounded-full bg-primary" aria-hidden="true" />
           {dirty
             ? 'Data collection is running. Live updates are paused while you have unsaved edits.'
             : `Data collection is running${step ? ` (${step.label})` : ''}. New journey events are added to this canvas as they arrive.`}
@@ -176,9 +180,9 @@ export function CanvasTab() {
 
   if (live) {
     return (
-      <div className="flex flex-col gap-3">
-        <p role="status" className="flex items-center gap-2 font-semibold">
-          <Loader2 className="size-4 animate-spin text-primary" /> Building “{live.title}” · {countNodes(live.tree)} nodes so far
+      <div className="flex flex-col gap-[20px]">
+        <p role="status" className="flex items-center gap-[8px] text-[15px] font-semibold">
+          <Loader2 className="size-[16px] animate-spin text-primary" /> Building “{live.title}” · {countNodes(live.tree)} nodes so far
         </p>
         <CanvasView tree={live.tree} readOnly onChange={() => {}} onOpenSource={() => {}} />
       </div>
@@ -186,17 +190,14 @@ export function CanvasTab() {
   }
 
   const nav = ((list.data?.length ?? 0) + (stories.data?.length ?? 0) > 1 || (storyId && (list.data?.length ?? 0) > 0)) && (
-    <nav aria-label="Stories and canvases" className="flex flex-wrap gap-1.5">
+    <nav aria-label="Stories and canvases" className="flex flex-wrap gap-[8px]">
       {(stories.data ?? []).map((s) => (
         <NavLink
           key={s.id}
           to={`/assets/${encodeURIComponent(asset.id)}/canvas/story/${encodeURIComponent(s.id)}`}
-          className={cn(
-            'inline-flex h-8 max-w-[300px] items-center gap-1.5 rounded-lg border px-2.5 text-[12.5px] font-medium text-text-secondary hover:text-foreground',
-            s.id === storyId && 'border-primary bg-[#eef2fd] text-primary hover:text-primary',
-          )}
+          className={cn(CHIP, 'max-w-[300px]', s.id === storyId && CHIP_ON)}
         >
-          <span className="rounded bg-primary/10 px-1 text-[10.5px] font-semibold text-primary">Story</span>
+          <span className="rounded-[4px] bg-primary-soft px-[5px] text-[10.5px] leading-[16px] font-semibold text-primary">Story</span>
           <span className="truncate">{s.title}</span>
         </NavLink>
       ))}
@@ -204,10 +205,7 @@ export function CanvasTab() {
         <NavLink
           key={c.id}
           to={`/assets/${encodeURIComponent(asset.id)}/canvas/${encodeURIComponent(c.id)}`}
-          className={cn(
-            'inline-flex h-8 max-w-[260px] items-center rounded-lg border px-2.5 text-[12.5px] font-medium text-text-secondary hover:text-foreground',
-            c.id === openId && 'border-primary bg-[#eef2fd] text-primary hover:text-primary',
-          )}
+          className={cn(CHIP, 'max-w-[260px]', c.id === openId && CHIP_ON)}
         >
           <span className="truncate">{c.title}</span>
         </NavLink>
@@ -217,7 +215,7 @@ export function CanvasTab() {
 
   if (storyId) {
     return (
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-[20px]">
         {nav}
         <StoryPanel key={storyId} storyId={storyId} />
       </div>
@@ -226,31 +224,37 @@ export function CanvasTab() {
 
   if (list.isPending || stories.isPending || (openId && canvas.isPending)) {
     return (
-      <div className="flex justify-center py-16 text-muted-foreground">
-        <Loader2 className="size-5 animate-spin" />
+      <div role="status" aria-label="Loading" className="rounded-[14px] border bg-card p-[20px] shadow-panel">
+        <Skeleton className="h-[20px] w-56" />
+        <Skeleton className="mt-[16px] h-[360px] w-full" />
       </div>
     )
   }
   if (!openId) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-[14px] border bg-card px-6 py-14 text-center">
-        <p className="text-base font-semibold">No story or canvas yet</p>
-        <p className="max-w-md text-text-secondary">
+      <section className="overflow-hidden rounded-[14px] border bg-card pb-[40px] shadow-panel">
+        <EmptyState title="No story or canvas yet">
           Ask Asset AI a question about the journey, for example “What changed for {asset.name} in the last year, and what does it mean?”. It builds the story here, layer by layer. Ask for a tree to get an editable canvas.
-        </p>
-        <Button onClick={() => openAi(true)}>
-          <Sparkles /> Open Asset AI
-        </Button>
-      </div>
+        </EmptyState>
+        <div className="-mt-[16px] flex justify-center">
+          <Button onClick={() => openAi(true)}>
+            <Sparkles /> Open Asset AI
+          </Button>
+        </div>
+      </section>
     )
   }
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-[20px]">
       {nav}
-      {canvas.isError && <p className="text-destructive">This canvas couldn’t be loaded. It may have been deleted.</p>}
+      {canvas.isError && (
+        <section className="overflow-hidden rounded-[14px] border bg-card shadow-panel">
+          <InlineError message="This canvas couldn’t be loaded. It may have been deleted." onRetry={() => void canvas.refetch()} />
+        </section>
+      )}
       {canvas.data?.status === 'building' && (
-        <p role="status" className="flex items-center gap-2 py-10 text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" /> Asset AI is building this canvas…
+        <p role="status" className="flex items-center gap-[8px] py-[40px] text-muted-foreground">
+          <Loader2 className="size-[16px] animate-spin" /> Asset AI is building this canvas…
         </p>
       )}
       {canvas.data && canvas.data.status !== 'building' && (

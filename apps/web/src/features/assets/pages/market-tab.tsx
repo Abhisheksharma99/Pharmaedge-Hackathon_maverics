@@ -1,11 +1,15 @@
 import { lazy, Suspense, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { CHIP, CHIP_ON } from '@/features/journey/controls'
 import { formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { useMarket, type EventCategory, type MarketImpact, type Significance } from '../api'
 import { CATEGORY_META, CategoryIcon, SignificanceBadge } from '../components/badges'
 import { TAB_FOR_COLLECTION } from '../api'
+import { LoadError } from '../components/competitors/load-error'
 import { EmptyState, Panel } from '../components/panel'
+import { TD, TH } from '../components/records-cells'
 import { RecordSheet } from '../components/record-sheet'
 import { Segmented } from '../components/segmented'
 import type { MeasuredEvent } from './market-chart'
@@ -55,11 +59,7 @@ function Chip({ active, onClick, disabled, children }: { active: boolean; onClic
       aria-pressed={active}
       disabled={disabled}
       onClick={onClick}
-      className={cn(
-        'h-7 rounded-lg border px-2.5 font-medium text-text-secondary hover:bg-accent disabled:cursor-default',
-        disabled && !active && 'opacity-50 hover:bg-transparent',
-        active && 'border-primary bg-[#eef2fd] text-primary hover:bg-[#eef2fd]',
-      )}
+      className={cn(CHIP, 'disabled:cursor-default', disabled && !active && 'opacity-50 hover:bg-card', active && CHIP_ON)}
     >
       {children}
     </button>
@@ -70,25 +70,25 @@ function Chip({ active, onClick, disabled, children }: { active: boolean; onClic
 function EventCard({ e, onEvidence, onClose }: { e: MeasuredEvent; onEvidence: (() => void) | null; onClose: () => void }) {
   const m = e.impact
   const stat = (label: string, v: number | null, day?: number | null, none = '—') => (
-    <div className="rounded-lg bg-muted px-3 py-2">
-      <p className="text-xs text-muted-foreground">{label}</p>
+    <div className="rounded-[8px] bg-muted px-[12px] py-[8px]">
+      <p className="text-[12px] text-muted-foreground">{label}</p>
       <p className="font-semibold">
         {v === null ? <span className="text-muted-foreground">{none}</span> : <Pct value={v} />}
-        {v !== null && day != null && <span className="ml-1 text-xs font-normal text-muted-foreground">day {day}</span>}
+        {v !== null && day != null && <span className="ml-[4px] text-[12px] font-normal text-muted-foreground">day {day}</span>}
       </p>
     </div>
   )
   return (
-    <div className="border-t border-[#eef0f3] px-5 py-4" aria-live="polite">
-      <div className="flex flex-wrap items-start justify-between gap-2">
+    <div className="border-t border-hair px-[20px] py-[16px]" aria-live="polite">
+      <div className="flex flex-wrap items-start justify-between gap-[8px]">
         <div className="min-w-0">
           <p className="font-medium">{e.title}</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
+          <p className="mt-[2px] text-[12px] text-muted-foreground">
             {formatDate(e.date)} · {e.drug.name} · {CATEGORY_META[e.category]?.label ?? e.category}
             {m.trading_day !== e.date && ` · measured from ${formatDate(m.trading_day)}`}
           </p>
         </div>
-        <div className="flex gap-3 text-sm">
+        <div className="flex gap-[12px]">
           {onEvidence && (
             <button type="button" className="font-medium text-primary hover:underline" onClick={onEvidence}>
               Open evidence
@@ -99,12 +99,29 @@ function EventCard({ e, onEvidence, onClose }: { e: MeasuredEvent; onEvidence: (
           </button>
         </div>
       </div>
-      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+      <div className="mt-[12px] grid grid-cols-2 gap-[8px] sm:grid-cols-5">
         {stat('Event day', m.day0)}
         {stat('After 5 days', m.day5)}
         {stat('After 20 days', m.day20)}
         {stat('Deepest dip', m.dip, m.dip_day, 'no dip')}
         {stat('Highest peak', m.peak, m.peak_day, 'no rise')}
+      </div>
+    </div>
+  )
+}
+
+function MarketSkeleton() {
+  return (
+    <div className="flex flex-col gap-[20px]" role="status" aria-label="Loading share price">
+      <div className="rounded-[14px] border bg-card p-[20px] shadow-panel">
+        <Skeleton className="h-[18px] w-48" />
+        <Skeleton className="mt-[6px] h-[14px] w-72" />
+        <Skeleton className="mt-[16px] h-[320px] w-full" />
+      </div>
+      <div className="space-y-[8px] rounded-[14px] border bg-card p-[20px] shadow-panel">
+        {Array.from({ length: 5 }, (_, i) => (
+          <Skeleton key={i} className="h-[32px] w-full" />
+        ))}
       </div>
     </div>
   )
@@ -145,8 +162,8 @@ export function MarketTab() {
   const toggle = <T,>(set: (f: (cur: T[]) => T[]) => void, v: T) => set((cur) => (cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v]))
   const evidenceTab = (e: MeasuredEvent | null) => (e?.source ? TAB_FOR_COLLECTION[e.source.collection] : undefined)
 
-  if (market.isPending) return <Skeleton className="h-96 w-full" />
-  if (market.isError) return <p className="text-destructive">Share prices couldn't be loaded.</p>
+  if (market.isPending) return <MarketSkeleton />
+  if (market.isError) return <LoadError message="Share prices couldn't be loaded." onRetry={() => void market.refetch()} />
   if (!data?.listed || !view) {
     return (
       <Panel title="Share price">
@@ -176,7 +193,7 @@ export function MarketTab() {
   )
 
   return (
-    <div ref={chartTop} className="flex scroll-mt-4 flex-col gap-5">
+    <div ref={chartTop} className="flex scroll-mt-[16px] flex-col gap-[20px]">
       <Panel
         title={`${data.listed_name ?? data.company} · ${data.ticker}`}
         description={[
@@ -202,10 +219,10 @@ export function MarketTab() {
           />
         }
       >
-        <div className="space-y-2 px-5 py-3">
+        <div className="space-y-[8px] px-[20px] py-[12px]">
           {data.drugs.length > 1 && (
-            <div role="group" aria-label="Drugs" className="flex flex-wrap items-center gap-2">
-              <span className="mr-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">Drugs</span>
+            <div role="group" aria-label="Drugs" className="flex flex-wrap items-center gap-[8px]">
+              <span className="mr-[4px] text-[12px] font-medium tracking-wide text-muted-foreground uppercase">Drugs</span>
               {data.drugs.map((d) => (
                 <Chip key={d.id} active={d.selected} disabled={d.id === asset.id} onClick={() => toggle(setExtraDrugs, d.id)}>
                   {d.name}
@@ -213,12 +230,12 @@ export function MarketTab() {
               ))}
             </div>
           )}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="mr-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">Events</span>
+          <div className="flex flex-wrap items-center gap-[8px]">
+            <span className="mr-[4px] text-[12px] font-medium tracking-wide text-muted-foreground uppercase">Events</span>
             {CATEGORIES.map((c) => (
               <Chip key={c} active={categories.includes(c)} disabled={!data.category_counts[c] && !categories.includes(c)} onClick={() => toggle(setCategories, c)}>
                 {CATEGORY_META[c].label}
-                <span className="ml-1.5 text-xs text-muted-foreground tabular-nums">{data.category_counts[c] ?? 0}</span>
+                <span className="text-[12px] text-muted-foreground tabular-nums">{data.category_counts[c] ?? 0}</span>
               </Chip>
             ))}
             <div className="ml-auto">
@@ -235,14 +252,14 @@ export function MarketTab() {
           </div>
         </div>
 
-        <p className="min-h-10 border-y border-[#eef0f3] bg-muted/40 px-5 py-2 text-sm text-text-secondary" aria-live="polite">
+        <p className="min-h-[40px] border-y border-hair bg-background px-[20px] py-[10px] text-text-secondary" aria-live="polite">
           {hint}
         </p>
         {view.bars.length === 0 ? (
           <EmptyState title="No prices in this range" />
         ) : (
-          <div className={cn('px-2 pt-2', market.isFetching && 'opacity-60')}>
-            <Suspense fallback={<Skeleton className="h-80 w-full" />}>
+          <div className={cn('px-[8px] pt-[8px]', market.isFetching && 'opacity-60')}>
+            <Suspense fallback={<Skeleton className="h-[320px] w-full" />}>
               <MarketChart
                 bars={view.bars}
                 events={view.measured}
@@ -260,7 +277,7 @@ export function MarketTab() {
             onClose={() => setSelectedId(null)}
           />
         )}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-[#eef0f3] px-5 py-3 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-[16px] gap-y-[4px] border-t border-hair px-[20px] py-[12px] text-[12px] text-muted-foreground">
           <span><span className="text-success">▲</span> higher 5 trading days after the event</span>
           <span><span className="text-destructive">▼</span> lower (a dip)</span>
           <span>
@@ -289,25 +306,25 @@ export function MarketTab() {
         {view.rows.length === 0 ? (
           <EmptyState title="No events match these filters" />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="text-xs text-muted-foreground">
-                <tr className="border-b border-[#eef0f3]">
-                  <th className="px-5 py-2 font-medium">Event</th>
-                  <th className="px-2 py-2 text-right font-medium">Day 0</th>
-                  <th className="px-2 py-2 text-right font-medium">+5 days</th>
-                  <th className="px-2 py-2 text-right font-medium">+20 days</th>
-                  <th className="px-2 py-2 text-right font-medium">Dip</th>
-                  <th className="px-5 py-2 text-right font-medium">Peak</th>
-                </tr>
-              </thead>
-              <tbody>
+          <div>
+            <Table>
+              <TableHeader>
+                <TableRow className="border-0 bg-background hover:bg-background">
+                  <TableHead className={TH}>Event</TableHead>
+                  {['Day 0', '+5 days', '+20 days', 'Dip', 'Peak'].map((h, i) => (
+                    <TableHead key={h} className={cn(TH, 'text-right', i === 4 && 'pr-[20px]')}>
+                      {h}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {(allRows ? view.rows : view.rows.slice(0, ROWS_SHOWN)).map((e) => {
                   const measurable = view.measured.some((m) => m.id === e.id)
                   return (
-                    <tr key={e.id} className={cn('border-b border-[#eef0f3] last:border-0 hover:bg-accent/60', selectedId === e.id && 'bg-[#eef2fd]')}>
-                      <td className="px-5 py-2">
-                        <div className="flex items-start gap-3">
+                    <TableRow key={e.id} className={cn('border-b border-hair hover:bg-background', selectedId === e.id && 'bg-primary-soft hover:bg-primary-soft')}>
+                      <TableCell className={TD}>
+                        <div className="flex items-start gap-[12px]">
                           <CategoryIcon category={e.category} />
                           <div className="min-w-0">
                             {measurable ? (
@@ -324,7 +341,7 @@ export function MarketTab() {
                             ) : (
                               <span className="font-medium">{e.title}</span>
                             )}
-                            <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                            <div className="mt-[2px] flex flex-wrap items-center gap-[8px] text-[12px] text-muted-foreground">
                               <span className="font-mono">{formatDate(e.date)}</span>
                               <SignificanceBadge value={e.significance} />
                               {multiDrug && <span>{e.drug.name}</span>}
@@ -332,21 +349,21 @@ export function MarketTab() {
                             </div>
                           </div>
                         </div>
-                      </td>
-                      <td className="px-2 py-2 text-right"><Pct value={e.impact?.day0} /></td>
-                      <td className="px-2 py-2 text-right font-semibold"><Pct value={e.impact?.day5} /></td>
-                      <td className="px-2 py-2 text-right"><Pct value={e.impact?.day20} /></td>
-                      <td className="px-2 py-2 text-right"><Pct value={e.impact?.dip} /></td>
-                      <td className="px-5 py-2 text-right"><Pct value={e.impact?.peak} /></td>
-                    </tr>
+                      </TableCell>
+                      <TableCell className={cn(TD, 'text-right')}><Pct value={e.impact?.day0} /></TableCell>
+                      <TableCell className={cn(TD, 'text-right font-semibold')}><Pct value={e.impact?.day5} /></TableCell>
+                      <TableCell className={cn(TD, 'text-right')}><Pct value={e.impact?.day20} /></TableCell>
+                      <TableCell className={cn(TD, 'text-right')}><Pct value={e.impact?.dip} /></TableCell>
+                      <TableCell className={cn(TD, 'pr-[20px] text-right')}><Pct value={e.impact?.peak} /></TableCell>
+                    </TableRow>
                   )
                 })}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
             {view.rows.length > ROWS_SHOWN && (
               <button
                 type="button"
-                className="w-full border-t border-[#eef0f3] px-5 py-3 text-left font-medium text-primary hover:bg-accent/60"
+                className="w-full border-t border-hair px-[20px] py-[12px] text-left font-medium text-primary hover:bg-background"
                 onClick={() => setAllRows((v) => !v)}
               >
                 {allRows ? 'Show fewer' : `Show all ${view.rows.length} events`}

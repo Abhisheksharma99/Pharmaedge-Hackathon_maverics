@@ -57,10 +57,10 @@ const FLAG_STYLE = {
 function Row({ label, sub, height, delay, children, className }: { label: ReactNode; sub?: ReactNode; height: number; delay: number | null; children: ReactNode; className?: string }) {
   const anim: CSSProperties | undefined = delay === null ? undefined : { animationDelay: `${delay}s` }
   return (
-    <div className={cn('relative flex border-b border-[#F2F4F7] last:border-0', className)} style={{ height }}>
-      <div className="sticky left-0 z-20 flex shrink-0 flex-col justify-center border-r border-[#EEF0F3] bg-card px-3 text-[12px]" style={{ width: LABEL_W }}>
+    <div className={cn('relative flex border-b border-hair last:border-0', className)} style={{ height }}>
+      <div className="sticky left-0 z-20 flex shrink-0 flex-col justify-center border-r border-hair bg-card px-[12px] text-[12px]" style={{ width: LABEL_W }}>
         <span className="font-medium text-foreground duration-500 animate-in fade-in fill-mode-both motion-reduce:animate-none" style={anim}>{label}</span>
-        {sub && <span className="text-[10.5px] text-muted-foreground">{sub}</span>}
+        {sub && <span className="text-[11.5px] text-muted-foreground">{sub}</span>}
       </div>
       <div className="relative flex-1 duration-500 animate-in fade-in slide-in-from-left-4 fill-mode-both motion-reduce:animate-none" style={anim}>
         {children}
@@ -95,10 +95,10 @@ function EventMark({ e, x, top, color, selected, pin, onSelect, delay, faded }: 
         }}
       />
       {pin !== undefined && (
-        <span className="absolute -top-3 left-1/2 flex size-4 -translate-x-1/2 items-center justify-center rounded-full bg-primary text-[9.5px] font-bold text-white shadow">{pin}</span>
+        <span className="absolute -top-[12px] left-1/2 flex size-[16px] -translate-x-1/2 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white shadow">{pin}</span>
       )}
       {flag && pin === undefined && (
-        <span className={cn('pointer-events-none absolute -top-3.5 left-1/2 -translate-x-1/2 rounded px-1 text-[8.5px] leading-[13px] font-bold whitespace-nowrap', FLAG_STYLE[flag.tone])}>
+        <span className={cn('pointer-events-none absolute -top-[14px] left-1/2 -translate-x-1/2 rounded-[4px] px-[4px] text-[9px] leading-[13px] font-bold whitespace-nowrap', FLAG_STYLE[flag.tone])}>
           {flag.tone === 'check' ? '!' : flag.label}
         </span>
       )}
@@ -131,7 +131,7 @@ function ClusterMark({ events, x, color, selected, pin, onSelect, delay }: {
       aria-pressed={selected}
       aria-label={`${events.length} events, ${formatDate(first.date)} to ${formatDate(last.date)}`}
       title={`${events.length} events · ${formatDate(first.date)} – ${formatDate(last.date)}`}
-      className="absolute flex h-5 min-w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white outline-none duration-300 animate-in zoom-in-50 fade-in fill-mode-both focus-visible:ring-2 focus-visible:ring-ring motion-reduce:animate-none"
+      className="absolute flex h-[20px] min-w-[20px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full px-[4px] text-[10px] font-bold text-white outline-none duration-300 animate-in zoom-in-50 fade-in fill-mode-both focus-visible:ring-2 focus-visible:ring-ring motion-reduce:animate-none"
       style={{
         left: x, top: ROW / 2, background: color, zIndex: selected ? 6 : 4,
         boxShadow: selected ? `0 0 0 2px #fff, 0 0 0 4px ${color}` : checks ? '0 0 0 2px #fff, 0 0 0 3.5px #D92D20' : '0 0 0 2px #fff',
@@ -140,7 +140,7 @@ function ClusterMark({ events, x, color, selected, pin, onSelect, delay }: {
     >
       {events.length}
       {pin !== undefined && (
-        <span className="absolute -top-3 left-1/2 flex size-4 -translate-x-1/2 items-center justify-center rounded-full bg-primary text-[9.5px] font-bold text-white shadow">{pin}</span>
+        <span className="absolute -top-[12px] left-1/2 flex size-[16px] -translate-x-1/2 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white shadow">{pin}</span>
       )}
     </button>
   )
@@ -234,12 +234,12 @@ export function StoryTimeline({
   const axisDelay = delay()
 
   return (
-    <div key={replayKey} ref={scroller} className="relative overflow-x-auto overscroll-x-contain rounded-b-[14px]" data-testid="story-timeline">
+    <div key={replayKey} ref={scroller} className="relative overflow-x-auto overscroll-x-contain" data-testid="story-timeline">
       <div className="relative" style={{ width: width + LABEL_W }}>
         {/* time axis */}
         <Row label="" height={AXIS} delay={axisDelay}>
           {ticks.map((t) => (
-            <span key={t.label} className="absolute top-1 -translate-x-1/2 font-mono text-[10.5px] text-muted-foreground" style={{ left: t.x }}>
+            <span key={t.label} className="absolute top-[4px] -translate-x-1/2 font-mono text-[11px] text-muted-foreground" style={{ left: t.x }}>
               {t.label}
             </span>
           ))}
@@ -247,16 +247,16 @@ export function StoryTimeline({
         {/* focus window, Today and year grid span every row */}
         <div aria-hidden="true" className="pointer-events-none absolute top-0 bottom-0 z-0" style={{ left: LABEL_W, width }}>
           {ticks.map((t) => (
-            <span key={t.label} className="absolute top-0 bottom-0 w-px bg-[#F2F4F7]" style={{ left: t.x }} />
+            <span key={t.label} className="absolute top-0 bottom-0 w-px bg-hair" style={{ left: t.x }} />
           ))}
           {focus && (
             <span className="absolute top-0 bottom-0 border-x border-[#2347D9]/30 bg-[#2347D9]/[0.06] duration-700 animate-in fade-in fill-mode-both" style={{ left: focus.left, width: Math.max(2, focus.right - focus.left), animationDelay: axisDelay === null ? undefined : `${axisDelay}s` }}>
-              <span className="absolute top-1 left-1 rounded bg-[#EEF2FD] px-1 text-[9.5px] font-semibold whitespace-nowrap text-primary">since {formatDate(since)}</span>
+              <span className="absolute top-[4px] left-[4px] rounded-[4px] bg-primary-soft px-[4px] text-[10px] font-semibold whitespace-nowrap text-primary">since {formatDate(since)}</span>
             </span>
           )}
           {todayX !== null && (
             <span className="absolute top-0 bottom-0 border-l border-dashed border-foreground" style={{ left: todayX }}>
-              <span className="absolute top-0.5 left-1 rounded bg-foreground px-1 text-[9.5px] font-semibold text-background">Today</span>
+              <span className="absolute top-[2px] left-[4px] rounded-[4px] bg-foreground px-[4px] text-[10px] font-semibold text-background">Today</span>
             </span>
           )}
         </div>
@@ -276,10 +276,10 @@ export function StoryTimeline({
                     type="button"
                     onClick={() => onSelect({ id: a.id } as StoryEvent)}
                     title={`${formatDate(a.date)} · ${a.product} (${a.region})`}
-                    className="absolute bottom-0 origin-bottom border-t-2 border-[#2347D9] bg-[#EEF2FD] text-left duration-500 animate-in fade-in slide-in-from-bottom-3 fill-mode-both hover:bg-[#E0EAFF] motion-reduce:animate-none"
+                    className="absolute bottom-0 origin-bottom border-t-2 border-[#2347D9] bg-primary-soft text-left duration-500 animate-in fade-in slide-in-from-bottom-3 fill-mode-both hover:bg-[#E0EAFF] motion-reduce:animate-none"
                     style={{ left, width: Math.max(2, right - left), height: h, animationDelay: d === null ? undefined : `${d + i * 0.08}s` }}
                   >
-                    <span className="absolute -top-4 left-0.5 text-[9.5px] font-semibold whitespace-nowrap text-primary" style={{ top: i % 2 ? -26 : -15 }}>
+                    <span className="absolute -top-[16px] left-[2px] text-[10px] font-semibold whitespace-nowrap text-primary" style={{ top: i % 2 ? -26 : -15 }}>
                       {a.product}
                       <span className="font-normal text-muted-foreground"> {a.region} {a.date.slice(0, 4)}</span>
                     </span>
@@ -313,7 +313,7 @@ export function StoryTimeline({
                   <ClusterMark key={g.events[0]!.id} events={g.events} x={g.x} color={CATEGORY_COLOR[lane.category]} selected={g.events.some((e) => e.id === selectedId)} pin={g.events.map((e) => pinOf.get(e.id)).find((n) => n !== undefined)} onSelect={onSelectMany} delay={eventDelay(d, i)} />
                 ),
               )}
-              {lane.events.length === 0 && <span className="absolute top-3 left-3 text-[11px] text-muted-foreground">No events in this range</span>}
+              {lane.events.length === 0 && <span className="absolute top-[12px] left-[12px] text-[12px] text-muted-foreground">No events in this range</span>}
             </Row>
           )
         })}
@@ -324,7 +324,7 @@ export function StoryTimeline({
           const evs = story.compare.events
           const groups = clusterEvents(evs, x)
           return (
-            <Row label={story.compare.asset.name} sub="compared" height={ROW} delay={d} className="bg-[#F9FAFB]">
+            <Row label={story.compare.asset.name} sub="compared" height={ROW} delay={d} className="bg-background">
               <span aria-hidden="true" className="absolute right-0 left-0 border-t-2 border-dashed border-[#D0D5DD]" style={{ top: ROW / 2 - 1 }} />
               {groups.map((g, i) =>
                 g.events.length === 1 ? (

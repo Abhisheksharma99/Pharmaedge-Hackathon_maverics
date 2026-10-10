@@ -12,3 +12,7 @@ export const ICON_BTN = 'size-[32px] rounded-lg'
 
 /** Visible keyboard focus for raw buttons and links (README §9): a 2px primary outline, shown for keyboard focus only. */
 export const FOCUS = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
+
+/** `.chip`: 28px filter toggle; `CHIP_ON` is its pressed state (journey filters, market and story filters). */
+export const CHIP = 'inline-flex h-[28px] items-center gap-[6px] rounded-lg border bg-card px-[10px] text-[12.5px] font-medium text-text-secondary hover:bg-accent focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none'
+export const CHIP_ON = 'border-primary bg-primary-soft text-primary hover:bg-primary-soft'

@@ -137,5 +137,5 @@ export default function MarketChart({
     return () => lines.forEach((l) => c.series.removePriceLine(l))
   }, [selected, bars, events])
 
-  return <div ref={box} className="h-80 w-full" role="img" aria-label="Share price with event markers" />
+  return <div ref={box} className="h-[320px] w-full" role="img" aria-label="Share price with event markers" />
 }
