@@ -151,6 +151,23 @@ describe('clinical records panel', () => {
     await waitFor(() => expect(decodeURIComponent(recordUrls().at(-1)!)).not.toContain('"phases"'))
   })
 
+  it('hides the distribution bar and filter row behind a header Filters chip; the filters keep applying', async () => {
+    respond({ '/api/assets/trep/records/clinical': CLINICAL })
+    renderTab(<ClinicalTab />, 'clinical')
+    await screen.findByText('TETON')
+    await userEvent.click(screen.getByRole('button', { name: /Phase 3\s*9/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Hide filters' }))
+    expect(screen.queryByRole('button', { name: /Phase 3\s*9/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: 'Status' })).not.toBeInTheDocument()
+    expect(screen.getByText('TETON')).toBeInTheDocument()
+    expect(decodeURIComponent(recordUrls().at(-1)!)).toContain('facets={"phases":"PHASE3"}')
+    expect(localStorage.getItem('aj.collapsed.records.clinical')).toBe('1')
+    await userEvent.click(screen.getByRole('button', { name: 'Clear' }))
+    await waitFor(() => expect(decodeURIComponent(recordUrls().at(-1)!)).not.toContain('"phases"'))
+    await userEvent.click(screen.getByRole('button', { name: 'Show filters' }))
+    expect(screen.getByRole('button', { name: /Phase 3\s*9/ })).toHaveAttribute('aria-pressed', 'false')
+  })
+
   it('mutes the sponsor when it is not the asset company', async () => {
     respond({ '/api/assets/trep/records/clinical': CLINICAL })
     renderTab(<ClinicalTab />, 'clinical')

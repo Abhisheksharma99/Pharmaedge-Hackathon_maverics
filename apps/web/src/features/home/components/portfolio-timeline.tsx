@@ -64,7 +64,7 @@ export function PortfolioTimeline() {
         </div>
       )}
       {portfolio.isError && <InlineError message="The portfolio timeline couldn't be loaded." onRetry={() => void portfolio.refetch()} />}
-      {data && data.assets.length > 0 && <CardFilters {...filters} placeholder="Search assets" />}
+      {data && data.assets.length > 0 && <CardFilters {...filters} collapseKey="home.portfolio-timeline" placeholder="Search assets" />}
       {data && rows.length === 0 && !q && <EmptyState title="No assets yet">Add a drug by name with Asset AI to see its journey here.</EmptyState>}
       {data && rows.length === 0 && q && <NoMatches what="assets" />}
       {data && rows.length > 0 && (

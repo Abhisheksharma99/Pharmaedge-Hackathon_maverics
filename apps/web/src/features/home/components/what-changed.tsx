@@ -35,7 +35,7 @@ export function WhatChanged() {
       {portfolio.isPending && <ListSkeleton />}
       {portfolio.isError && <InlineError message="Recent events couldn't be loaded." onRetry={() => void portfolio.refetch()} />}
       {portfolio.data && groups.length === 0 && <EmptyState title="Quiet quarter">No new key events in the last 90 days.</EmptyState>}
-      {all.length > 0 && <CardFilters {...filters} placeholder="Search title or asset" />}
+      {all.length > 0 && <CardFilters {...filters} collapseKey="home.what-changed" placeholder="Search title or asset" />}
       {all.length > 0 && shownGroups.length === 0 && <NoMatches />}
       {shownGroups.map((g) => (
         <section key={g.label} aria-label={g.label} className="py-[4px]">

@@ -79,7 +79,7 @@ export function CrawlsCard() {
         </EmptyState>
       )}
       {finishedAll.length > 0 && (
-        <CardFilters {...filters} placeholder="Search by asset" className="px-0 pt-[4px]" />
+        <CardFilters {...filters} collapseKey="home.crawls" placeholder="Search by asset" className="px-0 pt-[4px]" />
       )}
       {finishedAll.length > 0 && finished.length === 0 && <NoMatches what="crawls" />}
       {finished.length > 0 && (

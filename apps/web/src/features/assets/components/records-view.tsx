@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { RefreshCw } from 'lucide-react'
-import { useEffect, useState, type ComponentProps, type ReactNode } from 'react'
+import { useEffect, useId, useState, type ComponentProps, type ReactNode } from 'react'
+import { FiltersToggle } from '@/components/filters-toggle'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -12,6 +13,7 @@ import { stepShort } from '@/features/jobs/steps'
 import type { Job } from '@/features/jobs/api'
 import { apiFetch } from '@/lib/api'
 import { formatNumber } from '@/lib/format'
+import { useCollapsed } from '@/lib/use-collapsed'
 import { cn } from '@/lib/utils'
 import { toQueryString, useRecords, type RecordsPage, type RecordTab, type SourceRecord } from '../api'
 import { JourneyLink } from './journey-link'
@@ -118,8 +120,17 @@ function RecordsPanel({
   const leadValues = lead?.values ?? []
   const setFacet = (key: string, value: string | undefined) => setPicked((p) => ({ ...p, [key]: value ?? '' }))
   const filtered = debouncedQ !== '' || Object.values(picked).some(Boolean) || toggled
+  // The facet bar and filter row hide behind a "Filters" chip in the header (remembered per tab); they keep applying.
+  const [filtersHidden, setFiltersHidden] = useCollapsed(`records.${tab}`)
+  const filtersId = useId()
+  const nActive = (q.trim() ? 1 : 0) + Object.values(picked).filter(Boolean).length + (toggled ? 1 : 0)
+  const clearFilters = () => {
+    setQ('')
+    setPicked({})
+    setToggled(false)
+  }
 
-  const actions = jobStep ? (
+  const status = jobStep ? (
     <span
       className={cn(
         'inline-flex h-[26px] animate-fade items-center gap-[6px] rounded-full px-[10px] text-[12.5px] font-semibold',
@@ -132,44 +143,52 @@ function RecordsPanel({
   ) : showTotal && data && data.all > 0 ? (
     <span className="text-muted-foreground">{`${formatNumber(data.all)} records collected`}</span>
   ) : null
+  const actions = (
+    <span className="flex flex-wrap items-center gap-[12px]">
+      {status}
+      <FiltersToggle collapsed={filtersHidden} onCollapsed={setFiltersHidden} controls={filtersId} active={nActive} onClear={clearFilters} />
+    </span>
+  )
 
   return (
     <RecordsCard title={title} description={description} actions={actions}>
-      {lead && (
-        <DistributionBar
-          label={lead.label}
-          items={leadValues.map((v) => ({ value: v.value, label: label(lead.key, v.value), count: v.count }))}
-          selected={picked[lead.key]}
-          onSelect={(v) => setFacet(lead.key, v)}
-        />
-      )}
-      <div className="flex flex-wrap items-center gap-[10px] px-[20px] py-[12px]">
-        <SearchBox value={q} onChange={setQ} placeholder={searchPlaceholder} />
-        {selects.map((f) => (
-          <Select key={f.key} value={picked[f.key] || ALL} onValueChange={(v) => setFacet(f.key, v === ALL ? undefined : v)}>
-            <SelectTrigger size="sm" aria-label={f.label} className="h-[32px] min-w-[144px] gap-[6px] rounded-[8px] border-border bg-card px-[8px] py-0 text-[13px] text-secondary-foreground">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>{f.label}: all</SelectItem>
-              {[...f.values]
-                .sort((a, b) => label(f.key, a.value).localeCompare(label(f.key, b.value)))
-                .map((v) => (
-                  <SelectItem key={v.value} value={v.value}>
-                    {label(f.key, v.value)}
-                  </SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
-        ))}
-        {toggle && (
-          <div className="flex items-center gap-[8px]">
-            <Switch id={`toggle-${tab}`} checked={toggled} onCheckedChange={setToggled} />
-            <Label htmlFor={`toggle-${tab}`} className="text-[13px] font-normal text-text-secondary">
-              {toggle.label}
-            </Label>
-          </div>
+      <div id={filtersId} hidden={filtersHidden}>
+        {lead && (
+          <DistributionBar
+            label={lead.label}
+            items={leadValues.map((v) => ({ value: v.value, label: label(lead.key, v.value), count: v.count }))}
+            selected={picked[lead.key]}
+            onSelect={(v) => setFacet(lead.key, v)}
+          />
         )}
+        <div className="flex flex-wrap items-center gap-[10px] px-[20px] py-[12px]">
+          <SearchBox value={q} onChange={setQ} placeholder={searchPlaceholder} />
+          {selects.map((f) => (
+            <Select key={f.key} value={picked[f.key] || ALL} onValueChange={(v) => setFacet(f.key, v === ALL ? undefined : v)}>
+              <SelectTrigger size="sm" aria-label={f.label} className="h-[32px] min-w-[144px] gap-[6px] rounded-[8px] border-border bg-card px-[8px] py-0 text-[13px] text-secondary-foreground">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>{f.label}: all</SelectItem>
+                {[...f.values]
+                  .sort((a, b) => label(f.key, a.value).localeCompare(label(f.key, b.value)))
+                  .map((v) => (
+                    <SelectItem key={v.value} value={v.value}>
+                      {label(f.key, v.value)}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          ))}
+          {toggle && (
+            <div className="flex items-center gap-[8px]">
+              <Switch id={`toggle-${tab}`} checked={toggled} onCheckedChange={setToggled} />
+              <Label htmlFor={`toggle-${tab}`} className="text-[13px] font-normal text-text-secondary">
+                {toggle.label}
+              </Label>
+            </div>
+          )}
+        </div>
       </div>
       {records.isPending && (
         <div role="status" aria-label="Loading records" className="space-y-[8px] p-[20px]">

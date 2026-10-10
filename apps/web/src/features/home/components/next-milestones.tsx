@@ -38,7 +38,7 @@ export function NextMilestones() {
       {portfolio.data && items.length === 0 && (
         <EmptyState title="No upcoming milestones">Expected readouts and decisions appear here once they are in a journey.</EmptyState>
       )}
-      {upcoming.length > 0 && <CardFilters {...filters} placeholder="Search title or asset" />}
+      {upcoming.length > 0 && <CardFilters {...filters} collapseKey="home.next-milestones" placeholder="Search title or asset" />}
       {upcoming.length > 0 && items.length === 0 && <NoMatches what="milestones" />}
       <ul>
         {items.map((e) => {

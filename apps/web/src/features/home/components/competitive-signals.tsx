@@ -33,7 +33,7 @@ export function CompetitiveSignals() {
       {portfolio.data && moves.length === 0 && (
         <EmptyState title="No competitor moves yet">Competitors are tracked once Asset AI identifies them for one of your assets.</EmptyState>
       )}
-      {all.length > 0 && <CardFilters {...filters} placeholder="Search title or competitor" />}
+      {all.length > 0 && <CardFilters {...filters} collapseKey="home.competitive-signals" placeholder="Search title or competitor" />}
       {all.length > 0 && moves.length === 0 && <NoMatches what="moves" />}
       <ul>
         {moves.map((e) => {

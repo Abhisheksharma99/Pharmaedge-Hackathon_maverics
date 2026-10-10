@@ -1,6 +1,7 @@
 import { LayoutGrid, List, Plus, Search } from 'lucide-react'
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
+import { FiltersToggle } from '@/components/filters-toggle'
 import { InlineError } from '@/components/inline-error'
 import { Page } from '@/components/layout/page'
 import { Button } from '@/components/ui/button'
@@ -13,6 +14,7 @@ import { useJobs } from '@/features/jobs/api'
 import { jobProgress, runningByAsset } from '@/features/jobs/steps'
 import { formatDay } from '@/lib/dates'
 import { formatNumber } from '@/lib/format'
+import { useCollapsed } from '@/lib/use-collapsed'
 import { cn } from '@/lib/utils'
 import { assetIndications, assetMatches, byKindThenName, useAssetDetails, useAssets, type AssetSummary } from '../api'
 import { AssetCard, AssetStatusPill } from '../components/asset-card'
@@ -69,6 +71,8 @@ export function AssetSearchPage() {
   const kind: Kind = KINDS.find((k) => k === params.get('kind')) ?? 'all'
   const view: View = params.get('view') === 'grid' ? 'grid' : 'table'
   const indication = params.get('indication') ?? ''
+  const [filtersHidden, setFiltersHidden] = useCollapsed('asset-search.filters')
+  const filtersId = useId()
 
   /** Set a URL param; its default removes it, so plain /assets stays clean. */
   const setParam = (key: string, value: string, fallback: string) =>
@@ -107,44 +111,64 @@ export function AssetSearchPage() {
       }
     >
       <div className="flex flex-wrap items-center gap-[10px]">
-        <label className="flex h-[38px] flex-[1_1_320px] items-center gap-[8px] rounded-[10px] border bg-card px-[12px] text-muted-foreground focus-within:border-primary focus-within:shadow-focus">
-          <Search className="size-[15px] shrink-0" />
-          <input
-            value={q}
-            onChange={(e) => {
-              setQ(e.target.value)
-              setParam('q', e.target.value, '')
-            }}
-            placeholder="Search by name, brand, company, indication or mechanism"
-            aria-label="Search assets"
-            className="min-w-0 flex-1 bg-transparent text-foreground outline-none"
+        <div id={filtersId} hidden={filtersHidden} className="contents">
+          <label className="flex h-[38px] flex-[1_1_320px] items-center gap-[8px] rounded-[10px] border bg-card px-[12px] text-muted-foreground focus-within:border-primary focus-within:shadow-focus">
+            <Search className="size-[15px] shrink-0" />
+            <input
+              value={q}
+              onChange={(e) => {
+                setQ(e.target.value)
+                setParam('q', e.target.value, '')
+              }}
+              placeholder="Search by name, brand, company, indication or mechanism"
+              aria-label="Search assets"
+              className="min-w-0 flex-1 bg-transparent text-foreground outline-none"
+            />
+          </label>
+          <Segmented<Kind>
+            label="Kind"
+            value={kind}
+            onChange={(v) => setParam('kind', v, 'all')}
+            options={[
+              { value: 'all', label: `All ${all.length}` },
+              { value: 'primary', label: `Primary ${primaries}` },
+              { value: 'competitor', label: `Competitors ${all.length - primaries}` },
+            ]}
           />
-        </label>
-        <Segmented<Kind>
-          label="Kind"
-          value={kind}
-          onChange={(v) => setParam('kind', v, 'all')}
-          options={[
-            { value: 'all', label: `All ${all.length}` },
-            { value: 'primary', label: `Primary ${primaries}` },
-            { value: 'competitor', label: `Competitors ${all.length - primaries}` },
-          ]}
+          {(indications.length > 1 || indication) && (
+            <Select value={indication || ALL_INDICATIONS} onValueChange={(v) => setParam('indication', v, ALL_INDICATIONS)}>
+              <SelectTrigger aria-label="Indication" className="h-[38px] max-w-[220px] min-w-[150px] gap-[6px] rounded-[10px] border-border bg-card px-[10px] py-0 text-[13px] text-secondary-foreground">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_INDICATIONS}>Indication: all</SelectItem>
+                {indications.map((i) => (
+                  <SelectItem key={i} value={i}>
+                    {i}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+        <FiltersToggle
+          collapsed={filtersHidden}
+          onCollapsed={setFiltersHidden}
+          controls={filtersId}
+          active={(q.trim() ? 1 : 0) + (kind !== 'all' ? 1 : 0) + (indication ? 1 : 0)}
+          onClear={() => {
+            setQ('')
+            setParams(
+              (prev) => {
+                const next = new URLSearchParams(prev)
+                for (const k of ['q', 'kind', 'indication']) next.delete(k)
+                return next
+              },
+              { replace: true },
+            )
+          }}
+          className="ml-auto"
         />
-        {(indications.length > 1 || indication) && (
-          <Select value={indication || ALL_INDICATIONS} onValueChange={(v) => setParam('indication', v, ALL_INDICATIONS)}>
-            <SelectTrigger aria-label="Indication" className="h-[38px] max-w-[220px] min-w-[150px] gap-[6px] rounded-[10px] border-border bg-card px-[10px] py-0 text-[13px] text-secondary-foreground">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_INDICATIONS}>Indication: all</SelectItem>
-              {indications.map((i) => (
-                <SelectItem key={i} value={i}>
-                  {i}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
         <div role="group" aria-label="View" className="inline-flex gap-[2px] rounded-[8px] bg-muted p-[2px]">
           {VIEWS.map((v) => (
             <button

@@ -99,6 +99,35 @@ describe('JourneyHeader', () => {
     expect(props.onAdd).toHaveBeenCalled()
   })
 
+  it('hides the branch cards and filters to one line that keeps the view controls; the filters still count and clear', async () => {
+    const { props } = setup({ cats: ['clinical'], ind: 'PAH', focusBranch: 'PH-ILD' })
+    const hide = screen.getByRole('button', { name: 'Hide filters' })
+    const panel = document.getElementById(hide.getAttribute('aria-controls')!)!
+    expect(panel).toContainElement(screen.getByRole('group', { name: 'Filter the journey' }))
+    await userEvent.click(hide)
+    expect(panel).not.toBeVisible()
+    expect(screen.queryByRole('group', { name: 'Filter the journey' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^PH-COPD/ })).not.toBeInTheDocument()
+    expect(screen.queryByText(/Each new indication forks off/)).not.toBeInTheDocument()
+    for (const name of ['Orientation', 'Order', 'Events shown']) expect(screen.getByRole('group', { name })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Add to timeline' })).toBeVisible()
+    const show = screen.getByRole('button', { name: 'Show filters (3 active)' })
+    expect(show).toHaveAttribute('aria-expanded', 'false')
+    expect(show).toHaveFocus()
+    await userEvent.click(screen.getByRole('button', { name: 'Clear' }))
+    expect(props.onClear).toHaveBeenCalled()
+    expect(localStorage.getItem('aj.collapsed.journey.filters')).toBe('1')
+  })
+
+  it('opens hidden when the filters were hidden before, and shows them again', async () => {
+    localStorage.setItem('aj.collapsed.journey.filters', '1')
+    setup()
+    expect(screen.queryByRole('group', { name: 'Filter the journey' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Show filters' }))
+    expect(screen.getByRole('group', { name: 'Filter the journey' })).toBeVisible()
+    expect(screen.getByText(/Each new indication forks off/)).toBeInTheDocument()
+  })
+
   it('has no branch cards or branch count on a single-trunk journey', () => {
     setup({ model: branchModel([]) })
     expect(screen.getByText(/^4 events, 2002–2028\. Open a card’s subtree/)).toBeInTheDocument()

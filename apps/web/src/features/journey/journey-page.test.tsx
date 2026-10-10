@@ -23,6 +23,10 @@ const ASSETS = [
 ]
 
 function renderAt(path: string) {
+  return renderPage(path).router
+}
+
+function renderPage(path: string) {
   const router = createMemoryRouter(
     [
       { path: '/journey', element: <JourneyPage /> },
@@ -30,14 +34,14 @@ function renderAt(path: string) {
     ],
     { initialEntries: [path] },
   )
-  render(
+  const { unmount } = render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <TooltipProvider>
         <RouterProvider router={router} />
       </TooltipProvider>
     </QueryClientProvider>,
   )
-  return router
+  return { router, unmount }
 }
 
 beforeAll(() => {
@@ -106,6 +110,35 @@ describe('JourneyPage', () => {
     await userEvent.click(screen.getByRole('combobox', { name: 'Kind' }))
     await userEvent.click(await screen.findByRole('option', { name: 'Competitor' }))
     expect(within(list).getAllByRole('link').map((a) => a.querySelector('b')!.textContent)).toEqual(['Sotatercept'])
+  })
+
+  it('hides the asset list so the journey takes the full width, remembers it, and shows it again', async () => {
+    const { unmount } = renderPage('/journey/treprostinil')
+    await screen.findByRole('navigation', { name: 'Tracked assets' })
+    const hide = screen.getByRole('button', { name: 'Hide assets' })
+    expect(hide).toHaveAttribute('aria-expanded', 'true')
+    const list = document.getElementById(hide.getAttribute('aria-controls')!)!
+    await userEvent.click(hide)
+    expect(list).not.toBeVisible()
+    expect(screen.queryByRole('navigation', { name: 'Tracked assets' })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Treprostinil' })).toBeInTheDocument()
+    const show = screen.getByRole('button', { name: /Show assets/ })
+    expect(show).toHaveAttribute('aria-expanded', 'false')
+    expect(show).toHaveAttribute('aria-controls', list.id)
+    expect(show).toHaveFocus()
+    // Remembered on the next visit.
+    unmount()
+    renderPage('/journey/treprostinil')
+    await userEvent.click(await screen.findByRole('button', { name: /Show assets/ }))
+    expect(await screen.findByRole('navigation', { name: 'Tracked assets' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Hide assets' })).toHaveFocus()
+  })
+
+  it('keeps the list up for an asset that isn’t tracked, even when hidden', async () => {
+    localStorage.setItem('aj.collapsed.journey.asset-list', '1')
+    renderAt('/journey/nope')
+    expect(await screen.findByRole('navigation', { name: 'Tracked assets' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Hide assets' })).not.toBeInTheDocument()
   })
 
   it('says when the asset in the URL is not tracked', async () => {

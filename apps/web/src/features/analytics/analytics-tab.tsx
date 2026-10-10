@@ -77,7 +77,7 @@ function PipelineCard({ rows }: { rows: AssetAnalytics['pipeline'] }) {
   const { filtered, filters } = useCardFilter(rows, pipelineText, pipelineFacets)
   return (
     <>
-      <CardBar {...filters} placeholder="Search indications" />
+      <CardBar {...filters} collapseKey="analytics.pipeline" placeholder="Search indications" />
       {filtered.length ? <PipelineMatrix rows={filtered} /> : <NoMatch />}
     </>
   )
@@ -89,7 +89,7 @@ function TrialTimeline({ trials }: { trials: AnalyticsTrial[] }) {
   const [t0, t1] = yearRange(trials.flatMap((t) => [yearFraction(t.start), yearFraction(t.pcd)]))
   return (
     <>
-      <CardBar {...filters} placeholder="Search trials" />
+      <CardBar {...filters} collapseKey="analytics.trial-timeline" placeholder="Search trials" />
       {filtered.length ? (
         <GanttScroll>
           <Gantt from={t0} to={t1} rows={trialRows(filtered)} />
@@ -105,7 +105,7 @@ function TrialsByPhase({ trials }: { trials: AnalyticsTrial[] }) {
   const { filtered, filters } = useCardFilter(trials, trialText, trialFacets('Indication', 'Status'))
   return (
     <>
-      <CardBar {...filters} placeholder="Search trials" />
+      <CardBar {...filters} collapseKey="analytics.trials-by-phase" placeholder="Search trials" />
       <VBars data={PHASES.map((p) => ({ l: p.replace('Phase ', 'P'), v: filtered.filter((t) => t.phase === p).length, c: PHASE_COLORS[p] }))} />
     </>
   )
@@ -116,7 +116,7 @@ function EnrolmentByIndication({ trials }: { trials: AnalyticsTrial[] }) {
   const data = enrolment(filtered)
   return (
     <>
-      <CardBar {...filters} placeholder="Search trials" />
+      <CardBar {...filters} collapseKey="analytics.enrolment" placeholder="Search trials" />
       {data.length ? <HBars data={data} /> : <NoMatch />}
     </>
   )
@@ -130,7 +130,7 @@ function Landscape({ landscape }: { landscape: AssetAnalytics['landscape'] }) {
   const cols = picked ? short.filter((c) => c === picked) : short
   return (
     <>
-      <CardBar {...filters} placeholder="Search assets" />
+      <CardBar {...filters} collapseKey="analytics.landscape" placeholder="Search assets" />
       {filtered.length ? (
         <Heat
           cols={cols}

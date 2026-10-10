@@ -1,6 +1,7 @@
 import { AlertTriangle, ExternalLink, Loader2, MessageSquarePlus, RotateCcw, Sparkles, Trash2 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
+import { FiltersToggle } from '@/components/filters-toggle'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { InlineError } from '@/components/inline-error'
@@ -16,6 +17,7 @@ import { Pct } from '@/features/assets/pages/market-tab'
 import { useAssetContext } from '@/features/assets/pages/asset-layout'
 import { useAskStore } from '@/features/chat/ask-store'
 import { formatDate } from '@/lib/format'
+import { useCollapsed } from '@/lib/use-collapsed'
 import { cn, safeUrl } from '@/lib/utils'
 import { useShellStore } from '@/stores/shell-store'
 import { storyIndications, useDeleteStory, useStory, type Chapter, type Story, type StoryEvent, type StoryFilters, type StoryNote } from './api'
@@ -142,6 +144,9 @@ export function StoryPanel({ storyId }: { storyId: string }) {
   const [changeTab, setChangeTab] = useState<string | null>(null)
   const [indication, setIndication] = useState('')
   const [allRows, setAllRows] = useState(false)
+  // The filter row hides behind a "Filters" chip in the header (remembered); its filters keep applying.
+  const [filtersHidden, setFiltersHidden] = useCollapsed('story.filters')
+  const filtersId = useId()
   const select = (id: string | null) => {
     setSelectedId(id)
     setGroup(null)
@@ -352,10 +357,21 @@ export function StoryPanel({ storyId }: { storyId: string }) {
           >
             <Trash2 />
           </Button>
+          <FiltersToggle
+            collapsed={filtersHidden}
+            onCollapsed={setFiltersHidden}
+            controls={filtersId}
+            active={(filters.category?.length ? 1 : 0) + (indication ? 1 : 0)}
+            onClear={() => {
+              setFilters(({ category: _c, ...rest }) => rest)
+              setIndication('')
+            }}
+            className="mt-[2px]"
+          />
         </div>
 
         {/* filters */}
-        <div className="flex flex-wrap items-center gap-[8px] border-y border-hair px-[20px] py-[12px]">
+        <div id={filtersId} hidden={filtersHidden} className="flex flex-wrap items-center gap-[8px] border-y border-hair px-[20px] py-[12px]">
           {CATEGORIES.map((c) => (
             <Chip key={c} color={CATEGORY_COLOR[c]} active={!filters.category?.length || filters.category.includes(c)} onClick={() => toggleCategory(c)}>
               {CATEGORY_LABEL[c]}
@@ -403,7 +419,7 @@ export function StoryPanel({ storyId }: { storyId: string }) {
 
         {/* timeline + inspector */}
         {/* the side column only where the timeline keeps enough room; below that it sits under the timeline */}
-        <div className="grid 2xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className={cn('grid 2xl:grid-cols-[minmax(0,1fr)_320px]', filtersHidden && 'border-t border-hair')}>
           <div className={cn('min-w-0', saved.isFetching && !building && 'opacity-70')}>
             <StoryTimeline
               story={story}
