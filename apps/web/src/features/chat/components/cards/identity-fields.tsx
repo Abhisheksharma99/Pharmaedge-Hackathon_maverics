@@ -19,9 +19,9 @@ const FIELDS: { key: keyof IdentityDraft; label: string; hint?: string; wide?: b
 export function IdentityFields({ draft, onChange }: { draft: IdentityDraft; onChange: (draft: IdentityDraft) => void }) {
   const id = useId()
   return (
-    <div className="grid gap-x-3 gap-y-2.5 sm:grid-cols-2">
+    <div className="grid gap-x-[12px] gap-y-[10px] min-[761px]:grid-cols-2">
       {FIELDS.map((f) => (
-        <div key={f.key} className={f.wide ? 'space-y-1 sm:col-span-2' : 'space-y-1'}>
+        <div key={f.key} className={f.wide ? 'space-y-[4px] min-[761px]:col-span-2' : 'space-y-[4px]'}>
           <Label htmlFor={`${id}-${f.key}`} className="text-[12.5px] text-text-secondary">
             {f.label}
             {f.hint && <span className="font-normal text-muted-foreground"> ({f.hint})</span>}
@@ -30,7 +30,7 @@ export function IdentityFields({ draft, onChange }: { draft: IdentityDraft; onCh
             id={`${id}-${f.key}`}
             value={draft[f.key]}
             onChange={(e) => onChange({ ...draft, [f.key]: e.target.value })}
-            className="h-8"
+            className="h-[32px]"
           />
         </div>
       ))}

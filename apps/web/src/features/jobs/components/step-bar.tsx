@@ -22,7 +22,7 @@ export function StepBar({ steps, className }: { steps: JobStep[]; className?: st
       aria-valuemin={0}
       aria-valuemax={steps.length}
       aria-valuenow={stepsFinished({ steps })}
-      className={cn('flex h-1.5 gap-0.5', className)}
+      className={cn('flex h-[6px] gap-[2px]', className)}
     >
       {steps.map((s, i) => (
         <i

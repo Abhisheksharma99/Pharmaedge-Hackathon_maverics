@@ -1,7 +1,8 @@
-import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Dialog as DialogPrimitive } from 'radix-ui'
 import { useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useAssets } from '@/features/assets/api'
 import { AssetTile } from '@/features/assets/components/asset-tile'
@@ -19,9 +20,9 @@ const SECTION_TABS = new Set(
 )
 
 const ITEM =
-  'flex h-8 items-center gap-2.5 rounded-md px-2.5 text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+  'flex h-[32px] items-center gap-[10px] rounded-md px-[10px] text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
 const ITEM_ACTIVE = 'bg-sidebar-accent font-medium text-sidebar-accent-foreground'
-const GROUP_LABEL = 'px-2.5 pb-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground'
+const GROUP_LABEL = 'px-[10px] pb-[4px] text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground'
 
 /** Where a nav item points, and whether it's the current section. */
 function useNavTarget(item: NavItem): { to: string; active: boolean } {
@@ -47,11 +48,11 @@ function NavEntry({ item, collapsed, live = false, onNavigate }: { item: NavItem
       aria-current={target.active ? 'page' : undefined}
       className={cn(ITEM, target.active && ITEM_ACTIVE, collapsed && 'justify-center px-0')}
     >
-      <item.icon className="size-4 shrink-0" />
+      <item.icon className="size-[16px] shrink-0" />
       {!collapsed && (
         <>
           <span className="truncate">{item.label}</span>
-          {!item.ready && <span className="ml-auto rounded bg-muted px-1.5 py-px text-[11px] text-muted-foreground">Soon</span>}
+          {!item.ready && <span className="ml-auto rounded-[4px] bg-muted px-[6px] text-[11px] text-muted-foreground">Soon</span>}
           {live && <span role="img" aria-label="A crawl is running" className="ml-auto size-[7px] shrink-0 animate-blink-dot rounded-full bg-primary" />}
         </>
       )}
@@ -72,16 +73,29 @@ function YourAssets({ onNavigate }: { onNavigate?: () => void }) {
   const running = runningByAsset(useJobs({ status: 'running' }).data)
   const { pathname } = useLocation()
   const primary = (assets.data ?? []).filter((a) => a.kind === 'primary')
+  if (assets.isPending) {
+    return (
+      <div role="status" aria-label="Loading your assets" className="space-y-[2px]">
+        <p className={GROUP_LABEL}>Your assets</p>
+        {[0, 1].map((i) => (
+          <div key={i} className="flex h-[32px] items-center gap-[8px] px-[10px]">
+            <Skeleton className="size-[20px] rounded-[6px]" />
+            <Skeleton className="h-[12px] flex-1" />
+          </div>
+        ))}
+      </div>
+    )
+  }
   if (!primary.length) return null
   return (
-    <div className="space-y-0.5">
+    <div className="space-y-[2px]">
       <p className={GROUP_LABEL}>Your assets</p>
       {primary.map((a) => {
         const base = `/assets/${encodeURIComponent(a.id)}`
         const active = pathname.startsWith(`${base}/`)
         const job = running.get(a.id)
         return (
-          <Link key={a.id} to={`${base}/overview`} onClick={onNavigate} aria-current={active ? 'page' : undefined} className={cn(ITEM, 'gap-2', active && ITEM_ACTIVE)}>
+          <Link key={a.id} to={`${base}/overview`} onClick={onNavigate} aria-current={active ? 'page' : undefined} className={cn(ITEM, 'gap-[8px]', active && ITEM_ACTIVE)}>
             <AssetTile name={a.name} kind={a.kind} size={20} />
             <span className="min-w-0 flex-1 truncate">{a.name}</span>
             {job && <span className="font-mono text-[11px] text-warning tabular-nums">{Math.round(jobProgress(job) * 100)}%</span>}
@@ -96,8 +110,8 @@ function SidebarBody({ collapsed, onToggle, onNavigate }: { collapsed: boolean; 
   const crawling = (useJobs({ status: 'running' }).data?.length ?? 0) > 0
   return (
     <>
-      <div className={cn('flex h-14 shrink-0 items-center px-4', collapsed && 'justify-center px-0')}>
-        <span className="text-lg font-semibold tracking-tight">
+      <div className={cn('flex h-[56px] shrink-0 items-center px-[16px]', collapsed && 'justify-center px-0')}>
+        <span className="text-[18px] font-semibold tracking-[-0.01em]">
           {collapsed ? (
             <span className="text-primary">PE</span>
           ) : (
@@ -107,9 +121,9 @@ function SidebarBody({ collapsed, onToggle, onNavigate }: { collapsed: boolean; 
           )}
         </span>
       </div>
-      <nav className="flex-1 space-y-5 overflow-y-auto px-2.5 py-2" aria-label="Main">
+      <nav className="flex-1 space-y-[20px] overflow-y-auto px-[10px] py-[8px]" aria-label="Main">
         {NAV_GROUPS.map((group) => (
-          <div key={group.label} className="space-y-0.5">
+          <div key={group.label} className="space-y-[2px]">
             {!collapsed && <p className={GROUP_LABEL}>{group.label}</p>}
             {group.items.map((item) => (
               <NavEntry key={item.label} item={item} collapsed={collapsed} live={item.to === '/jobs' && crawling} onNavigate={onNavigate} />
@@ -118,16 +132,16 @@ function SidebarBody({ collapsed, onToggle, onNavigate }: { collapsed: boolean; 
         ))}
         {!collapsed && <YourAssets onNavigate={onNavigate} />}
       </nav>
-      <div className="space-y-0.5 border-t px-2.5 py-2">
+      <div className="border-t px-[10px] py-[8px]">
         <NavEntry item={SETTINGS_ITEM} collapsed={collapsed} onNavigate={onNavigate} />
         {onToggle && (
           <button
             type="button"
             onClick={onToggle}
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className={cn('flex h-8 w-full items-center gap-2.5 rounded-md px-2.5 text-muted-foreground hover:bg-sidebar-accent', collapsed && 'justify-center px-0')}
+            className={cn('flex h-[32px] w-full items-center gap-[10px] rounded-md px-[10px] text-muted-foreground hover:bg-sidebar-accent', collapsed && 'justify-center px-0')}
           >
-            {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
+            {collapsed ? <ChevronRight className="size-[16px]" /> : <ChevronLeft className="size-[16px]" />}
             {!collapsed && <span>Collapse</span>}
           </button>
         )}
@@ -161,6 +175,14 @@ export function AppSidebar() {
   const { collapsed, toggle } = useCollapsedPref()
   const mobileOpen = useShellStore((s) => s.mobileNavOpen)
   const setMobileOpen = useShellStore((s) => s.setMobileNavOpen)
+  // The drawer is a modal below 900px only: leaving that width (resize, rotate) must not strand its scrim.
+  useEffect(() => {
+    const wide = window.matchMedia?.('(min-width: 900px)')
+    if (!wide) return
+    const onChange = (e: MediaQueryListEvent) => e.matches && setMobileOpen(false)
+    wide.addEventListener('change', onChange)
+    return () => wide.removeEventListener('change', onChange)
+  }, [setMobileOpen])
 
   return (
     <>
@@ -179,7 +201,7 @@ export function AppSidebar() {
           <DialogPrimitive.Content
             aria-describedby={undefined}
             onCloseAutoFocus={mobileNavFocus.onCloseAutoFocus}
-            className="fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col border-r bg-sidebar shadow-[16px_0_40px_rgba(16,24,40,0.18)] outline-none"
+            className="fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col border-r bg-sidebar shadow-[16px_0_40px_rgba(16,24,40,0.18)] outline-none data-[state=open]:animate-in data-[state=open]:slide-in-from-left data-[state=closed]:animate-out data-[state=closed]:slide-out-to-left data-[state=open]:duration-200 data-[state=closed]:duration-150"
           >
             <DialogPrimitive.Title className="sr-only">Navigation</DialogPrimitive.Title>
             <SidebarBody collapsed={false} onNavigate={() => setMobileOpen(false)} />

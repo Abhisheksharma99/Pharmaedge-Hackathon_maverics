@@ -153,4 +153,38 @@ describe('AppSidebar', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(useShellStore.getState().mobileNavOpen).toBe(false)
   })
+
+  it('closes the drawer when the viewport widens past 900px, and ignores narrowing', async () => {
+    fakeApi()
+    let onChange: (e: { matches: boolean }) => void = () => {}
+    vi.stubGlobal('matchMedia', (q: string) => ({
+      matches: false,
+      media: q,
+      addEventListener: (_: string, fn: typeof onChange) => (onChange = fn),
+      removeEventListener: vi.fn(),
+    }))
+    renderSidebar()
+    act(() => useShellStore.getState().setMobileNavOpen(true))
+    await screen.findByRole('dialog', { name: 'Navigation' })
+
+    act(() => onChange({ matches: false }))
+    expect(screen.getByRole('dialog', { name: 'Navigation' })).toBeInTheDocument()
+
+    act(() => onChange({ matches: true }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(useShellStore.getState().mobileNavOpen).toBe(false)
+  })
+
+  it('returns focus to the opener when the drawer closes', async () => {
+    fakeApi()
+    renderSidebar()
+    const opener = document.body.appendChild(document.createElement('button'))
+    opener.focus()
+    act(() => useShellStore.getState().setMobileNavOpen(true))
+    await screen.findByRole('dialog', { name: 'Navigation' })
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(opener).toHaveFocus()
+    opener.remove()
+  })
 })

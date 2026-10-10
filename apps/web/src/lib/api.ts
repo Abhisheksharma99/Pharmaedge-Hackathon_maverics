@@ -10,6 +10,9 @@ export class ApiError extends Error {
   }
 }
 
+/** The server's "too many requests" message for a 429, else null (for toasts on the costly AI calls). */
+export const rateLimitMessage = (err: unknown): string | null => (err instanceof ApiError && err.status === 429 ? err.message : null)
+
 // Calls that must never trigger a refresh (they *are* the session endpoints).
 const NO_REFRESH = new Set(['/auth/login', '/auth/refresh', '/auth/logout'])
 

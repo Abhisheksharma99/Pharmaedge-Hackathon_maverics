@@ -23,8 +23,8 @@ export function useRefreshOnCrawlEnd() {
     if (!assets.length) return
     const refresh = () => {
       for (const key of [['portfolio'], ['assets'], ['notifications']]) qc.invalidateQueries({ queryKey: key })
-      // The announced event queries (['asset', a, 'event', id]) never change: leave them out.
-      for (const a of assets) qc.invalidateQueries({ queryKey: ['asset', a], predicate: (q) => q.queryKey[2] !== 'event' })
+      // Event queries too: the event sheet reads neighbours and branch stats, which a rebuild changes.
+      for (const a of assets) qc.invalidateQueries({ queryKey: ['asset', a] })
     }
     refresh()
     const timer = setTimeout(() => {

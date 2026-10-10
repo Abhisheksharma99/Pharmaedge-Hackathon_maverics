@@ -87,28 +87,28 @@ export function BuildStrip({ job, eventsCount, onExplore }: { job: JobProgress; 
   return (
     <section
       aria-label="Live build"
-      className={cn('rounded-[14px] border bg-card px-5 pt-[18px] pb-3.5 shadow-panel transition-colors duration-500', ready && 'border-[#bfe3dd]')}
+      className={cn('rounded-[14px] border bg-card px-[20px] pt-[18px] pb-[14px] shadow-panel transition-colors duration-500', ready && 'border-[#bfe3dd]')}
     >
-      <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4">
-        <div className="flex min-w-0 flex-[1_1_380px] items-start gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-[32px] gap-y-[16px]">
+        <div className="flex min-w-0 flex-[1_1_380px] items-start gap-[12px]">
           <StatusDot phase={phase} status={job.status} />
           <div aria-live="polite" className="min-w-0">
-            <h2 className="text-[17px] leading-6 font-semibold tracking-[-0.01em]">{title}</h2>
+            <h2 className="text-[17px] leading-[24px] font-semibold tracking-[-0.01em]">{title}</h2>
             <p className="mt-[3px] text-text-secondary">{sub}</p>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-7">
-          <dl className="flex flex-wrap items-center gap-7">
+        <div className="flex flex-wrap items-center gap-[28px]">
+          <dl className="flex flex-wrap items-center gap-[28px]">
             {stats.map(([label, value]) => (
               <div key={label} className="flex flex-col-reverse">
                 <dt className="text-[12px] text-muted-foreground">{label}</dt>
-                <dd className="text-[22px] leading-7 font-semibold tracking-[-0.02em] tabular-nums">{value}</dd>
+                <dd className="text-[22px] leading-[28px] font-semibold tracking-[-0.02em] tabular-nums">{value}</dd>
               </div>
             ))}
           </dl>
           {phase === 'done' && (
-            <Button size="lg" className="h-10 animate-fade-up rounded-[10px] px-4" onClick={onExplore}>
-              Explore the journey <ArrowRight />
+            <Button className="animate-fade-up" onClick={onExplore}>
+              Explore the journey <ArrowRight className="size-[15px]" />
             </Button>
           )}
         </div>
@@ -119,14 +119,14 @@ export function BuildStrip({ job, eventsCount, onExplore }: { job: JobProgress; 
         aria-valuemin={0}
         aria-valuemax={n}
         aria-valuenow={finished}
-        className="mt-4 flex h-2 gap-[3px]"
+        className="mt-[16px] flex h-[8px] gap-[3px]"
       >
         {job.steps.map((s, i) => (
           <i
             key={`${i}-${s.name}`}
             data-status={s.status}
             title={`${i + 1}. ${s.label}`}
-            className={cn('relative block min-w-1 overflow-hidden rounded-[3px] transition-colors duration-300', SEGMENT[s.status])}
+            className={cn('relative block min-w-[4px] overflow-hidden rounded-[3px] transition-colors duration-300', SEGMENT[s.status])}
             style={{ flexGrow: stepDuration(s.name), flexBasis: 0 }}
           >
             {s.status === 'running' && <span className="absolute inset-0 animate-stripes bg-primary" style={STRIPES} />}
@@ -158,17 +158,17 @@ function StatusDot({ phase, status }: { phase: ReturnType<typeof buildPhase>; st
     return (
       <span
         className={cn(
-          'flex size-6 shrink-0 animate-ag-in items-center justify-center rounded-full text-white',
+          'flex size-[24px] shrink-0 animate-ag-in items-center justify-center rounded-full text-white',
           ok ? 'bg-success' : status === 'failed' ? 'bg-destructive' : 'bg-muted-foreground',
         )}
       >
-        {ok ? <Check className="size-3.5" strokeWidth={3} /> : <X className="size-3.5" strokeWidth={3} />}
+        {ok ? <Check className="size-[14px]" strokeWidth={3} /> : <X className="size-[14px]" strokeWidth={3} />}
       </span>
     )
   }
   return (
-    <span className="relative mt-[-1px] flex size-6 shrink-0 items-center justify-center rounded-full bg-primary-soft">
-      <i className="size-2 rounded-full bg-primary" />
+    <span className="relative mt-[-1px] flex size-[24px] shrink-0 items-center justify-center rounded-full bg-primary-soft">
+      <i className="size-[8px] rounded-full bg-primary" />
       <span aria-hidden="true" className="absolute inset-0 animate-pulse-ring rounded-full motion-reduce:hidden border-2 border-primary" />
     </span>
   )

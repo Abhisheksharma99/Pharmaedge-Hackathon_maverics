@@ -13,6 +13,7 @@ import { MeModule } from './me/me.module.js';
 import { PortfolioModule } from './portfolio/portfolio.module.js';
 import { UsersModule } from './users/users.module.js';
 import { ValkeyModule } from './valkey/valkey.module.js';
+import { WebSearchModule } from './web-search/web-search.module.js';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { ValkeyModule } from './valkey/valkey.module.js';
     AnnotationsModule,
     PortfolioModule,
     AnalyticsModule,
+    WebSearchModule,
   ],
   controllers: [HealthController],
 })

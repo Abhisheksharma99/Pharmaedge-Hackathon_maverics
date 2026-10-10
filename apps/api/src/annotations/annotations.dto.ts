@@ -10,7 +10,7 @@ export class CommentDto {
 }
 
 export class SourceRefDto {
-  @IsIn(RECORD_COLLECTIONS) collection: string;
+  @IsIn([...RECORD_COLLECTIONS, 'web_records']) collection: string;
   @IsString() @MaxLength(2000) record_key: string;
 }
 
@@ -32,4 +32,11 @@ export class NotePatchDto {
   @IsOptional() @IsIn(NOTE_TAGS) tag?: (typeof NOTE_TAGS)[number];
   @IsOptional() @IsString() @MinLength(1) @MaxLength(200) title?: string;
   @IsOptional() @IsString() @MaxLength(4000) text?: string;
+}
+
+export class FindNoteDto {
+  @IsString() @MinLength(1) @MaxLength(200) title: string;
+  @IsOptional() @IsString() @MaxLength(4000) text?: string;
+  @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) date?: string;
+  @IsOptional() @IsString() @MaxLength(40) branch?: string;
 }

@@ -60,6 +60,20 @@ export class LlmService {
     return res.data[0]!.embedding;
   }
 
+  /** One non-streamed call that must answer with JSON matching `schema` (strict structured output). */
+  async json<T>(system: string, user: string, name: string, schema: Record<string, unknown>): Promise<T> {
+    const res = await this.require().chat.completions.create({
+      model: this.config.get('LLM_CHAT_MODEL', { infer: true }),
+      messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+      response_format: { type: 'json_schema', json_schema: { name, strict: true, schema } },
+      reasoning_effort: this.config.get('LLM_CHAT_REASONING_EFFORT', { infer: true }),
+      max_completion_tokens: 16000,
+    });
+    const choice = res.choices[0];
+    if (!choice || choice.finish_reason === 'length') throw new Error('LLM answer was cut off');
+    return JSON.parse(choice.message.content ?? '') as T;
+  }
+
   /** Three short next questions for the "Ask next" list. Best effort: [] on any failure. */
   async followUps(question: string, answer: string, assetName: string | null): Promise<string[]> {
     if (!this.client) return [];

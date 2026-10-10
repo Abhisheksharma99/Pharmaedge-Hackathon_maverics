@@ -239,3 +239,32 @@ def test_log_new_events_shows_key_events_first_then_newest(db):
     steps._log_new_events(ctx_, db, set(), cap=3)
     assert [i for _, i in lines] == ["e00", "e04", "e03"]
     assert lines[0][0] == "t00"
+
+
+def test_finalize_reports_feedback_counts_in_the_step_result(journey):
+    journey.assets.insert_one(dict(ASSET))
+    journey.journey_events.insert_one({"_id": "ev1", "asset": "treprostinil", "date": "2024-03-01",
+                                       "title": "Topline results from the Phase 3 trial announced"})
+    journey.crawl_feedback.insert_one({"_id": "fb1", "asset": "treprostinil", "status": "open", "note_id": "n1",
+                                       "title": "Phase 3 topline results"})
+    journey.crawl_feedback.insert_one({"_id": "fb2", "asset": "treprostinil", "status": "open", "note_id": "n2",
+                                       "title": "Zzz qqq"})
+    result = steps.finalize(ctx())
+    assert (result["feedback_checked"], result["feedback_resolved"], result["feedback_events_created"]) == (2, 1, 0)
+    assert journey.crawl_feedback.find_one({"_id": "fb1"})["status"] == "resolved"
+    assert journey.crawl_feedback.find_one({"_id": "fb2"})["status"] == "open"
+
+
+def test_a_failed_feedback_recheck_still_leaves_the_asset_ready(journey, monkeypatch):
+    journey.assets.insert_one(dict(ASSET))
+    lines = []
+
+    def boom(db, asset_id, log):
+        raise RuntimeError("mongo down")
+
+    monkeypatch.setattr(steps, "recheck_feedback", boom)
+    result = steps.finalize(StepContext(asset=ASSET, is_cancelled=lambda: False, job_type="onboard",
+                                        log=lambda kind, text, **x: lines.append((kind, text))))
+    assert journey.assets.find_one({"_id": "treprostinil"})["status"] == "ready"
+    assert "feedback_checked" not in result and result["branches"] == 6
+    assert ("warn", "Couldn't re-check notes marked ‘Missed by AI’ (RuntimeError); they stay open") in lines

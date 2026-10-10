@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { Mock } from 'vitest'
 import { createMemoryRouter, Outlet, RouterProvider } from 'react-router'
@@ -141,5 +141,54 @@ describe('CommandPalette', () => {
     await new Promise((r) => setTimeout(r, 300))
     expect(fetchMock.mock.calls.some(([url]) => url.startsWith('/api/search'))).toBe(false)
     expect(screen.queryByRole('group', { name: 'Events' })).not.toBeInTheDocument()
+  })
+
+  it('shows "Loading assets…" while the asset list loads', async () => {
+    fetchMock.mockImplementation(async (url) => (url === '/api/assets' ? new Promise<Response>(() => {}) : json(404, { code: 'NOT_FOUND', message: url })))
+    renderPalette()
+    expect(await screen.findByText('Loading assets…')).toHaveAttribute('role', 'status')
+    // Pages stay usable meanwhile.
+    expect(screen.getByRole('option', { name: /Settings/ })).toBeInTheDocument()
+  })
+
+  it('shows "Searching events…" while the search is in flight', async () => {
+    fetchMock.mockImplementation(async (url) => {
+      if (url === '/api/assets') return json(200, ASSETS)
+      return new Promise<Response>(() => {})
+    })
+    renderPalette()
+    await userEvent.type(await searchBox(), 'teton')
+    expect(await screen.findByText('Searching events…')).toBeInTheDocument()
+  })
+
+  it('says events could not be searched, and "Try again" repeats the search', async () => {
+    let down = true
+    fetchMock.mockImplementation(async (url) => {
+      if (url === '/api/assets') return json(200, ASSETS)
+      if (url.startsWith('/api/search?q=')) return down ? json(500, { code: 'INTERNAL', message: 'boom' }) : json(200, TETON)
+      return json(404, { code: 'NOT_FOUND', message: url })
+    })
+    renderPalette()
+    await userEvent.type(await searchBox(), 'teton')
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent("Events couldn't be searched.")
+    down = false
+    await userEvent.click(within(alert).getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByRole('option', { name: /Phase 3 trial started: TETON-1/ })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('says nothing matched when neither assets nor events do', async () => {
+    renderPalette()
+    await userEvent.type(await searchBox(), 'zzzz')
+    expect(await screen.findByText('No assets or events match “zzzz”.')).toBeInTheDocument()
+  })
+
+  it('closes on Escape', async () => {
+    renderPalette()
+    await searchBox()
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => expect(useShellStore.getState().paletteOpen).toBe(false))
+    expect(screen.queryByRole('combobox', { name: 'Search PharmaEdge' })).not.toBeInTheDocument()
   })
 })

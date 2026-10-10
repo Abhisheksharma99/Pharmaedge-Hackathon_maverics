@@ -110,7 +110,7 @@ describe('Asset AI chat', () => {
     api.turn.push({ type: 'tool_call', id: 't1', name: 'search_evidence', label: 'Searching evidence: TETON results' })
     expect(await screen.findByText('Searching evidence: TETON results')).toBeInTheDocument()
     api.turn.push({ type: 'tool_result', id: 't1', name: 'search_evidence', summary: '8 passages' })
-    expect(await screen.findByText('8 passages')).toBeInTheDocument()
+    expect(await screen.findByText('· 8 passages')).toBeInTheDocument()
 
     api.turn.push({ type: 'token', text: 'TETON-2 met its ' }, { type: 'token', text: 'primary endpoint' })
     expect(await screen.findByText('TETON-2 met its primary endpoint')).toBeInTheDocument()

@@ -22,7 +22,21 @@ export interface SourceTab {
   statusField?: string;
   /** Fields whose top values the tab insights count. */
   insightFacets: string[];
+  /** Facets of the records panel (distribution bar + selects), in display order; the first one drives the bar. */
+  facets?: FacetDef[];
+  /** Trials: the field the "company-sponsored only" toggle matches against the asset's company name. */
+  sponsorField?: string;
 }
+
+/** One facet of a tab: `expr` is a Mongo expression yielding one value per record (a field, or a derived value; list fields use their first element, as the column shows it), so segments never exceed the row count. */
+export interface FacetDef {
+  key: string;
+  label: string;
+  expr: unknown;
+}
+
+const firstOf = (...fields: string[]): unknown =>
+  fields.reduceRight<unknown>((rest, f) => (rest === null ? `$${f}` : { $ifNull: [`$${f}`, rest] }), null);
 
 export const SOURCE_TABS: Record<string, SourceTab> = {
   clinical: {
@@ -31,6 +45,12 @@ export const SOURCE_TABS: Record<string, SourceTab> = {
     omitInList: ['study'],
     keyField: 'record_key',
     insightFacets: ['phases', 'overall_status', 'conditions'],
+    facets: [
+      { key: 'phases', label: 'Phase', expr: { $arrayElemAt: [{ $ifNull: ['$phases', []] }, 0] } },
+      { key: 'overall_status', label: 'Status', expr: '$overall_status' },
+      { key: 'conditions', label: 'Indication', expr: { $arrayElemAt: [{ $ifNull: ['$conditions', []] }, 0] } },
+    ],
+    sponsorField: 'lead_sponsor',
   },
   regulatory: {
     collections: ['fda_records', 'ema_records'],
@@ -40,6 +60,11 @@ export const SOURCE_TABS: Record<string, SourceTab> = {
     omitInList: ['documents', 'products', 'therapeutic_indication', 'content', 'evidence'],
     keyField: 'record_key',
     insightFacets: ['record_type', 'submission_status'],
+    facets: [
+      { key: 'region', label: 'Region', expr: { $cond: [{ $regexMatch: { input: { $ifNull: ['$record_type', ''] }, regex: '^fda' } }, 'US', 'EU'] } },
+      { key: 'record_type', label: 'Record type', expr: '$record_type' },
+      { key: 'status', label: 'Status', expr: firstOf('submission_status', 'medicine_status', 'status', 'post_authorisation_opinion_status') },
+    ],
   },
   documents: {
     collections: ['company_records'],
@@ -48,6 +73,7 @@ export const SOURCE_TABS: Record<string, SourceTab> = {
     omitInList: ['content'],
     keyField: 'record_key',
     insightFacets: ['record_type'],
+    facets: [{ key: 'record_type', label: 'Type', expr: '$record_type' }],
   },
   'company-ir': {
     collections: ['company_records'],
@@ -56,6 +82,7 @@ export const SOURCE_TABS: Record<string, SourceTab> = {
     omitInList: ['content'],
     keyField: 'record_key',
     insightFacets: ['mentions'],
+    facets: [{ key: 'category', label: 'Category', expr: { $arrayElemAt: [{ $ifNull: ['$tags', []] }, 0] } }],
   },
   news: {
     collections: ['articles'],
@@ -70,6 +97,10 @@ export const SOURCE_TABS: Record<string, SourceTab> = {
     omitInList: ['abstract'],
     keyField: 'record_key',
     insightFacets: ['journal', 'publication_types'],
+    facets: [
+      { key: 'design', label: 'Design', expr: { $arrayElemAt: [{ $ifNull: ['$publication_types', []] }, 0] } },
+      { key: 'journal', label: 'Journal', expr: '$journal' },
+    ],
   },
   // Team conference crawler (ERS, ATS, CHEST abstracts).
   conferences: {
@@ -78,6 +109,15 @@ export const SOURCE_TABS: Record<string, SourceTab> = {
     omitInList: ['abstract'],
     keyField: 'record_key',
     insightFacets: ['conference', 'session_type'],
+    facets: [
+      {
+        key: 'conference',
+        label: 'Congress',
+        // "CHEST 2025", as the column shows it.
+        expr: { $trim: { input: { $concat: [{ $ifNull: ['$conference', ''] }, ' ', { $toString: { $ifNull: ['$year', { $substrCP: [{ $ifNull: ['$date', ''] }, 0, 4] }] } }] } } },
+      },
+      { key: 'session_type', label: 'Format', expr: '$session_type' },
+    ],
   },
   // Team patent crawler (AdisInsight, PubChem, Google Patents).
   patents: {
@@ -86,6 +126,10 @@ export const SOURCE_TABS: Record<string, SourceTab> = {
     omitInList: ['abstract', 'events', 'cpc', 'inventors'],
     keyField: 'record_key',
     insightFacets: ['legal_status', 'assignees'],
+    facets: [
+      { key: 'legal_status', label: 'Status', expr: '$legal_status' },
+      { key: 'assignees', label: 'Assignee', expr: { $arrayElemAt: [{ $ifNull: ['$assignees', []] }, 0] } },
+    ],
     statusField: 'legal_status',
   },
 };

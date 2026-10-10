@@ -20,14 +20,14 @@ export function Panel({
 }) {
   return (
     <section className={cn('overflow-hidden rounded-[14px] border bg-card shadow-[0_1px_2px_rgba(16,24,40,0.04)]', className)}>
-      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3 px-5 pt-[18px] pb-3.5">
+      <div className="flex flex-wrap items-start justify-between gap-x-[24px] gap-y-[12px] px-[20px] pt-[18px] pb-[14px]">
         <div className="min-w-0">
-          <h3 className="text-base font-semibold">{title}</h3>
-          {description && <p className="mt-0.5 text-text-secondary">{description}</p>}
+          <h3 className="text-[15px] font-semibold">{title}</h3>
+          {description && <p className="mt-[2px] text-text-secondary">{description}</p>}
         </div>
         {actions}
       </div>
-      <div className={cn('border-t border-[#eef0f3]', bodyClassName)}>{children}</div>
+      <div className={cn('border-t border-hair', bodyClassName)}>{children}</div>
     </section>
   )
 }
@@ -44,12 +44,12 @@ export function KpiStrip({ items }: { items: Kpi[] }) {
   return (
     <section aria-label="Key metrics" className="flex flex-wrap gap-px overflow-hidden rounded-[14px] border bg-border">
       {items.map((k) => (
-        <div key={k.label} className="flex min-w-0 flex-[1_1_160px] flex-col gap-1.5 bg-card px-[18px] py-4">
-          <div className="flex items-center gap-2 font-medium text-text-secondary">
-            <k.icon className="size-4" />
+        <div key={k.label} className="flex min-w-0 flex-[1_1_160px] flex-col gap-[6px] bg-card px-[18px] py-[16px]">
+          <div className="flex items-center gap-[8px] font-medium text-text-secondary">
+            <k.icon className="size-[16px]" />
             {k.label}
           </div>
-          <div className="text-[28px] leading-8 font-semibold tracking-tight tabular-nums">{k.value}</div>
+          <div className="text-[28px] leading-[32px] font-semibold tracking-[-0.02em] tabular-nums">{k.value}</div>
           {k.hint && <div className="text-[12.5px] text-muted-foreground">{k.hint}</div>}
         </div>
       ))}
@@ -60,9 +60,9 @@ export function KpiStrip({ items }: { items: Kpi[] }) {
 /** Centered message for an empty list or a section still being collected. */
 export function EmptyState({ title, children }: { title: string; children?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center px-6 py-12 text-center">
+    <div className="flex flex-col items-center px-[24px] py-[48px] text-center">
       <p className="font-medium">{title}</p>
-      {children && <p className="mt-1 max-w-md text-text-secondary">{children}</p>}
+      {children && <p className="mt-[4px] max-w-[440px] text-text-secondary">{children}</p>}
     </div>
   )
 }

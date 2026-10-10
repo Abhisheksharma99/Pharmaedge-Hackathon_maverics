@@ -1,3 +1,4 @@
+import { InlineError } from '@/components/inline-error'
 import { AssetTile } from '@/features/assets/components/asset-tile'
 import { SignificanceBadge } from '@/features/assets/components/badges'
 import { EmptyState, Panel } from '@/features/assets/components/panel'
@@ -15,9 +16,9 @@ export function CompetitiveSignals() {
   const moves = portfolio.data ? competitorMoves(portfolio.data.events, (id) => assets.get(id)?.kind === 'competitor', todayIso()) : []
 
   return (
-    <Panel title="Competitive signals" description="Moves by competitors of your assets" bodyClassName="py-1">
+    <Panel title="Competitive signals" description="Moves by competitors of your assets" bodyClassName="pt-[4px] pb-[8px]">
       {portfolio.isPending && <ListSkeleton />}
-      {portfolio.isError && <p className="p-5 text-destructive">Competitor events couldn't be loaded.</p>}
+      {portfolio.isError && <InlineError message="Competitor events couldn't be loaded." onRetry={() => void portfolio.refetch()} />}
       {portfolio.data && moves.length === 0 && (
         <EmptyState title="No competitor moves yet">Competitors are tracked once Asset AI identifies them for one of your assets.</EmptyState>
       )}
@@ -28,11 +29,11 @@ export function CompetitiveSignals() {
           const vs = (asset?.competitorOf ?? []).map((id) => assets.get(id)?.name ?? id).join(', ')
           return (
             <li key={`${e.asset}|${e.id}`}>
-              <button type="button" onClick={() => openEvent(e.asset, e.id)} className="flex w-full items-center gap-3 px-5 py-2.5 text-left transition-colors hover:bg-background">
+              <button type="button" onClick={() => openEvent(e.asset, e.id)} className="flex w-full items-center gap-[12px] px-[20px] py-[10px] text-left transition-colors hover:bg-background">
                 <AssetTile name={name} kind="competitor" size={30} />
                 <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
                   <span className="font-medium text-pretty">{e.title}</span>
-                  <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px] text-muted-foreground">
+                  <span className="flex flex-wrap items-center gap-x-[10px] gap-y-[4px] text-[12px] text-muted-foreground">
                     <b className="font-medium text-secondary-foreground">{name}</b>
                     {vs && <span>vs {vs}</span>}
                     <span className="font-mono">{e.is_milestone ? `expected ${formatMonth(e.date)}` : formatDay(e.date)}</span>

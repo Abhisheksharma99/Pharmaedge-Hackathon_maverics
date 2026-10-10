@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import type { AssetSummary } from '../api'
 import { AssetTile } from './asset-tile'
 import { KindBadge } from './badges'
+import { shortIndication } from './competitors/utils'
 import { Sparkline } from './sparkline'
 
 const PILL = {
@@ -18,8 +19,8 @@ const PILL = {
 
 function Pill({ tone, children }: { tone: keyof typeof PILL; children: ReactNode }) {
   return (
-    <span className={cn('inline-flex h-[26px] shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[12.5px] font-semibold whitespace-nowrap', PILL[tone])}>
-      <i aria-hidden="true" className={cn('size-1.5 rounded-full', tone === 'building' ? 'animate-blink-dot bg-current' : tone === 'ok' ? 'bg-[#17b26a]' : 'bg-current')} />
+    <span className={cn('inline-flex h-[26px] shrink-0 items-center gap-[6px] rounded-full px-[10px] text-[12.5px] font-semibold whitespace-nowrap', PILL[tone])}>
+      <i aria-hidden="true" className={cn('size-[6px] rounded-full', tone === 'building' ? 'animate-blink-dot bg-current' : tone === 'ok' ? 'bg-[#17b26a]' : 'bg-current')} />
       {children}
     </span>
   )
@@ -47,11 +48,12 @@ export function AssetStatusPill({
   return <Pill tone="ok">Ready</Pill>
 }
 
-function Tag({ dashed = false, children }: { dashed?: boolean; children: ReactNode }) {
+function Tag({ dashed = false, title, children }: { dashed?: boolean; title?: string; children: ReactNode }) {
   return (
     <span
+      title={title}
       className={cn(
-        'rounded-[5px] px-1.5 py-px text-[11px] whitespace-nowrap',
+        'rounded-[5px] px-[6px] py-px text-[11px] whitespace-nowrap',
         dashed ? 'border border-dashed bg-card text-muted-foreground' : 'bg-muted text-secondary-foreground',
       )}
     >
@@ -90,13 +92,13 @@ export function AssetCard({
   return (
     <Link
       to={`/assets/${encodeURIComponent(asset.id)}/overview`}
-      className="flex animate-fade-up flex-col gap-3 rounded-[14px] border bg-card p-4 text-left shadow-panel transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-[#c4ccda] hover:shadow-card-hover"
+      className="flex animate-fade-up flex-col gap-[12px] rounded-[14px] border bg-card p-[16px] text-left shadow-panel transition-[border-color,box-shadow,transform] motion-reduce:hover:translate-y-0 hover:-translate-y-[2px] hover:border-[#c4ccda] hover:shadow-card-hover"
       style={{ animationDelay: `${index * (variant === 'home' ? 70 : 50)}ms` }}
     >
-      <span className="flex items-center gap-2.5">
+      <span className="flex items-center gap-[10px]">
         <AssetTile name={asset.name} kind={asset.kind} size={36} />
         <span className="flex min-w-0 flex-1 flex-col">
-          <span className="flex flex-wrap items-center gap-1.5">
+          <span className="flex flex-wrap items-center gap-[6px]">
             <b className="text-[15px] font-semibold tracking-[-0.01em]">{asset.name}</b>
             {variant === 'search' && <KindBadge kind={asset.kind} competitorOf={rivals} />}
           </span>
@@ -107,27 +109,29 @@ export function AssetCard({
         </span>
         <AssetStatusPill asset={asset} progress={progress} regions={regions} variant={variant} />
       </span>
-      <span className="flex flex-wrap gap-1">
+      <span className="flex flex-wrap gap-[4px]">
         {(asset.tags.indications ?? []).map((x) => (
-          <Tag key={x}>{x}</Tag>
+          <Tag key={x} title={x}>
+            {shortIndication(x)}
+          </Tag>
         ))}
         {variant === 'home' &&
           (asset.tags.investigational_indications ?? []).map((x) => (
-            <Tag key={`i-${x}`} dashed>
-              {x}
+            <Tag key={`i-${x}`} dashed title={x}>
+              {shortIndication(x)}
             </Tag>
           ))}
         {variant === 'search' && asset.kind === 'competitor' && rivals.length > 0 && <Tag>vs {rivals.join(', ')}</Tag>}
       </span>
       <Sparkline events={events} thisYear={Number(today.slice(0, 4))} />
       {(variant !== 'home' || asset.latestEvent || progress !== null) && (
-        <span className="flex min-w-0 gap-2 text-[12.5px] text-secondary-foreground">
+        <span className="flex min-w-0 gap-[8px] text-[12.5px] text-secondary-foreground">
           <span className="shrink-0 text-muted-foreground">Latest</span>
           <span className="truncate">{asset.latestEvent?.title ?? (progress !== null ? 'Collecting records…' : '—')}</span>
         </span>
       )}
       {variant === 'home' && (
-        <span className="flex flex-wrap gap-x-3 gap-y-1 border-t border-hair pt-2.5 text-[12px] text-muted-foreground">
+        <span className="flex flex-wrap gap-x-[12px] gap-y-[4px] border-t border-hair pt-[10px] text-[12px] text-muted-foreground">
           <span>
             <b className="font-semibold text-foreground">{formatNumber(asset.counts.events)}</b> events
           </span>
@@ -138,7 +142,7 @@ export function AssetCard({
             <b className="font-semibold text-foreground">{competitors}</b> competitor{competitors === 1 ? '' : 's'}
           </span>
           {next && (
-            <span className="ml-auto inline-flex items-center gap-1 font-semibold text-primary">
+            <span className="ml-auto inline-flex items-center gap-[4px] font-semibold text-primary">
               <Clock className="size-[11px]" />
               {relativeFuture(next.date, today)}
             </span>

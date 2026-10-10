@@ -97,6 +97,18 @@ export class RecordsQueryDto {
   @IsBoolean()
   mentionsOnly?: boolean;
 
+  /** Trials: only studies whose lead sponsor is the asset's company. */
+  @IsOptional()
+  @Transform(bool)
+  @IsBoolean()
+  companyOnly?: boolean;
+
+  /** Facet selections as JSON `{"journal":"Lancet"}` (keys: the tab's facets, see the `facets` of the response). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  facets?: string;
+
   @IsOptional()
   @Type(() => Number)
   @IsInt()

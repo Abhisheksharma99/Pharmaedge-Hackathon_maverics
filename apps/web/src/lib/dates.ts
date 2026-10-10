@@ -2,7 +2,7 @@ export { formatDate, formatMonth } from './format'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const DAY_MS = 86_400_000
-const ISO = /^(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?/
+const ISO = /^(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?(?:[T\s].*)?$/
 
 /** Today in local time, `YYYY-MM-DD`. */
 export function todayIso(): string {

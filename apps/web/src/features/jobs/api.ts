@@ -35,6 +35,10 @@ export const isActive = (s: JobStatus) => s === 'queued' || s === 'running'
 /** Poll fast while something is running, slowly otherwise. */
 const pollInterval = (active: boolean) => (active ? 2000 : 15000)
 
+/** Per-job poll: 2 s while active; stops once the job has finished or the first load failed (nothing to keep fresh). */
+const pollJob = (q: { state: { data?: Job; status: string } }) =>
+  q.state.data ? (isActive(q.state.data.status) ? 2000 : false) : q.state.status === 'error' ? false : 2000
+
 export function useJobs(filters: { asset?: string; status?: JobStatus; limit?: number } = {}) {
   return useQuery({
     queryKey: ['jobs', filters],
@@ -47,7 +51,7 @@ export function useJob(id: string) {
   return useQuery({
     queryKey: ['job', id],
     queryFn: () => apiFetch<Job>(`/jobs/${encodeURIComponent(id)}`),
-    refetchInterval: (q) => (q.state.data && !isActive(q.state.data.status) ? false : 2000),
+    refetchInterval: pollJob,
   })
 }
 
@@ -79,6 +83,6 @@ export function useJobProgress(id: string | null) {
     queryKey: ['job', id],
     queryFn: () => apiFetch<JobProgress>(`/jobs/${encodeURIComponent(id!)}`),
     enabled: id !== null,
-    refetchInterval: (q) => (q.state.data && !isActive(q.state.data.status) ? false : 2000),
+    refetchInterval: pollJob,
   })
 }

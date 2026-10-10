@@ -16,6 +16,8 @@ export interface LiveBuildData {
   events: JourneyEventV3[]
   /** Events the feed announced, newest first. */
   latest: JourneyEventV3[]
+  /** Reload what failed (the error state's retry). */
+  retry: () => void
 }
 
 const NO_LINES: JobFeedItem[] = []
@@ -101,5 +103,9 @@ export function useLiveBuild(asset: Pick<AssetDetail, 'id' | 'status'>): LiveBui
         : job
           ? 'ready'
           : 'loading'
-  return { state, job, feed: items, events, latest }
+  const retry = () => {
+    void jobs.refetch()
+    if (jobs.data?.[0]) void progress.refetch()
+  }
+  return { state, job, feed: items, events, latest, retry }
 }

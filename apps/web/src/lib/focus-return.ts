@@ -21,7 +21,8 @@ export function createFocusReturn(): FocusReturn {
     target: () => saved,
     onCloseAutoFocus(e) {
       e.preventDefault()
-      if (saved?.isConnected) saved.focus()
+      // preventScroll: a card that is off-screen but still rendered must not drag a clipped / pinned scroller sideways.
+      if (saved?.isConnected) saved.focus({ preventScroll: true })
     },
   }
 }

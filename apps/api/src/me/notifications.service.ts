@@ -39,6 +39,14 @@ export class NotificationsService implements OnModuleInit {
     return to.length;
   }
 
+  /** Notify specific users (e.g. whoever starred an event). Not preference-gated: the user opted in by starring. Inactive users are skipped. */
+  async pushTo(users: string[], kind: string, title: string, sub: string, link: string): Promise<number> {
+    if (!users.length) return 0;
+    const active = (await this.db.collection('users').find({ active: true, _id: { $in: users.filter((u) => ObjectId.isValid(u)).map((u) => new ObjectId(u)) } }, { projection: { _id: 1 } }).toArray()).map((u) => String(u._id));
+    if (active.length) await this.db.collection('notifications').insertMany(active.map((user) => ({ user, kind, title, sub, link, read: false, at: new Date() })));
+    return active.length;
+  }
+
   async list(user: string) {
     const [items, unread] = await Promise.all([
       this.db.collection('notifications').find({ user }).sort({ at: -1 }).limit(30).toArray(),

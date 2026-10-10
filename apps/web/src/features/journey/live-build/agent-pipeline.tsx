@@ -1,4 +1,4 @@
-import { Check, CircleDashed, Database, Filter, Loader2, Route, Sparkles, TriangleAlert, Users, type LucideIcon } from 'lucide-react'
+import { Check, CircleDashed, Database, Filter, Loader2, Route, Sparkle, TriangleAlert, Users, type LucideIcon } from 'lucide-react'
 import { useId, useRef, type CSSProperties, type ReactNode } from 'react'
 import { isActive, type JobStep } from '@/features/jobs/api'
 import { stepShort } from '@/features/jobs/steps'
@@ -26,7 +26,7 @@ function tone(status: Status): string {
   return 'animate-ag-in'
 }
 
-const REASON_ICON: Record<string, LucideIcon> = { journey: Route, ai_triage: Filter, ai_events: Sparkles, index: Database }
+const REASON_ICON: Record<string, LucideIcon> = { journey: Route, ai_triage: Filter, ai_events: Sparkle, index: Database }
 const REASON_WAITING: Record<string, string> = {
   journey: 'Waits for structured records',
   ai_triage: 'Waits for unstructured records',
@@ -42,14 +42,14 @@ function StatusGlyph({ status, warn }: { status: Status; warn?: string | null })
   if (warn) {
     return (
       <span title={warn} className="inline-flex shrink-0 text-[#c4690f]">
-        <TriangleAlert aria-hidden="true" className="size-3" />
+        <TriangleAlert aria-hidden="true" className="size-[12px]" />
       </span>
     )
   }
   if (status === 'done') {
     return (
-      <span className="inline-flex size-3.5 shrink-0 animate-ag-in items-center justify-center rounded-full bg-success text-white">
-        <Check aria-hidden="true" className="size-2.5" strokeWidth={3} />
+      <span className="inline-flex size-[14px] shrink-0 animate-ag-in items-center justify-center rounded-full bg-success text-white">
+        <Check aria-hidden="true" className="size-[10px]" strokeWidth={3} />
       </span>
     )
   }
@@ -59,17 +59,17 @@ function StatusGlyph({ status, warn }: { status: Status; warn?: string | null })
 /** The legend for the panel header: Planned / Running / Done. */
 export function PipelineLegend() {
   return (
-    <div className="flex items-center gap-3.5 text-[12px] text-text-secondary">
-      <span className="flex items-center gap-1.5">
-        <i className="size-3 rounded border border-dashed border-[#b8bfca] bg-[#fcfcfd]" />
+    <div className="flex items-center gap-[14px] text-[12px] text-text-secondary">
+      <span className="flex items-center gap-[6px]">
+        <i className="size-[12px] rounded border border-dashed border-[#b8bfca] bg-[#fcfcfd]" />
         Planned
       </span>
-      <span className="flex items-center gap-1.5">
-        <i className="size-3 rounded border border-primary shadow-[0_0_0_2px_rgba(35,71,217,0.15)]" />
+      <span className="flex items-center gap-[6px]">
+        <i className="size-[12px] rounded border border-primary shadow-[0_0_0_2px_rgba(35,71,217,0.15)]" />
         Running
       </span>
-      <span className="flex items-center gap-1.5">
-        <i className="size-3 rounded border border-success bg-success" />
+      <span className="flex items-center gap-[6px]">
+        <i className="size-[12px] rounded border border-success bg-success" />
         Done
       </span>
     </div>
@@ -127,11 +127,11 @@ export function AgentPipeline({ job, events, competitors }: { job: JobProgress; 
     <div ref={ref} className="relative overflow-x-auto overflow-y-hidden" style={{ height: AG_H * scale + 16 }}>
       <div
         data-stage
-        className="absolute top-2 left-0 origin-top-left"
+        className="absolute top-[8px] left-0 origin-top-left"
         style={{ width: AG_W, height: AG_H, transform: `translateX(${offset}px) scale(${scale})` }}
       >
         {AG_COLUMNS.map(([label, x]) => (
-          <div key={label} className="absolute top-0.5 text-[11px] font-medium tracking-[0.06em] text-muted-foreground uppercase" style={{ left: x }}>
+          <div key={label} className="absolute top-[2px] text-[11px] font-medium tracking-[0.06em] text-muted-foreground uppercase" style={{ left: x }}>
             {label}
           </div>
         ))}
@@ -208,7 +208,7 @@ export function AgentPipeline({ job, events, competitors }: { job: JobProgress; 
             <div
               key={c}
               data-node={`c:${c}`}
-              className={cn(NODE, 'flex animate-ag-in flex-col justify-center gap-1.5 bg-[#fcfcfd] px-2.5', filling && 'border-[#b8c4ef] shadow-[0_0_0_3px_rgba(35,71,217,0.07)]')}
+              className={cn(NODE, 'flex animate-ag-in flex-col justify-center gap-[6px] bg-[#fcfcfd] px-[10px]', filling && 'border-[#b8c4ef] shadow-[0_0_0_3px_rgba(35,71,217,0.07)]')}
               style={box(`c:${c}`)}
             >
               <div className="flex items-baseline justify-between">
@@ -230,12 +230,12 @@ export function AgentPipeline({ job, events, competitors }: { job: JobProgress; 
               key={n}
               data-node={`r:${n}`}
               data-status={s.status}
-              className={cn(NODE, tone(s.status), 'flex items-center gap-2.5 overflow-hidden px-3')}
+              className={cn(NODE, tone(s.status), 'flex items-center gap-[10px] overflow-hidden px-[12px]')}
               style={{ ...box(`r:${n}`, n), ...(s.status === 'running' && SHIMMER) }}
             >
               <span
                 className={cn(
-                  'flex size-8 shrink-0 items-center justify-center rounded-[9px] bg-muted text-text-secondary transition-colors duration-300',
+                  'flex size-[32px] shrink-0 items-center justify-center rounded-[9px] bg-muted text-text-secondary transition-colors duration-300',
                   s.status === 'running' && 'bg-primary-soft text-primary',
                   s.status === 'done' && 'bg-success-soft text-success',
                 )}
@@ -243,13 +243,13 @@ export function AgentPipeline({ job, events, competitors }: { job: JobProgress; 
                 <Icon aria-hidden="true" className="size-[15px]" />
               </span>
               <div className="min-w-0 flex-1">
-                <div className={cn('flex items-center gap-1.5 text-[13px] font-semibold text-foreground', s.status === 'pending' && 'text-text-secondary')}>
+                <div className={cn('flex items-center gap-[6px] text-[13px] font-semibold text-foreground', s.status === 'pending' && 'text-text-secondary')}>
                   {stepShort(s)}
                   {(n === 'ai_triage' || n === 'ai_events') && (
                     <span className="rounded bg-violet-soft px-[5px] text-[10px] leading-[15px] font-semibold text-violet">AI</span>
                   )}
                 </div>
-                <div className="mt-0.5 truncate text-[11.5px] text-text-secondary">{reasonSub(n, s)}</div>
+                <div className="mt-[2px] truncate text-[11.5px] text-text-secondary">{reasonSub(n, s)}</div>
               </div>
               <StatusGlyph status={s.status} warn={warning(s)} />
               {s.status === 'running' && (
@@ -266,7 +266,7 @@ export function AgentPipeline({ job, events, competitors }: { job: JobProgress; 
             data-node="o:journey"
             className={cn(
               NODE,
-              'flex animate-ag-in flex-col gap-1.5 px-3.5 py-3',
+              'flex animate-ag-in flex-col gap-[6px] px-[14px] py-[12px]',
               ended
                 ? 'border-[#9fd3cb] shadow-[0_0_0_4px_rgba(11,122,111,0.08)]'
                 : building
@@ -278,27 +278,27 @@ export function AgentPipeline({ job, events, competitors }: { job: JobProgress; 
             <OutputHeader icon={Route} tile="bg-primary text-white" label="Journey">
               <span
                 className={cn(
-                  'rounded-full bg-muted px-[7px] py-0.5 text-[11px] font-semibold text-muted-foreground',
+                  'rounded-full bg-muted px-[7px] py-[2px] text-[11px] font-semibold text-muted-foreground',
                   ended ? 'bg-success-soft text-success' : (events.length > 0 || building) && 'bg-primary-soft text-primary',
                 )}
               >
                 {ended ? 'Ready' : events.length > 0 || building ? 'Building' : 'Waiting'}
               </span>
             </OutputHeader>
-            <div className="mt-0.5 flex items-baseline gap-1.5">
+            <div className="mt-[2px] flex items-baseline gap-[6px]">
               <span className="text-[40px] leading-none font-semibold tracking-[-0.03em] tabular-nums">{formatNumber(events.length)}</span>
               <span className="text-text-secondary">events</span>
             </div>
-            <div className="mt-1 flex h-1.5 gap-0.5 overflow-hidden rounded-[3px]">
+            <div className="mt-[4px] flex h-[6px] gap-[2px] overflow-hidden rounded-[3px]">
               {CATEGORIES.map((c) =>
                 cats[c] > 0 ? <i key={c} className="block transition-[flex-grow] duration-400" style={{ flexGrow: cats[c], background: CATEGORY_META[c].color }} /> : null,
               )}
               {!events.length && <i className="block grow bg-hair" />}
             </div>
-            <ul className="mt-1 grid grid-cols-2 gap-x-3 gap-y-[3px] text-[11.5px] text-text-secondary">
+            <ul className="mt-[4px] grid grid-cols-2 gap-x-[12px] gap-y-[3px] text-[11.5px] text-text-secondary">
               {CATEGORIES.map((c) => (
                 <li key={c} className="flex items-center gap-[5px]">
-                  <b className="size-1.5 rounded-full" style={{ background: CATEGORY_META[c].color }} />
+                  <b className="size-[6px] rounded-full" style={{ background: CATEGORY_META[c].color }} />
                   {CATEGORY_META[c].label}
                   <em className="ml-auto font-mono text-[11px] text-foreground not-italic">{cats[c]}</em>
                 </li>
@@ -311,8 +311,8 @@ export function AgentPipeline({ job, events, competitors }: { job: JobProgress; 
         )}
 
         {index && visible('o:assetai') && (
-          <div data-node="o:assetai" className={cn(NODE, tone(index.status), 'flex flex-col gap-1.5 px-3.5 py-3')} style={box('o:assetai')}>
-            <OutputHeader icon={Sparkles} tile="bg-violet-soft text-violet" label="Asset AI">
+          <div data-node="o:assetai" className={cn(NODE, tone(index.status), 'flex flex-col gap-[6px] px-[14px] py-[12px]')} style={box('o:assetai')}>
+            <OutputHeader icon={Sparkle} tile="bg-violet-soft text-violet" label="Asset AI">
               <StatusGlyph status={finalize?.status === 'done' ? 'done' : index.status === 'running' ? 'running' : 'pending'} />
             </OutputHeader>
             <div className="truncate text-[11.5px] text-text-secondary">
@@ -324,14 +324,14 @@ export function AgentPipeline({ job, events, competitors }: { job: JobProgress; 
         )}
 
         {comp && visible('o:compset') && (
-          <div data-node="o:compset" className={cn(NODE, tone(comp.status), 'flex flex-col gap-1.5 px-3.5 py-3')} style={box('o:compset')}>
+          <div data-node="o:compset" className={cn(NODE, tone(comp.status), 'flex flex-col gap-[6px] px-[14px] py-[12px]')} style={box('o:compset')}>
             <OutputHeader icon={Users} tile="bg-orange-soft text-orange" label="Competitor set">
               <StatusGlyph status={comp.status} warn={warning(comp)} />
             </OutputHeader>
             {comp.status === 'done' && competitors.length > 0 ? (
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap gap-[4px]">
                 {competitors.slice(0, 5).map((c) => (
-                  <span key={c} className="animate-ag-in rounded-[5px] bg-orange-soft px-1.5 py-px text-[11px] text-competitor">
+                  <span key={c} className="animate-ag-in rounded-[5px] bg-orange-soft px-[6px] py-px text-[11px] text-competitor">
                     {c}
                   </span>
                 ))}
@@ -350,8 +350,8 @@ export function AgentPipeline({ job, events, competitors }: { job: JobProgress; 
 
 function OutputHeader({ icon: Icon, tile, label, children }: { icon: LucideIcon; tile: string; label: string; children: ReactNode }) {
   return (
-    <div className="flex items-center gap-2">
-      <span className={cn('flex size-7 shrink-0 items-center justify-center rounded-lg', tile)}>
+    <div className="flex items-center gap-[8px]">
+      <span className={cn('flex size-[28px] shrink-0 items-center justify-center rounded-lg', tile)}>
         <Icon aria-hidden="true" className="size-[15px]" />
       </span>
       <span className="flex-1 font-semibold text-foreground">{label}</span>

@@ -4,7 +4,7 @@ import { useShellStore } from './shell-store'
 beforeEach(() => {
   localStorage.clear()
   useShellStore.setState({ sidebarCollapsed: false, paletteOpen: false, mobileNavOpen: false })
-  useEventSheet.setState({ current: null })
+  useEventSheet.setState({ current: null, journeyAsset: null, locate: null })
 })
 
 describe('shell store', () => {
@@ -37,5 +37,19 @@ describe('event sheet store', () => {
     expect(useEventSheet.getState().current).toEqual({ assetId: 'nint', eventId: 'e2' })
     useEventSheet.getState().closeEvent()
     expect(useEventSheet.getState().current).toBeNull()
+  })
+})
+
+describe('event sheet store: journey seam (Phase 4)', () => {
+  it('knows which asset’s journey is on screen and numbers locate requests', () => {
+    const sheet = useEventSheet.getState()
+    sheet.setJourneyAsset('trep')
+    expect(useEventSheet.getState().journeyAsset).toBe('trep')
+    sheet.requestLocate('trep', 'ai:trep:https://example.com/a/b:0')
+    expect(useEventSheet.getState().locate).toEqual({ assetId: 'trep', eventId: 'ai:trep:https://example.com/a/b:0', seq: 1 })
+    sheet.requestLocate('trep', 'ai:trep:https://example.com/a/b:0')
+    expect(useEventSheet.getState().locate?.seq).toBe(2)
+    sheet.setJourneyAsset(null)
+    expect(useEventSheet.getState().journeyAsset).toBeNull()
   })
 })

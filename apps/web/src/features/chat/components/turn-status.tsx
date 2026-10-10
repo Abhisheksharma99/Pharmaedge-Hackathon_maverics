@@ -9,11 +9,11 @@ export function TurnStatus({ status, error, onRetry }: { status: 'error' | 'stop
       role={failed ? 'alert' : 'status'}
       className={
         failed
-          ? 'flex flex-wrap items-center gap-2 rounded-lg border border-destructive/20 bg-danger-soft px-3 py-2 text-destructive'
-          : 'flex flex-wrap items-center gap-2 text-muted-foreground'
+          ? 'flex flex-wrap items-center gap-[8px] rounded-lg border border-destructive/20 bg-danger-soft px-[12px] py-[8px] text-destructive'
+          : 'flex flex-wrap items-center gap-[8px] text-muted-foreground'
       }
     >
-      {failed && <AlertCircle className="size-4 shrink-0" />}
+      {failed && <AlertCircle className="size-[16px] shrink-0" />}
       <span className="min-w-0 flex-1">{failed ? error : 'Stopped.'}</span>
       <Button variant="outline" size="sm" onClick={onRetry} className="bg-card">
         <RotateCw /> Retry

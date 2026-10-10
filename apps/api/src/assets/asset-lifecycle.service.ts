@@ -102,13 +102,15 @@ export class AssetLifecycleService {
       this.db.collection('journey_events').deleteMany({ asset: id }),
       this.db.collection('crawl_ledger').deleteMany({ asset: id }),
       ...RECORD_COLLECTIONS.map((c) => this.db.collection(c).updateMany({ assets: id }, { $pull: { assets: id } as never })),
-      ...['asset_branches', 'event_stars', 'event_comments', 'journey_notes', 'analytics_pins', 'asset_analytics', 'crawl_feedback'].map((c) =>
+      ...['asset_branches', 'event_stars', 'event_comments', 'journey_notes', 'analytics_pins', 'analytics_runs', 'asset_analytics', 'crawl_feedback'].map((c) =>
         this.db.collection(c).deleteMany({ asset: id }),
       ),
       this.db.collection('web_records').updateMany({ assets: id }, { $pull: { assets: id } as never }),
       this.db.collection('assets').updateMany({}, { $pull: { competitors: { id }, competitor_of: id } as never }),
       this.db.collection('chat_sessions').updateMany({ asset_id: id }, { $set: { asset_id: null } }),
     ]);
+    // Fetched web pages shared with no other asset leave the search index too (their record_chunks assets were pulled above).
+    await this.db.collection('record_chunks').deleteMany({ collection: 'web_records', assets: { $size: 0 } });
     await Promise.all([this.cache.bump('assets:ver'), this.cache.bump(`asset:${id}:ver`), ...(asset.competitor_of ?? []).map((p) => this.cache.bump(`asset:${p}:ver`))]);
   }
 }

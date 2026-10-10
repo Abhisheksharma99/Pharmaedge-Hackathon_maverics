@@ -53,11 +53,18 @@ const RUNNING: Job = {
 }
 const REGIONS: Record<string, string[]> = { trep: ['US', 'EU'], sota: ['US'], nint: ['US', 'EU'] }
 
+/** What GET /api/assets does: answer with the list (default), hang, or fail. */
+let assetsMode: 'ok' | 'pending' | 'error' = 'ok'
+
 function renderSearch(path = '/assets') {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string) => {
-      if (url === '/api/assets') return json(200, [NINT, TREP, SOTA])
+      if (url === '/api/assets') {
+        if (assetsMode === 'pending') return new Promise<Response>(() => {})
+        if (assetsMode === 'error') return json(500, { code: 'INTERNAL', message: 'boom' })
+        return json(200, [NINT, TREP, SOTA])
+      }
       if (url === '/api/portfolio/timeline?competitors=true') return json(200, { assets: [], events: [] })
       if (url === '/api/jobs?status=running') return json(200, [RUNNING])
       const detail = url.match(/^\/api\/assets\/(\w+)$/)?.[1]
@@ -86,6 +93,7 @@ function renderSearch(path = '/assets') {
 
 const rowOf = (name: string) => screen.getByRole('link', { name }).closest('tr')!
 
+beforeEach(() => (assetsMode = 'ok'))
 afterEach(() => vi.unstubAllGlobals())
 
 describe('AssetSearchPage', () => {
@@ -157,5 +165,34 @@ describe('AssetSearchPage', () => {
     const router = renderSearch()
     await userEvent.click(await screen.findByText('Winrevair · Merck'))
     expect(router.state.location.pathname).toBe('/assets/sota/overview')
+  })
+})
+
+describe('AssetSearchPage loading and error states', () => {
+  it('shows a table-shaped skeleton while loading the table view', async () => {
+    assetsMode = 'pending'
+    renderSearch()
+    const loading = await screen.findByRole('status', { name: 'Loading assets' })
+    expect(loading.className).not.toContain('grid')
+    expect(loading.children).toHaveLength(4)
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+  })
+
+  it('shows a card-grid skeleton while loading the grid view', async () => {
+    assetsMode = 'pending'
+    renderSearch('/assets?view=grid')
+    const loading = await screen.findByRole('status', { name: 'Loading assets' })
+    expect(loading.className).toContain('grid')
+    expect(loading.children).toHaveLength(3)
+  })
+
+  it('shows an inline error when the assets fail to load, and "Try again" loads them', async () => {
+    assetsMode = 'error'
+    renderSearch()
+    expect(await screen.findByRole('alert')).toHaveTextContent("Assets couldn't be loaded.")
+    assetsMode = 'ok'
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByRole('link', { name: 'Treprostinil' })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 })

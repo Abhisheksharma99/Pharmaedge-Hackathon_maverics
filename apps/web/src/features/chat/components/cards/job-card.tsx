@@ -24,11 +24,11 @@ export function JobCard({ card }: { card: JobCardData }) {
   const problems = j?.steps.filter((s) => s.error) ?? []
 
   return (
-    <div className="flex flex-col gap-2.5 rounded-xl border bg-card p-3.5">
-      <div className="flex items-start justify-between gap-3">
+    <div className="flex flex-col gap-[12px] rounded-[12px] border bg-card px-[16px] py-[14px]">
+      <div className="flex items-start justify-between gap-[12px]">
         <div className="min-w-0">
           <p className="font-semibold">Collecting data for {card.assetName}</p>
-          <p className="text-[12.5px] text-text-secondary">
+          <p className="text-[12.5px] text-muted-foreground">
             {!j
               ? 'Checking progress…'
               : current
@@ -40,11 +40,11 @@ export function JobCard({ card }: { card: JobCardData }) {
         </div>
         {j && <JobStatusBadge status={j.status} />}
       </div>
-      {job.isPending && <Skeleton className="h-1.5 w-full" />}
+      {job.isPending && <Skeleton className="h-[6px] w-full" />}
       {job.isError && <p className="text-destructive">Progress is unavailable right now.</p>}
       {j && <StepBar steps={j.steps} />}
       {j && (
-        <p className="flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-muted-foreground">
+        <p className="flex flex-wrap gap-x-[16px] gap-y-[4px] text-[12.5px] text-muted-foreground">
           <span>
             <b className="font-semibold text-foreground tabular-nums">{formatNumber(recordsTotal(j))}</b> records
           </span>
@@ -60,7 +60,7 @@ export function JobCard({ card }: { card: JobCardData }) {
         </p>
       )}
       {problems.length > 0 && (
-        <ul aria-label="Step errors" className="space-y-0.5 text-[12.5px]">
+        <ul aria-label="Step errors" className="space-y-[2px] text-[12.5px]">
           {problems.map((s) => (
             <li key={s.name} className={cn('line-clamp-2', s.status === 'failed' ? 'text-destructive' : 'text-muted-foreground')}>
               <span className="font-medium">{s.label}:</span> {s.error}
@@ -70,9 +70,9 @@ export function JobCard({ card }: { card: JobCardData }) {
       )}
       <Link
         to={live ? `${overview}?build=1` : overview}
-        className="inline-flex w-max items-center gap-1 text-[13px] font-semibold text-primary hover:underline"
+        className="inline-flex w-max items-center gap-[3px] font-semibold text-primary hover:underline"
       >
-        {live ? 'Watch the live build' : 'Open the journey'} <ArrowUpRight className="size-3.5" />
+        {live ? 'Watch the live build' : 'Open the journey'} <ArrowUpRight className="size-[13px]" />
       </Link>
     </div>
   )

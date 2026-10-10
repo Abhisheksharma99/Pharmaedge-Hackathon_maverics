@@ -22,12 +22,12 @@ export function AssistantMessage({
     [onOpenRecord],
   )
   return (
-    <div className="flex items-start gap-2.5">
+    <div className="flex items-start gap-[10px]">
       <AssistantMark />
-      <div className="flex min-w-0 flex-1 flex-col gap-3 pt-1">
+      <div className="flex min-w-0 flex-1 flex-col gap-[10px]">
         {message.content && <ChatMarkdown content={message.content} citations={message.citations} onCite={openCitation} />}
         {message.cards.map((card, i) => (
-          <ChatCard key={i} card={card} sessionId={sessionId} startedAssets={startedAssets} onOpenRecord={onOpenRecord} />
+          <ChatCard key={i} card={card} sessionId={sessionId} startedAssets={startedAssets} />
         ))}
         {message.citations.length > 0 && <SourcesList citations={message.citations} onOpen={openCitation} />}
       </div>

@@ -32,7 +32,7 @@ export function CrawlChip() {
   const job = jobs.data[0]
   if (!job) {
     return (
-      <span className="inline-flex items-center gap-1.5 text-[12.5px] whitespace-nowrap text-success max-[899px]:hidden">
+      <span className="inline-flex items-center gap-[5px] text-[12.5px] whitespace-nowrap text-success max-[899px]:hidden">
         <Check className="size-[13px]" strokeWidth={2.6} />
         All crawls finished
       </span>
@@ -47,7 +47,7 @@ export function CrawlChip() {
       to={`/assets/${encodeURIComponent(job.asset)}/overview?build=1`}
       title="Open the live build"
       aria-label={`${name} crawl: ${step}, ${pct}%. Open the live build`}
-      className="inline-flex h-8 items-center gap-2 rounded-full border border-[#d5ddfa] bg-primary-soft pr-2.5 pl-[7px] text-[12.5px] whitespace-nowrap text-secondary-foreground transition-colors hover:border-primary"
+      className="inline-flex h-[32px] items-center gap-[8px] rounded-full border border-[#d5ddfa] bg-primary-soft pr-[10px] pl-[7px] text-[12.5px] whitespace-nowrap text-secondary-foreground transition-colors hover:border-primary"
     >
       <ProgressRing value={jobProgress(job)} />
       <span className="max-[899px]:hidden">

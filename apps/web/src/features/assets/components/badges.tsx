@@ -11,14 +11,14 @@ const SIGNIFICANCE_STYLE: Record<Significance, string> = {
 
 export function SignificanceBadge({ value }: { value: Significance }) {
   return (
-    <span className={cn('inline-flex h-5 items-center rounded-md px-1.5 text-xs font-semibold', SIGNIFICANCE_STYLE[value])}>
+    <span className={cn('inline-flex h-[20px] items-center rounded-md px-[6px] text-[12px] font-semibold', SIGNIFICANCE_STYLE[value])}>
       {value}
     </span>
   )
 }
 
 export const CATEGORY_META: Record<EventCategory, { label: string; icon: LucideIcon; tone: string }> = {
-  regulatory: { label: 'Regulatory', icon: Landmark, tone: 'bg-[#eef2fd] text-primary' },
+  regulatory: { label: 'Regulatory', icon: Landmark, tone: 'bg-primary-soft text-primary' },
   clinical: { label: 'Clinical', icon: FlaskConical, tone: 'bg-success-soft text-success' },
   safety: { label: 'Safety', icon: ShieldAlert, tone: 'bg-danger-soft text-destructive' },
   company: { label: 'Company', icon: Megaphone, tone: 'bg-orange-soft text-orange' },
@@ -29,20 +29,21 @@ export function CategoryIcon({ category, className }: { category: EventCategory;
   const meta = CATEGORY_META[category]
   return (
     <span
-      className={cn('flex size-7 shrink-0 items-center justify-center rounded-lg', meta.tone, className)}
+      className={cn('flex size-[28px] shrink-0 items-center justify-center rounded-[8px]', meta.tone, className)}
       title={meta.label}
     >
-      <meta.icon className="size-3.5" />
+      <meta.icon className="size-1/2" />
     </span>
   )
 }
 
 /** Small neutral chip (indications, regions, record types). */
-export function Chip({ children, className }: { children: React.ReactNode; className?: string }) {
+export function Chip({ children, className, title }: { children: React.ReactNode; className?: string; title?: string }) {
   return (
     <span
+      title={title}
       className={cn(
-        'inline-flex h-[26px] items-center rounded-lg border bg-card px-2.5 text-[12.5px] font-medium text-secondary-foreground',
+        'inline-flex h-[26px] items-center rounded-[8px] border bg-card px-[10px] text-[12.5px] font-medium text-secondary-foreground',
         className,
       )}
     >
@@ -63,7 +64,7 @@ export function KindBadge({ kind, competitorOf }: { kind: 'primary' | 'competito
         <span
           tabIndex={0}
           className={cn(
-            'inline-flex h-[19px] items-center gap-1 rounded-full px-[7px] align-[1px] text-[10.5px] font-semibold tracking-[0.01em] whitespace-nowrap',
+            'inline-flex h-[19px] items-center gap-[4px] rounded-full px-[7px] align-[1px] text-[10.5px] font-semibold tracking-[0.01em] whitespace-nowrap',
             primary ? 'bg-primary-soft text-primary' : 'bg-orange-soft text-competitor',
           )}
         >

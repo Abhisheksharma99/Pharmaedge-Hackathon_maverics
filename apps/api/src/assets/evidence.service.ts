@@ -90,8 +90,12 @@ export class EvidenceService {
           .toArray(),
         coll.countDocuments(match),
       ]);
+      const events = await this.assets.withEvents(
+        id,
+        rows.map((r) => ({ key: r.item_key as string })),
+      );
       return {
-        items: rows.map((r) => ({
+        items: rows.map((r, i) => ({
           id: r._id,
           title: r.title ?? null,
           url: r.url ?? null,
@@ -104,6 +108,7 @@ export class EvidenceService {
           model: r.model,
           decidedAt: r.decided_at ?? null,
           recordKey: r.item_key,
+          journey_events: events[i]!.journey_events,
         })),
         total,
         page: query.page,

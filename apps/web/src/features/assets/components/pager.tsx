@@ -18,11 +18,11 @@ export function Pager({
   const from = (page - 1) * pageSize + 1
   const to = Math.min(page * pageSize, total)
   return (
-    <div className="flex items-center justify-between border-t border-[#eef0f3] px-5 py-3 text-text-secondary">
+    <div className="flex items-center justify-between border-t border-hair px-[20px] py-[12px] text-text-secondary">
       <span>
         {formatNumber(from)}–{formatNumber(to)} of {formatNumber(total)}
       </span>
-      <div className="flex gap-1.5">
+      <div className="flex gap-[6px]">
         <Button variant="outline" size="icon-sm" disabled={page <= 1} onClick={() => onPage(page - 1)} aria-label="Previous page">
           <ChevronLeft />
         </Button>

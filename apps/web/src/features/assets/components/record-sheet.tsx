@@ -1,7 +1,23 @@
-import { ExternalLink, Loader2 } from 'lucide-react'
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { formatDate, formatPhase, formatStatus } from '@/lib/format'
-import { useRecord, type RecordTab, type SourceRecord } from '../api'
+import { ExternalLink, FileText, RefreshCw, X } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
+import { formatDay } from '@/lib/dates'
+import { formatPhase, formatStatus } from '@/lib/format'
+import { useEventSheet } from '@/stores/event-sheet-store'
+import { CategoryIcon, SignificanceBadge } from './badges'
+import { useRecord, type RecordEventRef, type RecordTab, type SourceRecord } from '../api'
+
+const TAB_TITLE: Record<RecordTab, string> = {
+  clinical: 'Clinical trials',
+  regulatory: 'Regulatory',
+  publications: 'Publications',
+  conferences: 'Conference abstracts',
+  documents: 'Documents',
+  'company-ir': 'Company IR',
+  patents: 'Patents',
+  news: 'News',
+}
 
 type Formatter = (value: unknown) => string
 
@@ -14,8 +30,8 @@ const FIELDS: [key: string, label: string, format?: Formatter][] = [
   ['overall_status', 'Status', (v) => formatStatus(String(v))],
   ['phases', 'Phase', (v) => (Array.isArray(v) ? v.map((p) => formatPhase(String(p))).join(' / ') : String(v))],
   ['lead_sponsor', 'Sponsor'],
-  ['start_date', 'Start', (v) => formatDate(String(v))],
-  ['primary_completion_date', 'Primary completion', (v) => formatDate(String(v))],
+  ['start_date', 'Start', (v) => formatDay(String(v))],
+  ['primary_completion_date', 'Primary completion', (v) => formatDay(String(v))],
   ['enrollment', 'Enrollment'],
   ['conditions', 'Conditions', list],
   ['interventions', 'Interventions', list],
@@ -33,10 +49,10 @@ const FIELDS: [key: string, label: string, format?: Formatter][] = [
   ['publication_number', 'Publication'],
   ['legal_status', 'Legal status'],
   ['assignees', 'Assignees', list],
-  ['filing_date', 'Filed', (v) => formatDate(String(v))],
-  ['priority_date', 'Priority', (v) => formatDate(String(v))],
-  ['grant_date', 'Granted', (v) => formatDate(String(v))],
-  ['expiry_date', 'Expires', (v) => formatDate(String(v))],
+  ['filing_date', 'Filed', (v) => formatDay(String(v))],
+  ['priority_date', 'Priority', (v) => formatDay(String(v))],
+  ['grant_date', 'Granted', (v) => formatDay(String(v))],
+  ['expiry_date', 'Expires', (v) => formatDay(String(v))],
   ['family_id', 'Family'],
   ['conference', 'Conference'],
   ['meeting', 'Meeting'],
@@ -66,7 +82,38 @@ function sourceUrl(r: SourceRecord): string | undefined {
   return (r.url as string) || (r.medicine_url as string) || (r.dhpc_url as string) || undefined
 }
 
-function RecordBody({ record }: { record: SourceRecord }) {
+/** The journey events built from this record; each opens the event sheet. */
+function InTheJourney({ assetId, events, onClose }: { assetId: string; events: RecordEventRef[]; onClose: () => void }) {
+  const openEvent = useEventSheet((s) => s.openEvent)
+  return (
+    <div>
+      <p className="mt-[18px] mb-[8px] text-[11px] font-semibold tracking-[0.06em] text-muted-foreground uppercase">In the journey</p>
+      <ul className="space-y-[8px]">
+        {events.map((e) => (
+          <li key={e.id}>
+            <button
+              type="button"
+              onClick={() => {
+                onClose()
+                openEvent(assetId, e.id)
+              }}
+              className="flex w-full items-center gap-[12px] rounded-[12px] border bg-card p-[12px] text-left hover:bg-background focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              <CategoryIcon category={e.category} />
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="font-medium">{e.title}</span>
+                <span className="font-mono text-[12px] text-muted-foreground">{formatDay(e.date)}</span>
+              </span>
+              {e.significance && <SignificanceBadge value={e.significance} />}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function RecordBody({ assetId, record, onClose }: { assetId: string; record: SourceRecord; onClose: () => void }) {
   const fields = FIELDS.filter(([k]) => {
     const v = record[k]
     return v !== undefined && v !== null && v !== '' && !(Array.isArray(v) && v.length === 0)
@@ -76,17 +123,17 @@ function RecordBody({ record }: { record: SourceRecord }) {
   const url = sourceUrl(record)
 
   return (
-    <div className="space-y-5 px-4 pb-6">
+    <div className="space-y-[16px]">
       {url && (
         <a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 font-medium text-primary hover:underline">
           Open original <ExternalLink className="size-3.5" />
         </a>
       )}
       {fields.length > 0 && (
-        <dl className="grid grid-cols-[150px_1fr] gap-x-3 gap-y-2">
+        <dl className="mt-[16px] grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-x-[12px] gap-y-[12px]">
           {fields.map(([k, label, format]) => (
-            <div key={k} className="contents">
-              <dt className="text-muted-foreground">{label}</dt>
+            <div key={k} className="min-w-0">
+              <dt className="text-[12px] text-muted-foreground">{label}</dt>
               <dd className="min-w-0 break-words">{(format ?? String)(record[k])}</dd>
             </div>
           ))}
@@ -101,11 +148,14 @@ function RecordBody({ record }: { record: SourceRecord }) {
                 <a href={d.url} target="_blank" rel="noreferrer" className="text-primary hover:underline">
                   {d.type}
                 </a>{' '}
-                <span className="text-muted-foreground">{formatDate(d.date ? `${d.date.slice(0, 4)}-${d.date.slice(4, 6)}-${d.date.slice(6, 8)}` : '')}</span>
+                <span className="text-muted-foreground">{formatDay(d.date ? `${d.date.slice(0, 4)}-${d.date.slice(4, 6)}-${d.date.slice(6, 8)}` : '')}</span>
               </li>
             ))}
           </ul>
         </div>
+      )}
+      {record.journey_events && record.journey_events.length > 0 && (
+        <InTheJourney assetId={assetId} events={record.journey_events} onClose={onClose} />
       )}
       {text && (
         <div>
@@ -133,20 +183,45 @@ export function RecordSheet({
 
   return (
     <Sheet open={recordKey !== null} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
-        <SheetHeader>
-          <SheetTitle className="pr-6 leading-snug">{record.data ? recordTitle(record.data) : 'Loading…'}</SheetTitle>
-          <SheetDescription>
-            {record.data ? `${formatDate(record.data.date)} · ${String(record.data.source ?? record.data.record_type ?? '')}` : ' '}
+      <SheetContent
+        showCloseButton={false}
+        className="w-[min(460px,100vw)] gap-0 overflow-y-auto border-l-0 p-0 shadow-[-16px_0_40px_rgba(16,24,40,.16)] data-[side=right]:w-[min(460px,100vw)] data-[side=right]:sm:max-w-none"
+      >
+        <div className="flex items-center justify-between border-b border-hair px-[18px] py-[14px]">
+          <div className="flex items-center gap-[8px] font-semibold">
+            <span className="flex size-[28px] items-center justify-center rounded-[8px] bg-muted text-text-secondary">
+              <FileText size={14} aria-hidden="true" />
+            </span>
+            <span>{`${TAB_TITLE[tab]} record`}</span>
+          </div>
+          <SheetClose className="flex size-[32px] items-center justify-center rounded-[8px] text-text-secondary hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" aria-label="Close">
+            <X size={16} aria-hidden="true" />
+          </SheetClose>
+        </div>
+        <div className="px-[18px] pt-[18px] pb-[24px]">
+          <SheetTitle className="text-[20px] leading-[1.3] font-semibold tracking-[-0.015em] text-pretty">
+            {record.data ? recordTitle(record.data) : 'Loading…'}
+          </SheetTitle>
+          <SheetDescription className="mt-[6px] text-[12.5px] text-text-secondary">
+            {record.data ? `${formatDay(record.data.date)} · ${String(record.data.source ?? record.data.record_type ?? '')}` : ' '}
           </SheetDescription>
-        </SheetHeader>
         {record.isPending && (
-          <div className="flex justify-center py-10 text-muted-foreground">
-            <Loader2 className="size-5 animate-spin" />
+          <div role="status" aria-label="Loading the record" className="mt-[18px] space-y-[12px]">
+            <Skeleton className="h-[48px] w-full" />
+            <Skeleton className="h-[48px] w-full" />
+            <Skeleton className="h-[120px] w-full" />
           </div>
         )}
-        {record.isError && <p className="px-4 text-destructive">This record couldn't be loaded.</p>}
-        {record.data && <RecordBody record={record.data} />}
+        {record.isError && (
+          <div role="alert" className="mt-[16px] flex flex-wrap items-center gap-[10px] text-destructive">
+            This record couldn't be loaded.
+            <Button variant="outline" size="sm" onClick={() => void record.refetch()}>
+              <RefreshCw /> Try again
+            </Button>
+          </div>
+        )}
+        {record.data && <RecordBody assetId={assetId} record={record.data} onClose={onClose} />}
+        </div>
       </SheetContent>
     </Sheet>
   )

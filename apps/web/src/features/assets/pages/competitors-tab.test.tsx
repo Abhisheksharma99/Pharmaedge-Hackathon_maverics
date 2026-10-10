@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import type { Mock } from 'vitest'
 import { createMemoryRouter, Outlet, RouterProvider } from 'react-router'
 import { Toaster } from '@/components/ui/sonner'
+import { useEventSheet } from '@/stores/event-sheet-store'
 import type { AssetDetail } from '../api'
 import type { CompetitorMilestone, CompetitorsOverview, LandscapeRow } from '../competitors-api'
 import { CompetitorsTab } from './competitors-tab'
@@ -85,6 +86,9 @@ const OVERVIEW: CompetitorsOverview = {
       id: 'sotatercept',
       name: 'Sotatercept',
       company: 'Merck & Co.',
+      brand: 'Winrevair',
+      stage: 'approved',
+      basis: 'both',
       mechanism: 'Activin signaling inhibitor',
       reason: 'Approved for PAH, the same indication.',
       coverage: { [INDICATIONS[0]]: 'approved', [INDICATIONS[1]]: 'none' },
@@ -99,6 +103,8 @@ const OVERVIEW: CompetitorsOverview = {
       company: 'United Therapeutics',
       mechanism: 'Prostacyclin receptor agonist',
       status: 'onboarding',
+      stage: 'phase3',
+      basis: 'mechanism',
       reason: 'Prostacyclin receptor agonist in Phase 3 for PAH.',
       coverage: { [INDICATIONS[0]]: 'investigational', [INDICATIONS[1]]: 'none' },
       overlap: { shared: 1, of: 2 },
@@ -165,9 +171,6 @@ function renderTab(asset: AssetDetail = ASSET) {
   return router
 }
 
-/** The landscape row (`<tr>`) that links to this asset. */
-const landscapeRow = (name: string) => screen.getByRole('link', { name }).closest('tr')!
-
 beforeAll(() => {
   // jsdom has no pointer capture; sonner's toasts call it on pointerdown.
   Element.prototype.setPointerCapture ??= () => {}
@@ -176,84 +179,47 @@ beforeAll(() => {
 beforeEach(() => {
   fetchMock = vi.fn()
   vi.stubGlobal('fetch', fetchMock)
+  useEventSheet.setState({ current: null })
 })
 afterEach(() => vi.unstubAllGlobals())
 
 describe('CompetitorsTab', () => {
-  it('renders the landscape: reference first, coverage per indication, collecting competitors', async () => {
+  it('lists the tracked competitors as cards (reference left out) with stage, brand, mechanism and basis', async () => {
     fetchMock.mockResolvedValue(json(200, OVERVIEW))
     const router = renderTab()
 
-    await screen.findByRole('heading', { name: 'Competitive landscape' })
+    expect(await screen.findAllByRole('link', { name: /Open journey/ })).toHaveLength(2)
+    expect(screen.getByRole('heading', { name: 'Competitors' })).toBeInTheDocument()
     expect(fetchMock.mock.calls[0][0]).toBe('/api/assets/treprostinil/competitors')
 
-    // Indication columns use the abbreviation, with the full name on hover.
-    expect(screen.getByTitle('Pulmonary arterial hypertension (PAH)')).toHaveTextContent('PAH')
-    expect(screen.getByTitle('PH-ILD')).toBeInTheDocument()
+    const card = screen.getByText('Sotatercept').closest('div.rounded-\\[12px\\]') as HTMLElement
+    expect(card).toHaveTextContent('Winrevair · Merck & Co.')
+    expect(within(card).getByText('Approved', { selector: 'span.rounded-\\[5px\\]' })).toBeInTheDocument()
+    expect(within(card).getByText('Activin signaling inhibitor')).toBeInTheDocument()
+    expect(within(card).getByText('Shared indication and mechanism')).toBeInTheDocument()
 
-    const reference = landscapeRow('Treprostinil')
-    expect(within(reference).getByText('This asset')).toBeInTheDocument()
-    expect(within(reference).getByText('Reference')).toBeInTheDocument()
-    expect(within(reference).getByText('Investigational')).toBeInTheDocument()
+    const ralinepag = screen.getByText('Ralinepag').closest('div.rounded-\\[12px\\]') as HTMLElement
+    expect(within(ralinepag).getByText('Phase 3')).toBeInTheDocument()
+    expect(within(ralinepag).getByText('Shared mechanism')).toBeInTheDocument()
+    expect(screen.queryByText('This asset')).not.toBeInTheDocument()
 
-    const sotatercept = landscapeRow('Sotatercept')
-    expect(sotatercept).toHaveAttribute('title', 'Approved for PAH, the same indication.')
-    expect(within(sotatercept).getByText('Approved')).toBeInTheDocument()
-    expect(within(sotatercept).getByText('Not indicated')).toBeInTheDocument()
-    expect(within(sotatercept).getByText('2024')).toBeInTheDocument()
-    expect(within(sotatercept).getByText('US, EU')).toBeInTheDocument()
-    expect(within(sotatercept).getByText(/\+1 other indication/)).toHaveAttribute('title', 'CTEPH')
-    expect(sotatercept).toHaveTextContent('1 / 2')
-
-    const ralinepag = landscapeRow('Ralinepag')
-    expect(within(ralinepag).getByText('Collecting data')).toBeInTheDocument()
-    expect(within(ralinepag).getByText('—')).toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent('1 competitor is still being collected')
-
-    // Head-to-head uses the news row (news + press releases + abstracts).
-    expect(screen.getByText('News & abstracts')).toBeInTheDocument()
-
-    // Clicking anywhere on a row opens that asset.
-    await userEvent.click(within(sotatercept).getByText('Activin signaling inhibitor'))
+    await userEvent.click(within(card).getByRole('link', { name: /Open journey/ }))
     expect(router.state.location.pathname).toBe('/assets/sotatercept/overview')
   })
 
-  it('opens a signal’s source record under the competitor asset', async () => {
-    fetchMock.mockImplementation(async (url) =>
-      url.includes('/record/') ? json(200, { key: 'BLA761363', title: 'Winrevair BLA' }) : json(200, OVERVIEW),
-    )
-    renderTab()
-    await userEvent.click(await screen.findByRole('button', { name: /FDA approves Winrevair/ }))
-    await screen.findByText('Winrevair BLA')
-    expect(fetchMock).toHaveBeenCalledWith('/api/assets/sotatercept/record/regulatory?key=BLA761363', expect.anything())
-  })
-
-  it('filters milestones by type and only offers chips that have milestones', async () => {
+  it('shows a coverage chip per indication of the primary: approved, investigational or not indicated', async () => {
     fetchMock.mockResolvedValue(json(200, OVERVIEW))
     renderTab()
-    const chips = within(await screen.findByRole('group', { name: 'Filter milestones by type' }))
-    const table = () => screen.getByRole('columnheader', { name: 'Impact' }).closest('table')!
+    await screen.findByText('Sotatercept')
+    const sotatercept = screen.getByText('Sotatercept').closest('div.rounded-\\[12px\\]') as HTMLElement
+    // Indication names use their abbreviation, with the full name and the coverage on hover.
+    const pah = within(sotatercept).getByTitle('Pulmonary arterial hypertension (PAH): Approved')
+    expect(pah).toHaveTextContent('PAH')
+    expect(within(sotatercept).getByTitle('PH-ILD: Not indicated')).toHaveTextContent('PH-ILD')
 
-    expect(chips.getAllByRole('button').map((b) => b.textContent)).toEqual([
-      'All4',
-      'Trial readouts2',
-      'Regulatory decisions1',
-      'Patent expiries1',
-    ])
-    expect(within(table()).getAllByRole('row')).toHaveLength(5)
-
-    await userEvent.click(chips.getByRole('button', { name: /Trial readouts/ }))
-    expect(chips.getByRole('button', { name: /Trial readouts/ })).toHaveAttribute('aria-pressed', 'true')
-    expect(within(table()).getByText('HYPERION')).toBeInTheDocument()
-    expect(within(table()).getByText('ZENITH top-line results')).toBeInTheDocument()
-    expect(within(table()).queryByText('EU decision on label expansion')).not.toBeInTheDocument()
-
-    await userEvent.click(chips.getByRole('button', { name: /Patent expiries/ }))
-    expect(within(table()).getAllByRole('row')).toHaveLength(2)
-    expect(within(table()).getByText('Composition-of-matter patent expires')).toBeInTheDocument()
-
-    await userEvent.click(chips.getByRole('button', { name: /All/ }))
-    expect(within(table()).getAllByRole('row')).toHaveLength(5)
+    const ralinepag = screen.getByText('Ralinepag').closest('div.rounded-\\[12px\\]') as HTMLElement
+    expect(within(ralinepag).getByTitle('Pulmonary arterial hypertension (PAH): Investigational')).toHaveTextContent('PAH')
+    expect(within(ralinepag).getByTitle('PH-ILD: Not indicated')).toBeInTheDocument()
   })
 
   it('offers to identify competitors when none are tracked, and starts only the competitors step', async () => {
@@ -286,13 +252,24 @@ describe('CompetitorsTab', () => {
     fetchMock.mockResolvedValueOnce(json(500, { code: 'ERROR', message: 'boom' })).mockResolvedValue(json(200, OVERVIEW))
     renderTab()
     await userEvent.click(await screen.findByRole('button', { name: /Try again/ }))
-    expect(await screen.findByRole('heading', { name: 'Competitive landscape' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Competitors' })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('points competitor assets to the primaries they compete with', async () => {
+    fetchMock.mockImplementation(async (url) =>
+      url === '/api/assets/treprostinil' ? json(200, { ...ASSET, aliases: ['Tyvaso'] }) : json(404, { code: 'NOT_FOUND', message: url }),
+    )
     renderTab({ ...ASSET, id: 'ralinepag', name: 'Ralinepag', kind: 'competitor', competitorOf: [{ id: 'treprostinil', name: 'Treprostinil' }] } as AssetDetail)
+    expect(await screen.findByRole('heading', { name: 'Competes with' })).toBeInTheDocument()
+    expect(await screen.findByText('Tyvaso · United Therapeutics')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Open journey/ })).toHaveAttribute('href', '/assets/treprostinil/overview')
+    expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith('/competitors'))).toBe(false)
+  })
+
+  it('explains that competitors are tracked for primary assets when a competitor has none', async () => {
+    renderTab({ ...ASSET, id: 'ralinepag', name: 'Ralinepag', kind: 'competitor', competitorOf: [] } as AssetDetail)
     expect(await screen.findByText('Competitors are tracked for primary assets')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Treprostinil' })).toHaveAttribute('href', '/assets/treprostinil/competitors')
     expect(fetchMock).not.toHaveBeenCalled()
   })
 })

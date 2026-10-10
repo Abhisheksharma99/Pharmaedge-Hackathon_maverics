@@ -1,3 +1,4 @@
+import { InlineError } from '@/components/inline-error'
 import { AssetTile } from '@/features/assets/components/asset-tile'
 import { EmptyState, Panel } from '@/features/assets/components/panel'
 import { CATEGORY_META } from '@/features/journey/constants'
@@ -18,9 +19,9 @@ export function NextMilestones() {
   const items = portfolio.data ? upcomingMilestones(portfolio.data.events, today) : []
 
   return (
-    <Panel title="Next milestones" description="Readouts, regulatory decisions and patent expiries" bodyClassName="py-1">
+    <Panel title="Next milestones" description="Readouts, regulatory decisions and patent expiries" bodyClassName="pt-[4px] pb-[6px]">
       {portfolio.isPending && <ListSkeleton rows={3} />}
-      {portfolio.isError && <p className="p-5 text-destructive">Milestones couldn't be loaded.</p>}
+      {portfolio.isError && <InlineError message="Milestones couldn't be loaded." onRetry={() => void portfolio.refetch()} />}
       {portfolio.data && items.length === 0 && (
         <EmptyState title="No upcoming milestones">Expected readouts and decisions appear here once they are in a journey.</EmptyState>
       )}
@@ -29,14 +30,14 @@ export function NextMilestones() {
           const asset = assets.get(e.asset)
           return (
             <li key={`${e.asset}|${e.id}`}>
-              <button type="button" onClick={() => openEvent(e.asset, e.id)} className="flex w-full items-start gap-3.5 px-5 py-2.5 text-left transition-colors hover:bg-background">
-                <span className="flex w-[46px] shrink-0 flex-col items-center rounded-[10px] border bg-card py-1">
+              <button type="button" onClick={() => openEvent(e.asset, e.id)} className="flex w-full items-start gap-[14px] px-[20px] py-[10px] text-left transition-colors hover:bg-background">
+                <span className="flex w-[46px] shrink-0 flex-col items-center rounded-[10px] border bg-card py-[4px]">
                   <span className="text-[11px] font-semibold text-primary uppercase">{MONTHS[Number(e.date.slice(5, 7)) - 1] ?? ''}</span>
-                  <b className="text-[14px] font-semibold tracking-tight">{e.date.slice(0, 4)}</b>
+                  <b className="text-[14px] font-semibold tracking-[-0.02em]">{e.date.slice(0, 4)}</b>
                 </span>
-                <span className="flex min-w-0 flex-1 flex-col gap-1">
+                <span className="flex min-w-0 flex-1 flex-col gap-[4px]">
                   <span className="font-medium text-pretty">{e.title}</span>
-                  <span className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+                  <span className="flex items-center gap-[6px] text-[12px] text-muted-foreground">
                     {asset && <AssetTile name={asset.name} kind={asset.kind} size={16} />}
                     {asset?.name ?? e.asset}
                     <span className="ml-auto font-semibold text-primary">{relativeFuture(e.date, today)}</span>

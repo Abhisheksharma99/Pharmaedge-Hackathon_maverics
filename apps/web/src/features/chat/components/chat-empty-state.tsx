@@ -1,46 +1,37 @@
-import { Plus, Sparkles } from 'lucide-react'
+import { ArrowRight, Plus, Sparkle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useAuth } from '@/features/auth/auth-context'
 import type { ConversationActions } from './chat-conversation'
+import { useStarterQuestions } from '../starters'
 
 /** Composer text for adding an asset ("Add sotatercept"). */
 export const ADD_ASSET_DRAFT = 'Add '
 
-const STARTERS = [
-  'Which assets have milestones in the next six months?',
-  'What were the most significant regulatory events this year?',
-  'Which competitors are closest to approval?',
-  'Summarize the latest Phase 3 readouts across my assets',
-]
-
-/** First screen of a new chat: greeting, portfolio starters and "Add an asset". */
+/** First screen of a new chat (prototype `.ch-empty`): prompt, portfolio starters and "Add an asset". */
 export function ChatEmptyState({ ask, prefill }: ConversationActions) {
-  const { user } = useAuth()
-  const firstName = user?.name.split(/\s+/)[0]
+  const starters = useStarterQuestions()
   return (
-    <div className="flex flex-col items-center pt-8 text-center">
-      <span className="flex size-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-        <Sparkles className="size-6" />
+    <div className="my-auto flex flex-col items-center gap-[6px] py-[40px] text-center">
+      <span className="flex size-[48px] items-center justify-center rounded-[14px] bg-violet-soft text-violet">
+        <Sparkle className="size-[22px]" />
       </span>
-      <h2 className="mt-4 text-[22px] font-semibold tracking-tight">
-        {firstName ? `Hi ${firstName}, what would you like to know?` : 'What would you like to know?'}
-      </h2>
-      <p className="mt-1 max-w-md text-text-secondary">
+      <h2 className="mt-[10px] text-[22px] font-semibold tracking-[-0.02em]">What do you want to know?</h2>
+      <p className="max-w-[440px] text-text-secondary">
         Ask about your assets, their competitors and the evidence behind them, or add a new asset to track.
       </p>
-      <div className="mt-6 grid w-full gap-2 sm:grid-cols-2">
-        {STARTERS.map((q) => (
+      <div className="mt-[18px] grid w-full max-w-[620px] grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-[8px]">
+        {starters.map((q) => (
           <button
             key={q}
             type="button"
             onClick={() => ask(q)}
-            className="rounded-xl border bg-card px-3.5 py-3 text-left font-medium text-secondary-foreground transition-colors hover:bg-accent/50"
+            className="flex items-center justify-between gap-[10px] rounded-[10px] border bg-card px-[12px] py-[10px] text-left text-secondary-foreground transition-colors outline-none hover:border-primary hover:bg-primary-soft hover:text-primary focus-visible:ring-[3px] focus-visible:ring-primary/12"
           >
             {q}
+            <ArrowRight className="size-[13px] shrink-0" />
           </button>
         ))}
       </div>
-      <Button variant="outline" className="mt-4 h-9 rounded-[10px] bg-card" onClick={() => prefill(ADD_ASSET_DRAFT)}>
+      <Button variant="outline" size="sm" className="mt-[10px]" onClick={() => prefill(ADD_ASSET_DRAFT)}>
         <Plus /> Add an asset
       </Button>
     </div>

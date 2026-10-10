@@ -1,17 +1,17 @@
 import { Page } from './page'
 import type { NavItem } from './nav-config'
 
-/** Placeholder for sections whose data or crawlers are still being built. */
+/** Placeholder for sections whose data or crawlers are still being built (prototype `.soon` panel). */
 export function ComingSoon({ item }: { item: NavItem }) {
   return (
-    <Page title={item.label}>
-      <div className="flex flex-col items-center rounded-xl border border-dashed bg-card px-6 py-16 text-center">
-        <span className="mb-3 flex size-10 items-center justify-center rounded-full bg-accent text-text-secondary">
-          <item.icon className="size-5" />
+    <Page title={item.label} description={item.detail ? item.summary : undefined}>
+      <section className="flex flex-col items-center gap-[6px] rounded-[14px] border bg-card px-[24px] py-[56px] text-center shadow-panel">
+        <span className="flex size-[48px] items-center justify-center rounded-[14px] border border-text-secondary bg-muted text-text-secondary">
+          <item.icon className="size-[22px]" />
         </span>
-        <p className="font-medium">Coming soon</p>
-        <p className="mt-1 max-w-md text-text-secondary">{item.summary}</p>
-      </div>
+        <h3 className="mt-[10px] text-[17px] font-semibold">Coming soon</h3>
+        <p className="max-w-[440px] text-text-secondary">{item.detail ?? item.summary}</p>
+      </section>
     </Page>
   )
 }

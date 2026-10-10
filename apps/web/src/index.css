@@ -99,6 +99,8 @@
     --animate-fade: fade 0.5s both;
     /* live dots: sidebar crawl dot, "Building" rows, collecting pills */
     --animate-blink-dot: blink-dot 1.2s ease-in-out infinite;
+    /* journey: a card a deep link or "Locate on timeline" lands on (README §6.2 "flash") */
+    --animate-journey-flash: journey-flash 1.8s ease;
     /* live build (README §4 "Motion"; design_files/aj/base.css) */
     --animate-ag-in: ag-in 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.15) both;
     --animate-node-run: ag-in 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.15) both, shimmer 1.6s linear infinite;
@@ -131,6 +133,10 @@
     }
     @keyframes blink-dot {
         50% { opacity: 0.25; }
+    }
+    @keyframes journey-flash {
+        0%, 50% { box-shadow: 0 0 0 4px rgba(35, 71, 217, 0.35), 0 16px 40px rgba(35, 71, 217, 0.15); }
+        100% { box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04); }
     }
     @keyframes ag-in {
         from { opacity: 0; transform: scale(0.86); }
@@ -305,11 +311,18 @@
     }
   body {
     @apply bg-background text-foreground;
+    /* the prototype's base.css line-height (Tailwind's preflight default is 1.5) */
+    line-height: 1.45;
     }
   html {
     @apply font-sans;
     /* the design runs at 13px body text */
     font-size: 13px;
+    }
+  /* Keyboard focus is always visible (README §9): controls that don't draw their own ring get this one. */
+  :where(a[href], button, summary, [role='button'], [tabindex]:not([tabindex='-1'])):focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
     }
   /* Reduced motion: no transforms, instant opacity (README §4 "Motion"). */
   @media (prefers-reduced-motion: reduce) {

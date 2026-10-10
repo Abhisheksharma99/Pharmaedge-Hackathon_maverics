@@ -2,19 +2,23 @@ import { Activity, Bell, Check, Flag, MessageCircle, TriangleAlert, type LucideI
 import { Popover as PopoverPrimitive } from 'radix-ui'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
+import { InlineError } from '@/components/inline-error'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useMarkNotificationsRead, useNotifications, type AppNotification } from '@/features/me/api'
 import { timeAgo } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 import { internalPath } from './internal-path'
 
-const KIND: Record<string, { icon: LucideIcon; tone: string }> = {
-  onboarding_started: { icon: Activity, tone: 'bg-primary-soft text-primary' },
-  onboarding_finished: { icon: Check, tone: 'bg-success-soft text-success' },
-  job_failed: { icon: TriangleAlert, tone: 'bg-danger-soft text-destructive' },
-  high_event: { icon: Flag, tone: 'bg-warning-soft text-warning' },
-  comment: { icon: MessageCircle, tone: 'bg-violet-soft text-violet' },
+/** One neutral 28px tile for every kind (prototype `.tile.sm`); the icon says what happened. */
+const TILE = 'bg-muted text-text-secondary'
+const KIND: Record<string, { icon: LucideIcon }> = {
+  onboarding_started: { icon: Activity },
+  onboarding_finished: { icon: Check },
+  job_failed: { icon: TriangleAlert },
+  high_event: { icon: Flag },
+  comment: { icon: MessageCircle },
 }
-const OTHER = { icon: Bell, tone: 'bg-muted text-text-secondary' }
+const OTHER = { icon: Bell }
 
 /** Bell with unread badge and a 350px list (README §5.1). */
 export function NotificationsPopover() {
@@ -36,13 +40,13 @@ export function NotificationsPopover() {
     <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
       <PopoverPrimitive.Trigger
         aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'}
-        className="relative flex size-8 items-center justify-center rounded-md text-text-secondary transition-colors hover:bg-accent"
+        className="relative flex size-[32px] items-center justify-center rounded-[8px] text-text-secondary outline-none transition-colors hover:bg-accent data-[state=open]:bg-accent focus-visible:ring-[3px] focus-visible:ring-primary/12"
       >
         <Bell className="size-[17px]" />
         {unread > 0 && (
           <span
             aria-hidden="true"
-            className="absolute top-0.5 right-0.5 flex h-[15px] min-w-[15px] items-center justify-center rounded-full border-2 border-card bg-destructive px-1 text-[10px] font-semibold text-white"
+            className="absolute top-[2px] right-[2px] flex h-[15px] min-w-[15px] items-center justify-center rounded-full border-2 border-card bg-destructive px-[4px] text-[10px] font-semibold text-white"
           >
             {unread > 9 ? '9+' : unread}
           </span>
@@ -52,24 +56,37 @@ export function NotificationsPopover() {
         <PopoverPrimitive.Content
           align="end"
           sideOffset={6}
-          className="z-50 w-[350px] overflow-hidden rounded-xl border bg-popover shadow-popover outline-none data-[state=open]:animate-fade-up"
+          className="z-50 w-[350px] overflow-hidden rounded-[12px] border bg-popover shadow-popover outline-none data-[state=open]:animate-fade-up"
         >
-          <div className="flex items-center justify-between border-b border-hair px-3.5 py-3">
-            <p className="font-semibold">Notifications</p>
+          <div className="flex items-center justify-between border-b border-hair px-[14px] py-[12px]">
+            <b className="font-semibold">Notifications</b>
             <button
               type="button"
               disabled={!unread}
               onClick={() => markRead.mutate({})}
-              className="text-[12.5px] font-medium text-primary hover:underline disabled:text-muted-foreground disabled:no-underline"
+              className="font-medium text-primary hover:underline disabled:text-muted-foreground disabled:no-underline"
             >
               Mark all read
             </button>
           </div>
-          {list.isError && <p className="px-3.5 py-6 text-center text-muted-foreground">Notifications couldn't be loaded.</p>}
+          {list.isPending && (
+            <div role="status" aria-label="Loading notifications" className="divide-y divide-hair">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="flex items-start gap-[10px] px-[14px] py-[11px]">
+                  <Skeleton className="size-[28px] shrink-0 rounded-lg" />
+                  <div className="flex-1 space-y-[6px]">
+                    <Skeleton className="h-[13px] w-3/4" />
+                    <Skeleton className="h-[11px] w-full" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {list.isError && <InlineError message="Notifications couldn't be loaded." onRetry={() => void list.refetch()} className="justify-center px-[14px] py-[24px]" />}
           {list.data && items.length === 0 && (
-            <div className="px-6 py-8 text-center">
+            <div className="px-[24px] py-[32px] text-center">
               <p className="font-medium">You're all caught up</p>
-              <p className="mt-1 text-[12.5px] text-muted-foreground">Finished and failed crawls and new high-significance events show up here.</p>
+              <p className="mt-[4px] text-[12.5px] text-muted-foreground">Finished and failed crawls and new high-significance events show up here.</p>
             </div>
           )}
           <ul className="max-h-[420px] divide-y divide-hair overflow-y-auto">
@@ -77,13 +94,13 @@ export function NotificationsPopover() {
               const kind = KIND[n.kind] ?? OTHER
               return (
                 <li key={n.id}>
-                  <button type="button" onClick={() => follow(n)} className="flex w-full items-start gap-2.5 px-3.5 py-[11px] text-left transition-colors hover:bg-background">
-                    <span className={cn('flex size-7 shrink-0 items-center justify-center rounded-lg', kind.tone)}>
-                      <kind.icon className="size-3.5" />
+                  <button type="button" onClick={() => follow(n)} className="flex w-full items-start gap-[10px] px-[14px] py-[11px] text-left transition-colors hover:bg-background">
+                    <span className={cn('flex size-[28px] shrink-0 items-center justify-center rounded-lg', TILE)}>
+                      <kind.icon className="size-[14px]" />
                     </span>
-                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span className="font-semibold">
-                        {!n.read && <span role="img" aria-label="Unread" className="mr-1.5 inline-block size-1.5 rounded-full bg-primary align-[2px]" />}
+                    <span className="flex min-w-0 flex-1 flex-col gap-[2px]">
+                      <span className="font-medium">
+                        {!n.read && <span role="img" aria-label="Unread" className="mr-[6px] inline-block size-[6px] rounded-full bg-primary align-[2px]" />}
                         {n.title}
                       </span>
                       <span className="truncate text-[12px] text-muted-foreground">{n.sub}</span>

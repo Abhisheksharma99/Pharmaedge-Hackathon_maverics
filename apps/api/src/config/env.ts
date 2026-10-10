@@ -25,6 +25,11 @@ export interface Env {
   LLM_FOLLOWUP_MODEL: string;
   LLM_EMBEDDING_MODEL: string;
   EMBEDDING_DIMENSIONS: number;
+  /** Real web search (allow-listed domains) for notes/find and analytics. Off by default. */
+  ANALYTICS_WEB_SEARCH: boolean;
+  /** Per-user limits on the costly AI routes (analytics build, notes find). */
+  AI_RATE_PER_MINUTE: number;
+  AI_RATE_PER_HOUR: number;
 }
 
 const schema = Joi.object<Env>({
@@ -54,6 +59,9 @@ const schema = Joi.object<Env>({
   // Must match the crawler's index (record_chunks embeddings).
   LLM_EMBEDDING_MODEL: Joi.string().default('text-embedding-3-small'),
   EMBEDDING_DIMENSIONS: Joi.number().integer().min(64).default(1536),
+  ANALYTICS_WEB_SEARCH: Joi.boolean().truthy('1').falsy('0').default(false),
+  AI_RATE_PER_MINUTE: Joi.number().integer().min(1).default(10),
+  AI_RATE_PER_HOUR: Joi.number().integer().min(1).default(60),
 });
 
 /** `validate` hook for ConfigModule (its `validationSchema` expects a Standard Schema). */

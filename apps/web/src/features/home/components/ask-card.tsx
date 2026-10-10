@@ -1,4 +1,4 @@
-import { ArrowRight, Plus, Sparkles } from 'lucide-react'
+import { ArrowRight, Plus, Sparkle } from 'lucide-react'
 import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'
 
@@ -11,10 +11,10 @@ export function AskCard({ compare }: { compare: [string, string] | null }) {
     'Summarize the latest Phase 3 readouts',
   ]
   return (
-    <section aria-labelledby="ask-card-title" className="flex flex-col gap-3 rounded-[14px] border bg-card px-5 py-[18px] shadow-panel">
-      <div className="flex items-center gap-3">
-        <span className="flex size-9 items-center justify-center rounded-[10px] bg-violet-soft text-violet">
-          <Sparkles className="size-4" />
+    <section aria-labelledby="ask-card-title" className="flex flex-col gap-[12px] rounded-[14px] border bg-card px-[20px] py-[18px] shadow-panel">
+      <div className="flex items-center gap-[12px]">
+        <span className="flex size-[32px] shrink-0 items-center justify-center rounded-[9px] bg-violet-soft text-violet">
+          <Sparkle className="size-[16px]" />
         </span>
         <div>
           <h3 id="ask-card-title" className="text-[15px] font-semibold">
@@ -23,12 +23,12 @@ export function AskCard({ compare }: { compare: [string, string] | null }) {
           <p className="text-text-secondary">Answers cite the records behind them.</p>
         </div>
       </div>
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-[6px]">
         {questions.map((q) => (
           <Link
             key={q}
             to={`/chat?ask=${encodeURIComponent(q)}`}
-            className="flex items-center justify-between gap-2.5 rounded-[10px] border bg-card px-3 py-2.5 text-secondary-foreground transition-colors hover:border-primary hover:bg-primary-soft hover:text-primary"
+            className="flex items-center justify-between gap-[10px] rounded-[10px] border bg-card px-[12px] py-[10px] text-secondary-foreground transition-colors hover:border-primary hover:bg-primary-soft hover:text-primary"
           >
             {q}
             <ArrowRight className="size-[13px] shrink-0" />

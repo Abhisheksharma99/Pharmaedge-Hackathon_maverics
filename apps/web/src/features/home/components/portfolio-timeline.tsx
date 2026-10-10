@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
+import { InlineError } from '@/components/inline-error'
 import { AssetTile } from '@/features/assets/components/asset-tile'
 import { EmptyState, Panel } from '@/features/assets/components/panel'
 import { Segmented } from '@/features/assets/components/segmented'
@@ -39,8 +40,8 @@ export function PortfolioTimeline() {
       title="Portfolio timeline"
       description="Every journey on one axis. Hollow markers are expected milestones; select one to see its evidence."
       actions={
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-2 text-[12.5px] text-text-secondary">
+        <div className="flex flex-wrap items-center gap-[8px]">
+          <label className="flex cursor-pointer items-center gap-[8px] text-text-secondary">
             <Switch checked={showCompetitors} onCheckedChange={setShowCompetitors} aria-label="Show competitors" />
             Show competitors
           </label>
@@ -49,13 +50,13 @@ export function PortfolioTimeline() {
       }
     >
       {portfolio.isPending && (
-        <div className="space-y-2 p-5">
+        <div className="space-y-[8px] p-[20px]">
           {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-10 w-full" />
+            <Skeleton key={i} className="h-[40px] w-full" />
           ))}
         </div>
       )}
-      {portfolio.isError && <p className="p-5 text-destructive">The portfolio timeline couldn't be loaded.</p>}
+      {portfolio.isError && <InlineError message="The portfolio timeline couldn't be loaded." onRetry={() => void portfolio.refetch()} />}
       {data && rows.length === 0 && <EmptyState title="No assets yet">Add a drug by name with Asset AI to see its journey here.</EmptyState>}
       {data && rows.length > 0 && (
         <>
@@ -105,8 +106,8 @@ function PortfolioPlot({
   const hoveredRow = hovered ? rows.findIndex((a) => a.id === hovered.asset) : -1
 
   return (
-    <div className="grid grid-cols-[132px_minmax(0,1fr)] py-3 pr-4 pl-1 sm:grid-cols-[210px_minmax(0,1fr)]">
-      <div className="flex flex-col pb-6">
+    <div className="grid grid-cols-[132px_minmax(0,1fr)] pt-[12px] pr-[16px] pb-[4px] pl-[4px] min-[761px]:grid-cols-[210px_minmax(0,1fr)]">
+      <div className="flex flex-col pb-[24px]">
         {rows.map((a) => (
           <RowLabel key={a.id} asset={a} job={running.get(a.id)} names={names} />
         ))}
@@ -162,7 +163,7 @@ function PortfolioPlot({
         {hovered && hoveredRow >= 0 && (
           <div
             role="tooltip"
-            className="pointer-events-none absolute z-20 flex w-max max-w-[260px] -translate-x-1/2 -translate-y-[calc(100%+8px)] flex-col rounded-lg bg-foreground px-2.5 py-[7px] text-[12px] leading-snug text-white"
+            className="pointer-events-none absolute z-20 flex w-max max-w-[260px] -translate-x-1/2 -translate-y-[calc(100%+8px)] flex-col rounded-lg bg-foreground px-[9px] py-[7px] text-[12px] leading-[1.35] text-white shadow-[0_6px_16px_rgba(16,24,40,0.18)]"
             style={{ left: x(yearFraction(hovered.date)), top: hoveredRow * ROW + ROW / 2 - 8 }}
           >
             <b className="font-medium">{hovered.title}</b>
@@ -184,14 +185,14 @@ function RowLabel({ asset, job, names }: { asset: PortfolioAsset; job?: Job; nam
         : 'Competitor'
       : (asset.company ?? '')
   return (
-    <Link to={`/assets/${encodeURIComponent(asset.id)}/overview`} style={{ height: ROW }} className="flex items-center gap-2.5 rounded-lg px-3 transition-colors hover:bg-accent">
+    <Link to={`/assets/${encodeURIComponent(asset.id)}/overview`} style={{ height: ROW }} className="flex items-center gap-[10px] rounded-lg px-[12px] transition-colors hover:bg-accent">
       <AssetTile name={asset.name} kind={asset.kind} size={26} />
       <span className="flex min-w-0 flex-col">
         <b className="truncate font-semibold">{asset.name}</b>
-        <span className="truncate text-[12px] text-muted-foreground max-sm:hidden">
+        <span className="truncate text-[12px] text-muted-foreground max-[760px]:hidden">
           {job ? (
-            <span className="inline-flex items-center gap-1.5 font-semibold text-warning">
-              <i aria-hidden="true" className="size-1.5 animate-blink-dot rounded-full bg-current" />
+            <span className="inline-flex items-center gap-[6px] font-semibold text-warning">
+              <i aria-hidden="true" className="size-[6px] animate-blink-dot rounded-full bg-current" />
               Building · {Math.round(jobProgress(job) * 100)}%
             </span>
           ) : (
@@ -288,15 +289,15 @@ function RecordTicks({ jobId, cy, x, y0, y1 }: { jobId: string; cy: number; x: (
 
 function Legend() {
   return (
-    <div className="flex flex-wrap gap-3.5 px-5 pt-1 pb-3.5 text-[12px] text-text-secondary sm:pl-[226px]">
+    <div className="flex flex-wrap gap-[14px] px-[20px] pt-[8px] pb-[14px] text-[12px] text-text-secondary min-[761px]:pl-[226px]">
       {CATEGORIES.map((c) => (
-        <span key={c} className="flex items-center gap-1.5">
-          <i aria-hidden="true" className="size-2 rounded-full" style={{ background: CATEGORY_META[c].color }} />
+        <span key={c} className="flex items-center gap-[6px]">
+          <i aria-hidden="true" className="size-[8px] rounded-full" style={{ background: CATEGORY_META[c].color }} />
           {CATEGORY_META[c].label}
         </span>
       ))}
-      <span className="flex items-center gap-1.5">
-        <i aria-hidden="true" className="size-2 rounded-full border-[1.5px] border-dashed border-text-secondary bg-card" />
+      <span className="flex items-center gap-[6px]">
+        <i aria-hidden="true" className="size-[8px] rounded-full border-[1.5px] border-dashed border-text-secondary bg-card" />
         Expected
       </span>
     </div>

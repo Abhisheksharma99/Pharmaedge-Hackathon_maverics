@@ -1,10 +1,11 @@
-import { ForbiddenException, Inject, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { Db } from 'mongodb';
 import { AssetsService } from '../assets/assets.service.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { MONGO_DB } from '../database/database.module.js';
 import { noteToEvent, type NoteDoc } from '../journey/events.js';
+import { NotificationsService } from '../me/notifications.service.js';
 import type { CommentDto, NoteDto, NotePatchDto } from './annotations.dto.js';
 
 interface CommentDoc {
@@ -22,9 +23,12 @@ const canEdit = (user: AuthUser, by: { id: string }) => user.role === 'admin' ||
 /** Stars (per user), comments and team notes on journey events (DATA_CONTRACTS §B.3). */
 @Injectable()
 export class AnnotationsService implements OnModuleInit {
+  private readonly logger = new Logger(AnnotationsService.name);
+
   constructor(
     @Inject(MONGO_DB) private readonly db: Db,
     private readonly assets: AssetsService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async onModuleInit() {
@@ -68,7 +72,22 @@ export class AnnotationsService implements OnModuleInit {
     await this.requireEvent(asset, event);
     const doc: CommentDoc = { _id: randomUUID(), asset, event, by: { id: user.id, name: user.name }, text: dto.text.trim(), at: new Date() };
     await this.db.collection<CommentDoc>('event_comments').insertOne(doc);
+    await this.notifyStarrers(asset, event, user);
     return comment(doc);
+  }
+
+  /** A comment on a starred event notifies everyone who starred it, except the commenter. */
+  private async notifyStarrers(asset: string, event: string, commenter: AuthUser) {
+    try {
+      const starrers = (await this.db.collection('event_stars').find({ asset, event, user: { $ne: commenter.id } }).toArray()).map((s) => s.user as string);
+      if (!starrers.length) return;
+      const doc = (await this.db.collection('journey_events').findOne({ _id: event as never, asset }, { projection: { title: 1 } })) ?? (await this.db.collection('journey_notes').findOne({ _id: event as never, asset }, { projection: { title: 1 } }));
+      const assetName = (await this.assets.getAsset(asset)).name;
+      await this.notifications.pushTo(starrers, 'comment', `${commenter.name} commented on a starred event`, `${assetName} · ${doc?.title ?? 'Journey event'}`, `/assets/${asset}/overview?focus=${encodeURIComponent(event)}`);
+    } catch (err) {
+      // The comment is saved; a failed notification must not fail it.
+      this.logger.warn(`comment notification failed: ${(err as Error).message}`);
+    }
   }
 
   async deleteComment(asset: string, id: string, user: AuthUser) {

@@ -1,5 +1,5 @@
 import { Command as CommandPrimitive } from 'cmdk'
-import { Activity, ArrowRight, Home, Plus, Route, Search, Settings, Sparkles, type LucideIcon } from 'lucide-react'
+import { Activity, ArrowRight, Home, Plus, Route, Search, Settings, Sparkle, type LucideIcon } from 'lucide-react'
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 import { Command, CommandGroup, CommandList } from '@/components/ui/command'
@@ -26,13 +26,13 @@ interface PaletteItem {
 const PAGES: { label: string; to: string; icon: LucideIcon }[] = [
   { label: 'Home', to: '/', icon: Home },
   { label: 'Asset Search', to: '/assets', icon: Search },
-  { label: 'Asset AI', to: '/chat', icon: Sparkles },
+  { label: 'Asset AI', to: '/chat', icon: Sparkle },
   { label: 'Crawl jobs', to: '/jobs', icon: Activity },
   { label: 'Settings', to: '/settings', icon: Settings },
 ]
 
 const GROUP_HEADING =
-  '**:[[cmdk-group-heading]]:px-2.5 **:[[cmdk-group-heading]]:pt-2 **:[[cmdk-group-heading]]:pb-1 **:[[cmdk-group-heading]]:text-[11px] **:[[cmdk-group-heading]]:font-semibold **:[[cmdk-group-heading]]:tracking-[0.06em] **:[[cmdk-group-heading]]:text-muted-foreground **:[[cmdk-group-heading]]:uppercase'
+  '**:[[cmdk-group-heading]]:px-[10px] **:[[cmdk-group-heading]]:pt-[8px] **:[[cmdk-group-heading]]:pb-[4px] **:[[cmdk-group-heading]]:text-[11px] **:[[cmdk-group-heading]]:font-semibold **:[[cmdk-group-heading]]:tracking-[0.06em] **:[[cmdk-group-heading]]:text-muted-foreground **:[[cmdk-group-heading]]:uppercase'
 
 /** ⌘K palette (README §5.1): assets, events (from 2 characters, via /search), pages and actions. */
 export function CommandPalette() {
@@ -43,7 +43,7 @@ export function CommandPalette() {
       <DialogContent
         showCloseButton={false}
         onCloseAutoFocus={paletteFocus.onCloseAutoFocus}
-        className="top-[12vh] translate-y-0 gap-0 overflow-hidden rounded-[14px] p-0 shadow-dialog sm:max-w-[620px]"
+        className="top-[12vh] translate-y-0 gap-0 overflow-hidden rounded-[14px] p-0 shadow-dialog min-[761px]:max-w-[620px]"
       >
         <DialogTitle className="sr-only">Search PharmaEdge</DialogTitle>
         <DialogDescription className="sr-only">Search assets, events, NCT IDs and pages, or run an action.</DialogDescription>
@@ -108,7 +108,7 @@ function PaletteBody({ onDone }: { onDone: () => void }) {
       value: 'action:ask',
       label: term ? `Ask Asset AI: “${term}”` : 'Ask Asset AI',
       sub: 'Action',
-      icon: Sparkles,
+      icon: Sparkle,
       run: () => go(term ? `/chat?ask=${encodeURIComponent(term)}` : '/chat'),
     },
   ].filter((a) => !term || a.value === 'action:ask' || a.label.toLowerCase().includes(lower))
@@ -148,7 +148,7 @@ function PaletteBody({ onDone }: { onDone: () => void }) {
       onKeyDown={onKeyDown}
       className="rounded-none! bg-card p-0"
     >
-      <div className="flex items-center gap-2.5 border-b border-hair px-4 py-3.5 text-muted-foreground">
+      <div className="flex items-center gap-[10px] border-b border-hair px-[16px] py-[14px] text-muted-foreground">
         <Search className="size-[17px] shrink-0" />
         <CommandPrimitive.Input
           autoFocus
@@ -162,7 +162,7 @@ function PaletteBody({ onDone }: { onDone: () => void }) {
         />
         <Kbd>esc</Kbd>
       </div>
-      <CommandList className="max-h-[min(420px,56vh)] p-1.5">
+      <CommandList className="max-h-[min(420px,56vh)] p-[6px]">
         {visible.map(([heading, items]) => (
           <CommandGroup key={heading} heading={heading} className={cn('p-0', GROUP_HEADING)}>
             {items.map((it) => (
@@ -175,13 +175,13 @@ function PaletteBody({ onDone }: { onDone: () => void }) {
                   if (el) itemRefs.current.set(it.value, el)
                   else itemRefs.current.delete(it.value)
                 }}
-                className="group flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 outline-none data-[selected=true]:bg-primary-soft"
+                className="group flex cursor-pointer items-center gap-[10px] rounded-lg px-[10px] py-[8px] outline-none data-[selected=true]:bg-primary-soft"
               >
                 {it.asset ? (
                   <AssetTile name={it.asset.name} kind={it.asset.kind} size={24} />
                 ) : (
-                  <span aria-hidden="true" className="flex size-6 shrink-0 items-center justify-center rounded-[7px] bg-muted text-text-secondary">
-                    {it.icon && <it.icon className="size-3.5" />}
+                  <span aria-hidden="true" className="flex size-[24px] shrink-0 items-center justify-center rounded-[7px] bg-muted text-text-secondary">
+                    {it.icon && <it.icon className="size-[14px]" />}
                   </span>
                 )}
                 <span className="min-w-0 truncate font-medium">{it.label}</span>
@@ -191,19 +191,39 @@ function PaletteBody({ onDone }: { onDone: () => void }) {
             ))}
           </CommandGroup>
         ))}
+        {assets.isPending && (
+          <p role="status" className="px-[10px] py-[8px] text-[12px] text-muted-foreground">
+            Loading assets…
+          </p>
+        )}
         {term.length >= SEARCH_MIN_CHARS && search.isFetching && eventItems.length === 0 && (
-          <p className="px-2.5 py-2 text-[12px] text-muted-foreground">Searching events…</p>
+          <p role="status" className="px-[10px] py-[8px] text-[12px] text-muted-foreground">
+            Searching events…
+          </p>
+        )}
+        {term.length >= SEARCH_MIN_CHARS && search.isError && (
+          <p role="alert" className="flex items-center gap-[10px] px-[10px] py-[8px] text-[12px] text-destructive">
+            Events couldn't be searched.
+            <button type="button" onClick={() => void search.refetch()} className="font-medium text-primary hover:underline focus-visible:underline focus-visible:outline-none">
+              Try again
+            </button>
+          </p>
+        )}
+        {term.length >= SEARCH_MIN_CHARS && search.isSuccess && !search.isFetching && eventItems.length === 0 && assetItems.length === 0 && (
+          <p role="status" className="px-[10px] py-[8px] text-[12px] text-muted-foreground">
+            No assets or events match “{term}”.
+          </p>
         )}
       </CommandList>
-      <div className="flex gap-4 border-t border-hair px-4 py-2.5 text-[12px] text-muted-foreground">
-        <span className="flex items-center gap-1">
+      <div className="flex gap-[16px] border-t border-hair px-[16px] py-[9px] text-[12px] text-muted-foreground">
+        <span className="flex items-center gap-[4px]">
           <Kbd>↑</Kbd>
           <Kbd>↓</Kbd> navigate
         </span>
-        <span className="flex items-center gap-1">
+        <span className="flex items-center gap-[4px]">
           <Kbd>↵</Kbd> open
         </span>
-        <span className="flex items-center gap-1">
+        <span className="flex items-center gap-[4px]">
           <Kbd>esc</Kbd> close
         </span>
       </div>
@@ -212,5 +232,5 @@ function PaletteBody({ onDone }: { onDone: () => void }) {
 }
 
 function Kbd({ children }: { children: ReactNode }) {
-  return <kbd className="rounded border bg-card px-1.5 font-mono text-[11px] text-muted-foreground">{children}</kbd>
+  return <kbd className="rounded-[4px] border bg-card px-[5px] font-mono text-[11px] text-muted-foreground">{children}</kbd>
 }

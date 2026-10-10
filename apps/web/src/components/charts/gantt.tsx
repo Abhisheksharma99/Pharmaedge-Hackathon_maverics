@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { todayIso, yearFraction } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 
@@ -24,8 +25,8 @@ export function Gantt({ rows, from, to, today = todayIso() }: { rows: GanttRow[]
   const now = yearFraction(today)
   const showNow = now >= from && now <= to
   return (
-    <div className="relative text-xs [--gl:150px] @max-[520px]:[--gl:110px]">
-      <div className="mb-1 grid h-5 grid-cols-[var(--gl)_minmax(0,1fr)] items-center">
+    <div className="relative text-[12px] [--gl:150px] @max-[520px]:[--gl:110px]">
+      <div className="mb-[4px] grid h-[20px] grid-cols-[var(--gl)_minmax(0,1fr)] items-center">
         <span />
         <div className="relative h-full">
           {ticks.map((y) => (
@@ -41,20 +42,20 @@ export function Gantt({ rows, from, to, today = todayIso() }: { rows: GanttRow[]
         const width = Math.max(0.8, pct(Math.max(r.s, r.e)) - left)
         return (
           <div key={`${r.l}-${i}`} className="grid h-[34px] grid-cols-[var(--gl)_minmax(0,1fr)] items-center">
-            <span className="flex min-w-0 flex-col pr-2 leading-[1.15]">
-              <b className="truncate text-xs font-medium">{r.l}</b>
+            <span className="flex min-w-0 flex-col pr-[8px] leading-[1.15]">
+              <b className="truncate text-[12px] font-medium">{r.l}</b>
               {r.sub && <span className="truncate text-[10.5px] text-muted-foreground">{r.sub}</span>}
             </span>
             <div className="relative h-[34px]">
               {ticks.map((y) => (
                 <i key={y} className="absolute inset-y-0 border-l border-[#f2f4f7]" style={{ left: `${pct(y)}%` }} />
               ))}
-              {!known && <span className="absolute top-2.5 text-[10.5px] text-muted-foreground">Dates unknown</span>}
+              {!known && <span className="absolute top-[10px] text-[10.5px] text-muted-foreground">Dates unknown</span>}
               {known && (
                 <span
                   title={r.tip}
                   className={cn(
-                    'absolute top-2.5 flex h-3.5 min-w-1.5 origin-left animate-grow-x items-center justify-end rounded border-[1.5px]',
+                    'absolute top-[10px] flex h-[14px] min-w-[6px] origin-left animate-grow-x items-center justify-end rounded-[4px] border-[1.5px]',
                     r.dash && 'border-dashed',
                   )}
                   style={{
@@ -66,7 +67,7 @@ export function Gantt({ rows, from, to, today = todayIso() }: { rows: GanttRow[]
                   }}
                 >
                   {r.tag && (
-                    <em className={cn('px-1 text-[9.5px] font-bold whitespace-nowrap not-italic', r.dash ? 'text-destructive' : 'text-white')}>
+                    <em className={cn('px-[4px] text-[9.5px] font-bold whitespace-nowrap not-italic', r.dash ? 'text-destructive' : 'text-white')}>
                       {r.tag}
                     </em>
                   )}
@@ -81,9 +82,14 @@ export function Gantt({ rows, from, to, today = todayIso() }: { rows: GanttRow[]
           className="pointer-events-none absolute top-[18px] bottom-0 border-l-[1.5px] border-dashed border-foreground"
           style={{ left: `calc(var(--gl) + (100% - var(--gl)) * ${pct(now) / 100})` }}
         >
-          <em className="absolute -top-4 -left-3.5 text-[10px] font-semibold not-italic">Today</em>
+          <em className="absolute -top-[16px] -left-[14px] text-[10px] font-semibold not-italic">Today</em>
         </div>
       )}
     </div>
   )
+}
+
+/** A real asset has hundreds of trials or patents: keep the card the prototype's size and scroll the rows. */
+export function GanttScroll({ children }: { children: ReactNode }) {
+  return <div className="max-h-[560px] overflow-y-auto pt-[16px]">{children}</div>
 }

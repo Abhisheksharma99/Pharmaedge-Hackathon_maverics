@@ -1,12 +1,17 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
 import type { AuthUser } from '../auth/auth.types.js';
 import { CurrentUser } from '../common/decorators/auth.decorators.js';
-import { CommentDto, NoteDto, NotePatchDto } from './annotations.dto.js';
+import { AiThrottlerGuard } from '../common/throttle/ai-throttler.js';
+import { CommentDto, FindNoteDto, NoteDto, NotePatchDto } from './annotations.dto.js';
+import { NotesFinderService } from './notes-finder.service.js';
 import { AnnotationsService } from './annotations.service.js';
 
 @Controller('assets/:id')
 export class AnnotationsController {
-  constructor(private readonly annotations: AnnotationsService) {}
+  constructor(
+    private readonly annotations: AnnotationsService,
+    private readonly finder: NotesFinderService,
+  ) {}
 
   @Get('annotations')
   list(@Param('id') id: string, @CurrentUser() user: AuthUser) {
@@ -41,6 +46,13 @@ export class AnnotationsController {
   @HttpCode(201)
   addNote(@Param('id') id: string, @CurrentUser() user: AuthUser, @Body() dto: NoteDto) {
     return this.annotations.addNote(id, user, dto);
+  }
+
+  @UseGuards(AiThrottlerGuard)
+  @Post('notes/find')
+  @HttpCode(200)
+  find(@Param('id') id: string, @Body() dto: FindNoteDto) {
+    return this.finder.find(id, dto);
   }
 
   @Patch('notes/:noteId')

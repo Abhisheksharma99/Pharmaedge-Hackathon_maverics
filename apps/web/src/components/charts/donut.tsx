@@ -28,7 +28,7 @@ export function Donut({
   const offsets = lens.map((_, i) => lens.slice(0, i).reduce((a, b) => a + b, 0))
   const hovered = hover != null ? data[hover] : undefined
   return (
-    <div className="flex flex-col items-center gap-1.5">
+    <div className="flex flex-col items-center gap-[6px]">
       <svg
         width={size}
         height={size}

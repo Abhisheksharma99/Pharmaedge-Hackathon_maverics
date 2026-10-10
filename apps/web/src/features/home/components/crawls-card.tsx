@@ -1,5 +1,6 @@
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router";
+import { InlineError } from "@/components/inline-error";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AssetTile } from "@/features/assets/components/asset-tile";
@@ -20,6 +21,7 @@ import {
 } from "@/features/jobs/steps";
 import type { JobProgress } from "@/features/journey/types";
 import { formatNumber } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 const JOB_TYPE: Record<Job["type"], string> = {
   onboard: "onboarding",
@@ -46,17 +48,17 @@ export function CrawlsCard() {
         live ? "Data collection running now" : "Nothing running right now"
       }
       actions={
-        <Button asChild variant="ghost" size="sm">
+        <Button asChild variant="ghost" size="sm" className="text-primary hover:bg-primary-soft hover:text-primary">
           <Link to="/jobs">All jobs</Link>
         </Button>
       }
-      bodyClassName="p-3"
+      bodyClassName="flex flex-col gap-[4px] px-[16px] pt-[12px] pb-[10px]"
     >
       {live && <LiveJob job={live} progress={progress.data} />}
       {last && <LiveJob job={last} progress={lastProgress.data} done />}
-      {recent.isPending && <Skeleton className="h-9 w-full" />}
+      {recent.isPending && <Skeleton className="h-[36px] w-full" />}
       {recent.isError && (
-        <p className="p-2 text-destructive">Crawl jobs couldn't be loaded.</p>
+        <InlineError message="Crawl jobs couldn't be loaded." onRetry={() => void recent.refetch()} className="p-[8px]" />
       )}
       {recent.data && !live && finished.length === 0 && (
         <EmptyState title="No crawls yet">
@@ -69,7 +71,7 @@ export function CrawlsCard() {
             <li key={j.id}>
               <Link
                 to={`/jobs/${encodeURIComponent(j.id)}`}
-                className="flex items-center gap-2.5 rounded-lg px-1 py-2 text-[12.5px] transition-colors hover:bg-background"
+                className="flex items-center gap-[10px] rounded-lg px-[4px] py-[8px] text-[12.5px] transition-colors hover:bg-background"
               >
                 <JobStatusBadge status={j.status} />
                 <span className="min-w-0 flex-1 truncate font-medium">
@@ -108,9 +110,12 @@ function LiveJob({
   return (
     <Link
       to={`/assets/${encodeURIComponent(j.asset)}/overview${done ? "" : "?build=1"}`}
-      className="mb-1.5 flex flex-col gap-2.5 rounded-xl border border-[#d5ddfa] bg-linear-to-b from-[#f6f8fe] to-card px-3.5 py-3 transition-colors hover:border-primary"
+      className={cn(
+        "mb-[6px] flex flex-col gap-[10px] rounded-[12px] border px-[14px] py-[12px] transition-colors hover:border-primary",
+        done ? "border-[#bfe3dd] bg-card" : "border-[#d5ddfa] bg-linear-to-b from-[#f6f8fe] to-card",
+      )}
     >
-      <span className="flex items-center gap-2.5">
+      <span className="flex items-center gap-[10px]">
         <AssetTile
           name={name}
           kind={j.type === "competitor" ? "competitor" : "primary"}
@@ -134,7 +139,7 @@ function LiveJob({
       </span>
       <StepBar steps={j.steps} />
       {progress && !done && (
-        <span className="flex gap-4 text-[12px] text-muted-foreground">
+        <span className="flex gap-[16px] text-[12px] text-muted-foreground">
           <span>
             <b className="font-semibold text-foreground tabular-nums">
               {formatNumber(records)}
@@ -149,7 +154,7 @@ function LiveJob({
           </span>
         </span>
       )}
-      <span className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-primary">
+      <span className="inline-flex items-center gap-[4px] text-[12.5px] font-semibold text-primary">
         {done ? "Explore the journey" : "Watch the live build"}{" "}
         <ArrowRight className="size-[13px]" />
       </span>

@@ -53,19 +53,19 @@ export function HomePage() {
   ]
 
   return (
-    <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-5 px-6 py-6">
-      <HomeHero firstName={firstName} counts={counts} building={onboarding ? { name: onboarding.assetName ?? onboarding.asset, pct: pct(onboarding) } : null} />
+    <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-[20px] px-[24px] pt-[20px] pb-[48px] max-[900px]:px-[14px] max-[900px]:pt-[16px] max-[900px]:pb-[40px]">
+      <HomeHero firstName={firstName} counts={counts} loading={portfolio.isPending} building={onboarding ? { name: onboarding.assetName ?? onboarding.asset, pct: pct(onboarding) } : null} />
       <KpiStrip items={kpis} />
       <PortfolioTimeline />
-      <div className="grid items-start gap-5 min-[1100px]:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
+      <div className="grid items-start gap-[20px] min-[1100px]:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
         <WhatChanged />
-        <div className="flex min-w-0 flex-col gap-5">
+        <div className="flex min-w-0 flex-col gap-[20px]">
           <NextMilestones />
           <CrawlsCard />
         </div>
       </div>
       <TrackedAssets />
-      <div className="grid items-start gap-5 min-[1100px]:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
+      <div className="grid items-start gap-[20px] min-[1100px]:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
         <CompetitiveSignals />
         <AskCard compare={rival ? [rival.competitorOf[0].name, rival.name] : null} />
       </div>

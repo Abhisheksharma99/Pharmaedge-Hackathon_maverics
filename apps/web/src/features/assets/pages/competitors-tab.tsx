@@ -1,65 +1,23 @@
-import { Activity, CalendarClock, Crosshair, FlaskConical, Layers, Loader2 } from 'lucide-react'
-import { Fragment } from 'react'
-import { Link } from 'react-router'
 import { Skeleton } from '@/components/ui/skeleton'
-import { formatMonth, formatNumber } from '@/lib/format'
-import type { AssetDetail } from '../api'
-import { useCompetitors, type CompetitorsOverview } from '../competitors-api'
-import { CompetitiveSignals } from '../components/competitors/competitive-signals'
-import { CompetitorMilestones } from '../components/competitors/competitor-milestones'
-import { HeadToHead } from '../components/competitors/head-to-head'
+import { useAssetDetails, type AssetDetail } from '../api'
+import { useCompetitors } from '../competitors-api'
+import { AssetTile } from '../components/asset-tile'
+import { AssetCard, CARD_GRID, CompetitorCards } from '../components/competitors/competitor-cards'
 import { IdentifyCompetitors } from '../components/competitors/identify-competitors'
-import { LandscapeTable } from '../components/competitors/landscape-table'
 import { LoadError } from '../components/competitors/load-error'
-import { shortIndication } from '../components/competitors/utils'
-import { EmptyState, KpiStrip, Panel } from '../components/panel'
+import { EmptyState, Panel } from '../components/panel'
 import { useAssetContext } from './asset-layout'
 
-function Kpis({ data }: { data: CompetitorsOverview }) {
-  const { kpis, reference } = data
-  return (
-    <KpiStrip
-      items={[
-        {
-          label: 'Tracked competitors',
-          icon: Crosshair,
-          value: formatNumber(kpis.tracked),
-          hint: kpis.collecting > 0 ? `${kpis.collecting} still collecting` : 'By shared indication and mechanism',
-        },
-        {
-          label: 'Competing assets',
-          icon: Layers,
-          value: formatNumber(Math.max(kpis.candidates, kpis.tracked)),
-          hint: `${kpis.tracked} key competitors profiled below`,
-        },
-        {
-          label: 'Indications',
-          icon: Activity,
-          value: formatNumber(reference.indications.length),
-          hint: reference.indications.map(shortIndication).join(' · ') || undefined,
-        },
-        { label: 'Active Phase III', icon: FlaskConical, value: formatNumber(kpis.activePhase3), hint: 'Competitor trials in progress' },
-        {
-          label: 'Upcoming milestones',
-          icon: CalendarClock,
-          value: formatNumber(kpis.upcomingMilestones),
-          hint: kpis.firstMilestone ? `Next 24 months · first ${formatMonth(kpis.firstMilestone)}` : 'Next 24 months',
-        },
-      ]}
-    />
-  )
-}
-
+/** Card-grid placeholder matching the competitor cards (same grid, ~170px cards). */
 function Loading() {
   return (
-    <div aria-busy="true" className="flex flex-col gap-5">
-      <Skeleton className="h-[108px] rounded-[14px]" />
-      <Skeleton className="h-[360px] rounded-[14px]" />
-      <div className="grid gap-5 xl:grid-cols-2">
-        <Skeleton className="h-[300px] rounded-[14px]" />
-        <Skeleton className="h-[300px] rounded-[14px]" />
+    <Panel title="Competitors" description="Ranked by shared indication and mechanism. Each is crawled lightly and has its own journey.">
+      <div role="status" aria-label="Loading competitors" className={CARD_GRID}>
+        {Array.from({ length: 3 }, (_, i) => (
+          <Skeleton key={i} className="h-[170px] rounded-[12px]" />
+        ))}
       </div>
-    </div>
+    </Panel>
   )
 }
 
@@ -76,60 +34,45 @@ function PrimaryCompetitors({ asset }: { asset: AssetDetail }) {
   }
   if (data.kpis.tracked === 0 && data.landscape.every((r) => r.isReference)) return <IdentifyCompetitors asset={asset} />
 
-  const { collecting } = data.kpis
   return (
-    <>
-      <Kpis data={data} />
-      {collecting > 0 && (
-        <p role="status" className="flex items-center gap-2 rounded-[10px] border border-warning-border bg-warning-soft px-3.5 py-2.5 text-warning">
-          <Loader2 className="size-4 shrink-0 animate-spin" />
-          {collecting === 1 ? '1 competitor is' : `${collecting} competitors are`} still being collected; figures fill in as their crawls finish.
-        </p>
-      )}
-      <LandscapeTable data={data} />
-      <div className="grid items-stretch gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
-        <HeadToHead data={data} />
-        <CompetitiveSignals signals={data.signals} />
-      </div>
-      <CompetitorMilestones milestones={data.milestones} />
-    </>
+    <Panel title="Competitors" description="Ranked by shared indication and mechanism. Each is crawled lightly and has its own journey.">
+      <CompetitorCards data={data} />
+    </Panel>
   )
 }
 
-/** Competitor assets don't get their own landscape; point back to the primaries they compete with. */
+/** Competitor assets don't get their own landscape: a "Competes with" grid of the primaries they are tracked against (screen 26). */
 function CompetitorNote({ asset }: { asset: AssetDetail }) {
-  const primaries = (asset as { competitorOf?: { id: string; name: string }[] }).competitorOf ?? []
+  const primaries = asset.competitorOf ?? []
+  const details = useAssetDetails(primaries.map((p) => p.id))
   return (
-    <Panel title="Competitive landscape">
-      <EmptyState title="Competitors are tracked for primary assets">
-        {primaries.length > 0 && (
-          <>
-            {asset.name} is tracked as a competitor of{' '}
-            {primaries.map((p, i) => (
-              <Fragment key={p.id}>
-                {i > 0 && ', '}
-                <Link to={`/assets/${encodeURIComponent(p.id)}/competitors`} className="font-medium text-primary hover:underline">
-                  {p.name}
-                </Link>
-              </Fragment>
-            ))}
-            .
-          </>
-        )}
-      </EmptyState>
+    <Panel title="Competes with" description="Primary assets this competitor is tracked against.">
+      {primaries.length === 0 ? (
+        <EmptyState title="Competitors are tracked for primary assets" />
+      ) : (
+        <div className={CARD_GRID}>
+          {primaries.map((p, i) => {
+            const d = details[p.id]
+            const brand = d?.aliases.filter((x) => x.toLowerCase() !== p.name.toLowerCase()).join(' · ')
+            return (
+              <AssetCard
+                key={p.id}
+                index={i}
+                tile={<AssetTile name={p.name} kind="primary" size={34} />}
+                name={p.name}
+                sub={[brand, d?.company.name].filter(Boolean).join(' · ')}
+                mechanism={d?.tags.mechanism}
+                to={`/assets/${encodeURIComponent(p.id)}/overview`}
+              />
+            )
+          })}
+        </div>
+      )}
     </Panel>
   )
 }
 
 export function CompetitorsTab() {
   const asset = useAssetContext()
-  return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <h2 className="text-[20px] leading-[28px] font-semibold tracking-[-0.01em]">Competitors</h2>
-        <p className="mt-0.5 text-[14px] text-text-secondary">Competitive landscape and evidence comparison for {asset.name}</p>
-      </div>
-      {asset.kind === 'competitor' ? <CompetitorNote asset={asset} /> : <PrimaryCompetitors asset={asset} />}
-    </div>
-  )
+  return asset.kind === 'competitor' ? <CompetitorNote asset={asset} /> : <PrimaryCompetitors asset={asset} />
 }

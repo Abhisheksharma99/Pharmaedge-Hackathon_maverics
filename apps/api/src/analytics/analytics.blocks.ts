@@ -104,6 +104,7 @@ export function patentRows(records: Document[], today: string) {
     .map((r) => ({
       number: r.publication_number as string,
       title: (r.title as string) ?? '',
+      assignee: Array.isArray(r.assignees) ? ((r.assignees[0] as string | undefined) ?? '') : '',
       granted: (r.grant_date as string) ?? '',
       expiry: (r.expiry_date as string) ?? '',
       status: (r.legal_status as string) ?? '',
@@ -120,7 +121,7 @@ export function stats(
   const active = input.trials.filter((t) => t.active && t.company);
   const next = input.events.filter((e) => e.is_milestone && e.date >= today).sort((a, b) => a.date.localeCompare(b.date))[0];
   const inForce = input.patents.filter((p) => !p.invalidated && p.expiry > today);
-  const runway = inForce.length ? (Date.parse(inForce.at(-1)!.expiry) - Date.parse(today)) / (365.25 * 86_400_000) : null;
+  const runway = inForce.length ? (Date.parse(inForce[0]!.expiry) - Date.parse(today)) / (365.25 * 86_400_000) : null;
   return {
     approvedIndications: input.pipeline.filter((p) => p.stage === 4).length,
     inDevelopment: input.pipeline.filter((p) => p.stage < 4 && !p.ended).map((p) => p.label),

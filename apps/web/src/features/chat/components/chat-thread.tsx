@@ -25,7 +25,7 @@ export function ChatThread({
     [messages],
   )
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-[18px]">
       {messages.map((m) =>
         m.role === 'user' ? (
           <UserMessage key={m.id} text={m.content} />
@@ -38,7 +38,6 @@ export function ChatThread({
           turn={turn}
           sessionId={sessionId}
           startedAssets={startedAssets}
-          onOpenRecord={setRecord}
           onRetry={() => onRetry(turn.userText)}
         />
       )}

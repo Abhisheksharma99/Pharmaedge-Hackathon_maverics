@@ -6,7 +6,7 @@ import {
   Route,
   Search,
   Settings,
-  Sparkles,
+  Sparkle,
   Upload,
   type LucideIcon,
 } from 'lucide-react'
@@ -17,8 +17,10 @@ export interface NavItem {
   icon: LucideIcon
   /** false → the section shows a "coming soon" page and a "Soon" tag in the nav. */
   ready: boolean
-  /** One line shown on the coming-soon page. */
+  /** One line shown on the coming-soon page (under the title when `detail` is set, else in the card). */
   summary: string
+  /** Longer coming-soon copy shown in the card. */
+  detail?: string
   /**
    * Asset-scoped section: links to this tab of the last asset viewed
    * (or to Asset Search when none has been opened yet).
@@ -47,7 +49,7 @@ export const NAV_GROUPS: NavGroup[] = [
       {
         label: 'Asset AI',
         to: '/chat',
-        icon: Sparkles,
+        icon: Sparkle,
         ready: true,
         summary: 'Ask questions across your assets and add new ones by chatting.',
       },
@@ -91,6 +93,7 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: Upload,
         ready: false,
         summary: 'Add your own documents to an asset journey.',
+        detail: 'Drop PDFs, slide decks and internal reports onto an asset. They’ll be triaged and dated like any other source, and cited by Asset AI.',
       },
       {
         label: 'Crawl jobs',

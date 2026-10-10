@@ -16,9 +16,9 @@ export function Stat({
   color?: string
 }) {
   return (
-    <div className="flex min-w-0 animate-fade-up flex-col gap-1 bg-card px-4 py-3.5">
-      <span className="flex items-center gap-1.5 text-xs font-medium text-text-secondary">
-        <Icon className="size-3.5" aria-hidden="true" />
+    <div className="flex min-w-0 animate-fade-up flex-col gap-[4px] bg-card px-[16px] py-[14px]">
+      <span className="flex items-center gap-[6px] text-[12px] font-medium text-text-secondary">
+        <Icon className="size-[14px]" aria-hidden="true" />
         {label}
       </span>
       <span
@@ -27,7 +27,7 @@ export function Stat({
       >
         {value}
       </span>
-      {sub && <span className="truncate text-xs text-muted-foreground">{sub}</span>}
+      {sub && <span className="truncate text-[12px] text-muted-foreground">{sub}</span>}
     </div>
   )
 }

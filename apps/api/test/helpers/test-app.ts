@@ -28,6 +28,8 @@ export async function createTestApp(env: Record<string, string> = {}): Promise<T
     ADMIN_PASSWORD: ADMIN.password,
     ADMIN_NAME: ADMIN.name,
     CRAWLER_SERVICE_KEY: 'test-service-key-0123456789',
+    AI_RATE_PER_MINUTE: '1000',
+    AI_RATE_PER_HOUR: '10000',
     ...env,
   });
   const { AppModule } = await import('../../src/app.module.js');

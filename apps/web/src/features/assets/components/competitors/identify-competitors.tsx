@@ -31,18 +31,18 @@ export function IdentifyCompetitors({ asset }: { asset: AssetDetail }) {
 
   return (
     <Panel title="Competitive landscape">
-      <div className="flex flex-col items-center px-6 py-12 text-center">
-        <span className="mb-3 flex size-10 items-center justify-center rounded-xl bg-[#eef2fd] text-primary">
-          <Radar className="size-5" />
+      <div className="flex flex-col items-center px-[24px] py-[48px] text-center">
+        <span className="mb-[12px] flex size-[40px] items-center justify-center rounded-[12px] bg-primary-soft text-primary">
+          <Radar className="size-[20px]" />
         </span>
         <p className="font-medium">No competitors identified yet</p>
-        <p className="mt-1 max-w-lg text-text-secondary">
+        <p className="mt-[4px] max-w-lg text-text-secondary">
           Competitors are identified by shared indication and mechanism
           {indications.length > 0 && <>: assets approved or in development for {indications.join(', ')}</>}
           {mechanism && <>, or sharing its mechanism ({mechanism})</>}. Each one found gets its own
           regulatory, clinical and publication record.
         </p>
-        <Button size="lg" className="mt-4 h-10 rounded-[10px] px-4" disabled={identify.isPending || identify.isSuccess} onClick={start}>
+        <Button size="lg" className="mt-[16px] h-[40px] rounded-[10px] px-[16px]" disabled={identify.isPending || identify.isSuccess} onClick={start}>
           <Radar /> {identify.isSuccess ? 'Identification started' : 'Identify competitors'}
         </Button>
       </div>

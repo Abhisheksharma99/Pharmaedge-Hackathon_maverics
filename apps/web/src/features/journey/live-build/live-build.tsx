@@ -1,5 +1,6 @@
 import { ArrowRight } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { InlineError } from '@/components/inline-error'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { AssetDetail } from '@/features/assets/api'
@@ -23,13 +24,13 @@ export function LiveBuild({ asset, onExplore, fallback }: { asset: AssetDetail; 
   if (fallback && build.state !== 'ready') return fallback
   const explore = (
     <Button variant="outline" size="sm" onClick={onExplore}>
-      Explore the journey <ArrowRight />
+      Explore the journey <ArrowRight className="size-[13px]" />
     </Button>
   )
 
   if (build.state === 'loading') {
     return (
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-[20px]">
         <Skeleton className="h-[118px] rounded-[14px]" />
         <Skeleton className="h-[520px] rounded-[14px]" />
       </div>
@@ -38,7 +39,7 @@ export function LiveBuild({ asset, onExplore, fallback }: { asset: AssetDetail; 
   if (build.state === 'error') {
     return (
       <Panel title="Live build" actions={explore}>
-        <p className="px-5 py-4 text-destructive">The live build couldn't be loaded.</p>
+        <InlineError message="The live build couldn't be loaded." onRetry={build.retry} className="px-[20px] py-[16px]" />
       </Panel>
     )
   }
@@ -53,7 +54,7 @@ export function LiveBuild({ asset, onExplore, fallback }: { asset: AssetDetail; 
   const { job, events, latest, feed } = build
   const running = buildPhase(job) !== 'done'
   return (
-    <div className="flex animate-fade-up flex-col gap-5">
+    <div className="flex animate-fade-up flex-col gap-[20px]">
       <BuildStrip job={job} eventsCount={events.length} onExplore={onExplore} />
       <Panel
         title="Agent pipeline"
@@ -62,7 +63,7 @@ export function LiveBuild({ asset, onExplore, fallback }: { asset: AssetDetail; 
       >
         <AgentPipeline job={job} events={events} competitors={asset.competitors.map((c) => c.name)} />
       </Panel>
-      <div className="grid items-stretch gap-5 min-[1181px]:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="grid items-stretch gap-[20px] min-[1181px]:grid-cols-[minmax(0,1fr)_380px]">
         <Panel title="Journey taking shape" description="Records land as ticks on the time axis; events crystallise in their lane as rules and AI find them.">
           <FormingTimeline recordYears={job.record_years} recordCount={recordsTotal(job)} events={events} />
           <JustAdded latest={latest} total={events.length} ended={!running} />

@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import type { Db, Document } from 'mongodb';
 import { MONGO_DB } from '../database/database.module.js';
@@ -29,7 +29,7 @@ export interface AssetDoc {
   _id: string;
   name: string;
   aliases: string[];
-  company: { name: string; website?: string; ir_url?: string };
+  company: { name: string; website?: string; ir_url?: string; cik?: string; ticker?: string };
   tags: { indications?: string[]; investigational_indications?: string[]; mechanism?: string; modality?: string; routes?: string[] };
   ids?: { adis?: string };
   kind: 'primary' | 'competitor';
@@ -51,6 +51,32 @@ export const slug = (name: string) =>
 
 const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const hash = (value: unknown) => createHash('sha1').update(JSON.stringify(value)).digest('hex').slice(0, 16);
+const facetField = (key: string) => `__f_${key}`;
+
+export interface EventRef {
+  id: string;
+  title: string;
+  date: string;
+  category: string;
+  significance?: string;
+}
+
+/** The facet selections of a records request: only the tab's own facets, string values only; bad JSON is a 400. */
+function parseFacetSelection(tab: SourceTab, raw: string | undefined): Record<string, string> {
+  if (!raw) return {};
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new BadRequestException({ code: 'INVALID_FACETS', message: 'facets must be a JSON object' });
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new BadRequestException({ code: 'INVALID_FACETS', message: 'facets must be a JSON object' });
+  }
+  const known = new Set((tab.facets ?? []).map((f) => f.key));
+  return Object.fromEntries(Object.entries(parsed).filter(([k, v]) => known.has(k) && typeof v === 'string' && v !== ''));
+}
+
 const today = () => new Date().toISOString().slice(0, 10);
 
 @Injectable()
@@ -179,7 +205,8 @@ export class AssetsService {
     });
     if (!include?.includes('notes')) return base;
     // Notes change often and per team: merged outside the cache.
-    const noteMatch: Document = { asset: id };
+    // Resolved "Missed by AI" notes are skipped: the event the crawler made carries their content.
+    const noteMatch: Document = { asset: id, resolved_event: { $exists: false } };
     if (query.category?.length) noteMatch.category = { $in: query.category };
     if (query.branch?.length) noteMatch.branch = { $in: query.branch };
     if (query.from || query.to) noteMatch.date = { ...(query.from && { $gte: query.from }), ...(query.to && { $lte: query.to }) };
@@ -191,9 +218,11 @@ export class AssetsService {
 
   records(id: string, tabName: string, query: RecordsQueryDto) {
     const tab = this.tab(tabName);
+    const selected = parseFacetSelection(tab, query.facets);
     return this.cached(id, `records:${tabName}`, query, async () => {
-      await this.getAsset(id);
-      const match: Document = { assets: id, ...tab.match };
+      const asset = await this.getAsset(id);
+      const base: Document = { assets: id, ...tab.match };
+      const match: Document = { ...base };
       if (query.q) {
         const re = new RegExp(escapeRegex(query.q), 'i');
         match.$or = tab.searchFields.map((f) => ({ [f]: re }));
@@ -202,35 +231,102 @@ export class AssetsService {
       if (query.phase?.length) match.phases = { $in: query.phase };
       if (query.status?.length) match[tab.statusField ?? 'overall_status'] = { $in: query.status };
       if (query.mentionsOnly) match.mentions = { $exists: true, $ne: [] };
+      if (query.companyOnly && tab.sponsorField && asset.company?.name) {
+        match[tab.sponsorField] = new RegExp(escapeRegex(asset.company.name), 'i');
+      }
 
       const [first, ...others] = tab.collections;
-      const omit = listOmit(tab);
-      const [result] = await this.db
-        .collection(first!)
-        .aggregate([
-          { $match: match },
-          ...others.map((coll) => ({ $unionWith: { coll, pipeline: [{ $match: match }] } })),
-          { $sort: { date: -1, [tab.keyField]: 1 } },
-          {
-            $facet: {
-              items: [
-                { $skip: (query.page - 1) * query.pageSize },
-                { $limit: query.pageSize },
-                { $addFields: { key: `$${tab.keyField}` } },
-                { $project: omit },
-              ],
-              total: [{ $count: 'n' }],
+      const union = (m: Document) => others.map((coll) => ({ $unionWith: { coll, pipeline: [{ $match: m }] } }));
+      const defs = tab.facets ?? [];
+      const derive = defs.length ? [{ $addFields: Object.fromEntries(defs.map((f) => [facetField(f.key), f.expr])) }] : [];
+      const picked = Object.entries(selected).map(([k, v]) => ({ [facetField(k)]: v }));
+      const omit = { ...listOmit(tab), ...Object.fromEntries(defs.map((f) => [facetField(f.key), 0 as const])) };
+      const coll = this.db.collection(first!);
+
+      const [[result], [counts]] = await Promise.all([
+        coll
+          .aggregate([
+            { $match: match },
+            ...union(match),
+            ...derive,
+            ...(picked.length ? [{ $match: { $and: picked } }] : []),
+            { $sort: { date: -1, [tab.keyField]: 1 } },
+            {
+              $facet: {
+                items: [
+                  { $skip: (query.page - 1) * query.pageSize },
+                  { $limit: query.pageSize },
+                  { $addFields: { key: `$${tab.keyField}` } },
+                  { $project: omit },
+                ],
+                total: [{ $count: 'n' }],
+              },
             },
-          },
-        ])
-        .toArray();
+          ])
+          .toArray(),
+        // The panel's distribution bar and selects count the whole tab, whatever is searched or selected.
+        coll
+          .aggregate([
+            { $match: base },
+            ...union(base),
+            ...derive,
+            {
+              $facet: {
+                all: [{ $count: 'n' }],
+                ...Object.fromEntries(
+                  defs.map((f) => [
+                    f.key,
+                    [
+                      { $unwind: `$${facetField(f.key)}` },
+                      { $match: { [facetField(f.key)]: { $nin: [null, ''] } } },
+                      { $group: { _id: `$${facetField(f.key)}`, count: { $sum: 1 } } },
+                      { $sort: { count: -1, _id: 1 } },
+                      { $limit: 50 },
+                    ],
+                  ]),
+                ),
+              },
+            },
+          ])
+          .toArray(),
+      ]);
+      const items = await this.withEvents(id, result?.items ?? []);
       return {
-        items: result?.items ?? [],
+        items,
         total: result?.total[0]?.n ?? 0,
         page: query.page,
         pageSize: query.pageSize,
+        all: counts?.all[0]?.n ?? 0,
+        facets: defs.map((f) => ({
+          key: f.key,
+          label: f.label,
+          values: ((counts?.[f.key] ?? []) as { _id: string; count: number }[]).map((v) => ({ value: String(v._id), count: v.count })),
+        })),
       };
     });
+  }
+
+  /** Adds `journey_events` (not `events`: patents carry their own legal events): the journey events built from each record (as a source or folded in by AI consolidation). */
+  async withEvents<T extends Document>(id: string, records: T[]): Promise<(T & { journey_events: EventRef[] })[]> {
+    const keys = records.map((r) => r.key as string).filter(Boolean);
+    const docs = keys.length
+      ? await this.db
+          .collection('journey_events')
+          .find(
+            { asset: id, $or: [{ 'sources.record_key': { $in: keys } }, { 'merged_sources.record_key': { $in: keys } }] },
+            { projection: { title: 1, date: 1, category: 1, significance: 1, sources: 1, merged_sources: 1 } },
+          )
+          .sort({ date: 1 })
+          .toArray()
+      : [];
+    const byKey = new Map<string, EventRef[]>();
+    for (const e of docs) {
+      const ref: EventRef = { id: e._id as unknown as string, title: e.title, date: e.date, category: e.category, significance: e.significance };
+      for (const k of new Set([...(e.sources ?? []), ...(e.merged_sources ?? [])].map((r: { record_key: string }) => r.record_key))) {
+        byKey.set(k, [...(byKey.get(k) ?? []), ref]);
+      }
+    }
+    return records.map((r) => ({ ...r, journey_events: byKey.get(r.key as string) ?? [] }));
   }
 
   async record(id: string, tabName: string, key: string) {
@@ -240,7 +336,10 @@ export class AssetsService {
       const doc = await this.db
         .collection(coll)
         .findOne({ assets: id, ...tab.match, [tab.keyField]: key }, { projection: { _id: 0 } });
-      if (doc) return { ...doc, key: doc[tab.keyField] };
+      if (doc) {
+        const [withEvents] = await this.withEvents(id, [{ ...doc, key: doc[tab.keyField] }]);
+        return withEvents;
+      }
     }
     throw new NotFoundException({ code: 'RECORD_NOT_FOUND', message: 'Record not found' });
   }

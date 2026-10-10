@@ -88,7 +88,8 @@ describe('Asset AI panel on an asset page', () => {
     renderAt('/assets/treprostinil/overview')
 
     // The Competitors tab shows how many competitors there are.
-    expect(await screen.findByRole('link', { name: 'Competitors 1' })).toBeInTheDocument()
+    // The Overview now mounts the journey too: allow for a slower first render when the whole suite runs in parallel.
+    expect(await screen.findByRole('link', { name: /^Competitors\s*1$/ }, { timeout: 4000 })).toBeInTheDocument()
 
     const toggle = screen.getByRole('button', { name: 'Ask Asset AI' })
     expect(toggle).toHaveAttribute('aria-pressed', 'false')
@@ -109,4 +110,26 @@ describe('Asset AI panel on an asset page', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Close Asset AI' }))
     expect(screen.queryByRole('complementary', { name: 'Asset AI' })).not.toBeInTheDocument()
   })
+
+  it('docked drawer: closing it hands focus back to "Ask Asset AI"', async () => {
+    fakeApi()
+    renderAt('/assets/treprostinil/overview')
+    const toggle = await screen.findByRole('button', { name: 'Ask Asset AI' }, { timeout: 4000 })
+    await userEvent.click(toggle)
+    await userEvent.click(await screen.findByRole('button', { name: 'Close Asset AI' }))
+    expect(screen.queryByRole('complementary', { name: 'Asset AI' })).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Ask Asset AI' })).toHaveFocus())
+  }, 15_000)
+
+  it('overlay sheet (narrow screens): Escape closes it and focus goes back to "Ask Asset AI"', async () => {
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: false, media: q, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    fakeApi()
+    renderAt('/assets/treprostinil/overview')
+    const toggle = await screen.findByRole('button', { name: 'Ask Asset AI' }, { timeout: 4000 })
+    await userEvent.click(toggle)
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Ask Asset AI' })).toHaveFocus())
+  }, 15_000)
 })

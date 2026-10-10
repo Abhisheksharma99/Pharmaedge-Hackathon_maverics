@@ -9,10 +9,10 @@ export interface LegendItem {
 
 export function Legend({ items, className }: { items: LegendItem[]; className?: string }) {
   return (
-    <ul className={cn('mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11.5px] text-text-secondary', className)}>
+    <ul className={cn('mt-[6px] flex flex-wrap gap-x-[12px] gap-y-[4px] text-[11.5px] text-text-secondary', className)}>
       {items.map((i) => (
         <li key={i.l} className="inline-flex items-center gap-[5px]">
-          <i aria-hidden="true" className="size-2 rounded-[2px]" style={{ background: i.c }} />
+          <i aria-hidden="true" className="size-[8px] rounded-[2px]" style={{ background: i.c }} />
           {i.l}
           {i.v != null && <span className="font-mono text-[10.5px] text-muted-foreground">{formatNumber(i.v)}</span>}
         </li>

@@ -54,6 +54,14 @@ class FakeCollection:
             found.sort(key=lambda d: d.get(key), reverse=direction < 0)
         return found[0] if found else None
 
+    def aggregate(self, pipeline):
+        """Just feedback's [$match, $project] shape: matching docs, `text` = their abstract/content/summary."""
+        out = []
+        for doc in self.find(pipeline[0]["$match"]):
+            parts = [doc[f] for f in ("abstract", "content", "summary") if isinstance(doc.get(f), str)]
+            out.append({**doc, "text": " ".join(parts)})
+        return out
+
     def count_documents(self, flt, limit=None):
         return len(self.find(flt))
 

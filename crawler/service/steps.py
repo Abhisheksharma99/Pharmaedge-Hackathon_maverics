@@ -24,6 +24,7 @@ from integrations import fda_calendar as fda_calendar_source
 from integrations import newsroom
 from integrations import patents as patent_crawler
 from journey.derive import derive_journey
+from journey.feedback import recheck as recheck_feedback
 from journey.rules import build_rule_events
 from journey.store import bump_asset_version, replace_rule_events
 from regulatory import clinicaltrials, ema, fda
@@ -327,6 +328,12 @@ def finalize(ctx: StepContext) -> StepResult:
     db = get_db()
     counts = replace_rule_events(db, ctx.asset_id, build_rule_events(db, ctx.asset_id,
                                                                      ctx.asset.get("company", {}).get("name")))
+    try:  # notes marked "Missed by AI": events they resolve to are in place before branches / key events are derived
+        feedback = recheck_feedback(db, ctx.asset_id, ctx.log)
+    except Exception as e:  # noqa: BLE001 - the re-check is best effort; the asset still becomes ready
+        log.warning("crawl_feedback re-check failed for %s", ctx.asset_id, exc_info=True)
+        feedback = {}
+        ctx.log("warn", f"Couldn't re-check notes marked ‘Missed by AI’ ({type(e).__name__}); they stay open")
     derived = derive_journey(db, ctx.asset, log=ctx.log)
     asset = db.assets.find_one({"_id": ctx.asset_id})  # fresh: competitors were written during this job
     questions = suggested_questions(db, asset)
@@ -335,7 +342,7 @@ def finalize(ctx: StepContext) -> StepResult:
                                                           "last_crawled_at": now, "updated_at": now}})
     if not bump_asset_version(ctx.asset_id):  # the asset is ready now: clients refetching must not read the old view
         log.warning("cache version bump failed for %s after finalize", ctx.asset_id)
-    return {**counts, **derived, "suggested_questions": len(questions),
+    return {**counts, **feedback, **derived, "suggested_questions": len(questions),
             "summary": f"Asset ready · {derived.get('key_events', 0)} key events · {derived.get('branches', 0)} branches"}
 
 

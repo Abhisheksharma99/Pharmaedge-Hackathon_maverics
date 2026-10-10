@@ -7,10 +7,20 @@ export interface OpenEvent {
   eventId: string
 }
 
+/** A request from the sheet to scroll the on-screen journey to an event (`seq` makes repeats distinct). */
+export interface LocateRequest extends OpenEvent {
+  seq: number
+}
+
 interface EventSheetState {
   current: OpenEvent | null
+  /** Asset whose journey is on screen (JourneySection mounted): the sheet can locate its events in place. */
+  journeyAsset: string | null
+  locate: LocateRequest | null
   openEvent: (assetId: string, eventId: string) => void
   closeEvent: () => void
+  setJourneyAsset: (assetId: string | null) => void
+  requestLocate: (assetId: string, eventId: string) => void
 }
 
 /**
@@ -21,9 +31,13 @@ export const eventSheetFocus = createFocusReturn()
 
 export const useEventSheet = create<EventSheetState>()((set, get) => ({
   current: null,
+  journeyAsset: null,
+  locate: null,
   openEvent: (assetId, eventId) => {
     if (!get().current) eventSheetFocus.remember(paletteFocus)
     set({ current: { assetId, eventId } })
   },
   closeEvent: () => set({ current: null }),
+  setJourneyAsset: (journeyAsset) => set({ journeyAsset }),
+  requestLocate: (assetId, eventId) => set({ locate: { assetId, eventId, seq: (get().locate?.seq ?? 0) + 1 } }),
 }))

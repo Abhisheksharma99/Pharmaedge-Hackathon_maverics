@@ -22,6 +22,7 @@ interface ShellState {
 
 export const paletteFocus = createFocusReturn()
 export const mobileNavFocus = createFocusReturn()
+export const assetAiFocus = createFocusReturn()
 
 /** Layout preferences, remembered per browser; overlays always start closed. */
 export const useShellStore = create<ShellState>()(
@@ -33,7 +34,10 @@ export const useShellStore = create<ShellState>()(
       lastAssetId: null,
       setLastAssetId: (id) => set({ lastAssetId: id }),
       assetAiOpen: false,
-      setAssetAiOpen: (open) => set({ assetAiOpen: open }),
+      setAssetAiOpen: (open) => {
+        if (open && !get().assetAiOpen) assetAiFocus.remember()
+        set({ assetAiOpen: open })
+      },
       paletteOpen: false,
       setPaletteOpen: (open) => {
         if (open && !get().paletteOpen) paletteFocus.remember()

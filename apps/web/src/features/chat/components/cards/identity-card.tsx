@@ -23,12 +23,12 @@ function shortUrl(url: string): string {
 
 function SiteLink({ url, verified }: { url: string; verified: boolean }) {
   return (
-    <span className="inline-flex flex-wrap items-center gap-1">
+    <span className="inline-flex flex-wrap items-center gap-[4px]">
       <a href={url} target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">
         {shortUrl(url)}
       </a>
       {verified ? (
-        <BadgeCheck aria-label="Verified" className="size-3.5 text-success" />
+        <BadgeCheck aria-label="Verified" className="size-[14px] text-success" />
       ) : (
         <span className="text-[11.5px] text-muted-foreground">(unverified)</span>
       )}
@@ -70,11 +70,11 @@ export function IdentityCard({
   const canConfirm = !!body.name && !!body.company.name && !create.isPending
 
   return (
-    <div className="flex flex-col gap-3.5 rounded-xl border bg-card p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-3">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-[#eef2fd] text-primary">
-            <Pill className="size-[18px]" />
+    <div className="flex flex-col gap-[12px] rounded-[12px] border bg-card px-[16px] py-[14px]">
+      <div className="flex items-start justify-between gap-[12px]">
+        <div className="flex min-w-0 items-start gap-[12px]">
+          <span className="flex size-[32px] shrink-0 items-center justify-center rounded-[9px] bg-primary-soft text-primary">
+            <Pill className="size-[17px]" />
           </span>
           <div className="min-w-0">
             <p className="text-[15px] font-semibold">{body.name || identity.name}</p>
@@ -91,9 +91,9 @@ export function IdentityCard({
       {editing ? (
         <IdentityFields draft={draft} onChange={setDraft} />
       ) : (
-        <dl className="grid grid-cols-[96px_1fr] gap-x-3 gap-y-1.5 text-[12.5px]">
+        <dl className="grid grid-cols-[90px_1fr] gap-x-[12px] gap-y-[6px] text-[12.5px]">
           <Fact label="Company">
-            <span className="inline-flex flex-wrap items-center gap-x-1.5">
+            <span className="inline-flex flex-wrap items-center gap-x-[6px]">
               <span className="font-medium">{body.company.name}</span>
               {body.company.website && (
                 <>
@@ -110,12 +110,12 @@ export function IdentityCard({
           )}
           {(body.tags.indications.length > 0 || !!body.tags.investigational_indications?.length) && (
             <Fact label="Indications">
-              <span className="flex flex-wrap gap-1">
+              <span className="flex flex-wrap gap-[4px]">
                 {body.tags.indications.map((i) => (
-                  <Chip key={i} className="h-6">{i}</Chip>
+                  <Chip key={i} className="h-[24px]">{i}</Chip>
                 ))}
                 {body.tags.investigational_indications?.map((i) => (
-                  <Chip key={i} className="h-6 border-dashed text-muted-foreground">{i} (investigational)</Chip>
+                  <Chip key={i} className="h-[24px] border-dashed text-muted-foreground">{i} (investigational)</Chip>
                 ))}
               </span>
             </Fact>
@@ -131,8 +131,8 @@ export function IdentityCard({
       )}
 
       {!tracked && (identity.plan_summary || identity.plan.length > 0) && (
-        <div className="rounded-lg bg-[#f9fafb] px-3 py-2.5 text-[12.5px]">
-          <div className="flex items-start justify-between gap-3">
+        <div className="rounded-[8px] bg-background px-[12px] py-[9px] text-[12.5px]">
+          <div className="flex items-start justify-between gap-[12px]">
             <p className="text-text-secondary">
               <span className="font-semibold text-foreground">Plan: </span>
               {identity.plan_summary}
@@ -142,15 +142,15 @@ export function IdentityCard({
                 type="button"
                 aria-expanded={showPlan}
                 onClick={() => setShowPlan((s) => !s)}
-                className="inline-flex shrink-0 items-center gap-0.5 font-medium text-primary hover:underline"
+                className="inline-flex shrink-0 items-center gap-[2px] font-medium text-primary hover:underline"
               >
                 {showPlan ? 'Hide steps' : `${identity.plan.length} steps`}
-                <ChevronDown className={cn('size-3.5 transition-transform', showPlan && 'rotate-180')} />
+                <ChevronDown className={cn('size-[14px] transition-transform', showPlan && 'rotate-180')} />
               </button>
             )}
           </div>
           {showPlan && (
-            <ol className="mt-2 list-decimal space-y-0.5 pl-5">
+            <ol className="mt-[8px] list-decimal space-y-[2px] pl-[20px]">
               {identity.plan.map((step) => (
                 <li key={step.name}>
                   <span className="font-medium text-foreground">{step.label}</span>
@@ -163,36 +163,36 @@ export function IdentityCard({
       )}
 
       {identity.notes.length > 0 && (
-        <ul className="space-y-1 text-[12.5px] text-text-secondary">
+        <ul className="space-y-[4px] text-[12.5px] text-text-secondary">
           {identity.notes.map((note) => (
-            <li key={note} className="flex items-start gap-1.5">
-              <Info className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+            <li key={note} className="flex items-start gap-[6px]">
+              <Info className="mt-[2px] size-[14px] shrink-0 text-muted-foreground" />
               {note}
             </li>
           ))}
         </ul>
       )}
 
-      <div className="flex flex-wrap items-center gap-3 border-t border-[#eef0f3] pt-3">
+      <div className="flex flex-wrap items-center gap-[12px] border-t border-hair pt-[10px]">
         {tracked ? (
           <>
-            <span className="inline-flex items-center gap-1.5 font-medium text-success">
-              <Check className="size-4" /> Already tracked
+            <span className="inline-flex items-center gap-[6px] font-medium text-success">
+              <Check className="size-[16px]" /> Already tracked
             </span>
             <Link
               to={`/assets/${encodeURIComponent(existing!.id)}/overview`}
-              className="inline-flex items-center gap-1 text-[13px] font-semibold text-primary hover:underline"
+              className="inline-flex items-center gap-[4px] text-[13px] font-semibold text-primary hover:underline"
             >
-              Open asset <ArrowUpRight className="size-3.5" />
+              Open asset <ArrowUpRight className="size-[14px]" />
             </Link>
           </>
         ) : started ? (
-          <span className="inline-flex items-center gap-1.5 font-medium text-success">
-            <Check className="size-4" /> Crawl started
+          <span className="inline-flex items-center gap-[6px] font-medium text-success">
+            <Check strokeWidth={2.6} className="size-[14px]" /> Crawl started
           </span>
         ) : (
           <Button
-            className="h-9 rounded-[10px] px-3.5"
+            size="sm"
             disabled={!canConfirm}
             onClick={() => {
               setEditing(false)

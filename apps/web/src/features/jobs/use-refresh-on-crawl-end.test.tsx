@@ -55,7 +55,7 @@ describe('useRefreshOnCrawlEnd', () => {
     expect(count('/api/portfolio/timeline?competitors=true')).toBe(3)
   })
 
-  it('does not refetch the announced event queries of the asset', async () => {
+  it('refetches the event queries of the asset too (the sheet reads neighbours and branch stats)', async () => {
     let jobs: Job[] = [RUNNING]
     const fetchMock = vi.fn(async (url: string) => {
       if (url === '/api/jobs?status=running') return json(200, jobs)
@@ -82,6 +82,6 @@ describe('useRefreshOnCrawlEnd', () => {
     jobs = []
     await client.invalidateQueries({ queryKey: ['jobs'] })
     await vi.waitFor(() => expect(count('/api/assets/trep')).toBe(2))
-    expect(count('/api/assets/trep/events/e1')).toBe(1)
+    await vi.waitFor(() => expect(count('/api/assets/trep/events/e1')).toBe(2))
   })
 })

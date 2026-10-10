@@ -89,13 +89,13 @@ export function StackBars({
       {hover != null && (
         <div
           role="tooltip"
-          className="pointer-events-none absolute z-10 flex -translate-x-1/2 -translate-y-full flex-col rounded-lg bg-foreground px-2.5 py-1.5 text-xs whitespace-nowrap text-background shadow-popover"
+          className="pointer-events-none absolute z-10 flex -translate-x-1/2 -translate-y-[calc(100%+8px)] flex-col rounded-[8px] bg-foreground px-[9px] py-[7px] text-[12px] leading-[1.35] gap-[2px] shadow-[0_6px_16px_rgba(16,24,40,.18)] w-max max-w-[260px] text-background"
           style={{ left: 28 + hover * cw + cw / 2, top: h - (totals[hover]! / max) * h }}
         >
-          <b className="font-semibold">
+          <b className="font-medium">
             {cols[hover]} · {totals[hover]}
           </b>
-          <span>
+          <span className="text-[11.5px] text-[#c3c9d4]">
             {series
               .filter((s) => s.vals[hover])
               .map((s) => `${s.l} ${s.vals[hover]}`)

@@ -67,7 +67,28 @@ describe('trials, patents, stats', () => {
     expect(s.nextCatalyst).toMatchObject({ id: 'd' });
     expect(s.patentRunwayYears).toBeCloseTo(5.5, 0);
   });
+  it('measures the runway to the next in-force expiry', () => {
+    const rows = patentRows([{ publication_number: 'LATE', expiry_date: '2040-01-01', legal_status: 'Active' }, { publication_number: 'SOON', expiry_date: '2028-01-01', legal_status: 'Active' }], TODAY);
+    expect(rows.map((r) => r.number)).toEqual(['SOON', 'LATE']);
+    const s = stats({ pipeline: [], trials: [], events: [], patents: rows, evidenceRecords: 0 }, TODAY);
+    expect(s.patentRunwayYears).toBeCloseTo(1.2, 1);
+  });
   it('returns null stats when nothing is known', () => {
     expect(stats({ pipeline: [], trials: [], events: [], patents: [], evidenceRecords: 0 }, TODAY)).toMatchObject({ nextCatalyst: null, patentRunwayYears: null });
+  });
+});
+
+describe('bare asset (no trials, patents, competitors)', () => {
+  const bare = { name: 'Bare', tags: {} };
+  const finite = (v: unknown): boolean => (typeof v === 'number' ? Number.isFinite(v) : v && typeof v === 'object' ? Object.values(v).every(finite) : true);
+  it('yields empty blocks and finite stats', () => {
+    const pipe = pipeline([], [], bare, TODAY);
+    const trials = trialRows([], undefined);
+    const patents = patentRows([], TODAY);
+    const out = { pipe, trials, patents, activity: activityByYear([]), sig: significanceMix([]), land: landscape(bare, []), st: stats({ pipeline: pipe, trials, events: [], patents, evidenceRecords: 0 }, TODAY) };
+    expect(out.pipe).toEqual([]);
+    expect(out.land.rows).toHaveLength(1);
+    expect(out.st).toEqual({ approvedIndications: 0, inDevelopment: [], activeTrials: 0, phase3: 0, patients: 0, nextCatalyst: null, patentRunwayYears: null, evidenceRecords: 0 });
+    expect(finite(out)).toBe(true);
   });
 });

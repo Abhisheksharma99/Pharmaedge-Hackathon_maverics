@@ -53,6 +53,14 @@ describe('timeline v3', () => {
     const plain = (await get('/api/assets/trep/timeline?scope=key')).json();
     expect(plain.events.some((e: { id: string }) => e.id === 'note:1')).toBe(false);
   });
+
+  it('skips notes the crawler resolved into an event, but keeps them readable', async () => {
+    await db.collection('journey_notes').insertOne({ _id: 'note:2' as never, asset: 'trep', date: '2010-01-01', category: 'company', tag: 'Missed by AI', title: 'Resolved note', text: 'x', mode: 'manual', resolved_event: 'rule:start:b', by: { id: 'u', name: 'U' }, created_at: new Date() });
+    const { events } = (await get('/api/assets/trep/timeline?scope=key&include=notes')).json();
+    expect(events.some((e: { id: string }) => e.id === 'note:2')).toBe(false);
+    expect(events.some((e: { id: string }) => e.id === 'note:1')).toBe(true);
+    expect((await get('/api/assets/trep/events/note:2')).statusCode).toBe(200);
+  });
 });
 
 describe('branches', () => {

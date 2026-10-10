@@ -13,19 +13,19 @@ const isNumber = (v: string) => /^[\d.,]+$/.test(v.trim())
 export function ComparisonCard({ card }: { card: ComparisonCardData }) {
   const [reference, other] = card.columns
   return (
-    <div className="flex flex-col gap-3">
-      <div className="overflow-x-auto rounded-xl border">
+    <div className="flex flex-col gap-[12px]">
+      <div className="overflow-x-auto rounded-[12px] border">
         <table className="w-full border-collapse text-[12.5px] leading-[1.4]">
           <caption className="sr-only">{card.title}</caption>
           <thead>
-            <tr className="bg-[#f9fafb]">
-              <th scope="col" className="w-[30%] px-2.5 py-2 text-left">
+            <tr className="bg-background">
+              <th scope="col" className="w-[30%] px-[10px] py-[8px] text-left">
                 <span className="sr-only">Attribute</span>
               </th>
               {card.columns.map((col, i) => (
-                <th key={col.id} scope="col" className="px-2.5 py-2 text-left font-semibold text-foreground">
-                  <span className="inline-flex items-center gap-1.5">
-                    <span aria-hidden="true" className={cn('size-2 rounded-[2px]', i === 0 ? 'bg-primary' : 'bg-orange')} />
+                <th key={col.id} scope="col" className="px-[10px] py-[8px] text-left font-semibold text-foreground">
+                  <span className="inline-flex items-center gap-[6px]">
+                    <span aria-hidden="true" className={cn('size-[8px] rounded-[2px]', i === 0 ? 'bg-primary' : 'bg-orange')} />
                     {col.name}
                   </span>
                 </th>
@@ -35,14 +35,14 @@ export function ComparisonCard({ card }: { card: ComparisonCardData }) {
           <tbody>
             {card.rows.map((row) => (
               <tr key={row.label}>
-                <th scope="row" className="border-t border-[#eef0f3] px-2.5 py-2 text-left align-top font-medium text-text-secondary">
+                <th scope="row" className="border-t border-hair px-[10px] py-[8px] text-left align-top font-medium text-text-secondary">
                   {row.label}
                 </th>
                 {row.values.map((v, i) => (
                   <td
                     key={i}
                     className={cn(
-                      'border-t border-[#eef0f3] px-2.5 py-2 align-top text-foreground',
+                      'border-t border-hair px-[10px] py-[8px] align-top text-foreground',
                       isNumber(v) && 'font-semibold tabular-nums',
                     )}
                   >
@@ -55,13 +55,13 @@ export function ComparisonCard({ card }: { card: ComparisonCardData }) {
         </table>
       </div>
       {reference && (
-        <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline" className="h-9 rounded-[10px] border-input bg-card px-3 text-[13px]">
+        <div className="flex flex-wrap gap-[8px]">
+          <Button asChild variant="outline" size="sm">
             <Link to={assetPath(reference.id, 'evidence')}>
               View evidence <ArrowRight />
             </Link>
           </Button>
-          <Button asChild variant="outline" className="h-9 rounded-[10px] border-input bg-card px-3 text-[13px]">
+          <Button asChild variant="outline" size="sm">
             <Link to={assetPath(reference.id, 'competitors')}>
               Compare journeys <ArrowRight />
             </Link>
@@ -71,9 +71,9 @@ export function ComparisonCard({ card }: { card: ComparisonCardData }) {
       {other && (
         <Link
           to={assetPath(other.id, 'overview')}
-          className="inline-flex w-max items-center gap-1 text-[13px] font-semibold text-primary hover:underline"
+          className="inline-flex w-max items-center gap-[4px] text-[13px] font-semibold text-primary hover:underline"
         >
-          Open {other.name} <ArrowUpRight className="size-3.5" />
+          Open {other.name} <ArrowUpRight className="size-[14px]" />
         </Link>
       )}
     </div>

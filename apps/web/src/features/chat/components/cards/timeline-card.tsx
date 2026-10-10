@@ -1,46 +1,42 @@
-import { SignificanceBadge, CATEGORY_META } from '@/features/assets/components/badges'
-import { TAB_FOR_COLLECTION } from '@/features/assets/components/journey-timeline'
-import { formatDate } from '@/lib/format'
-import type { Card, OpenRecord, TimelineCardEvent } from '../../api'
+import { CategoryIcon } from '@/features/assets/components/badges'
+import { formatDay, formatMonth } from '@/lib/dates'
+import { useEventSheet } from '@/stores/event-sheet-store'
+import type { Card } from '../../api'
 
 type TimelineCardData = Extract<Card, { type: 'timeline' }>
 
-/** The source record behind an event, when an asset tab can show it. */
-function recordFor(e: TimelineCardEvent): OpenRecord | null {
-  const source = e.sources[0]
-  const tab = source && TAB_FOR_COLLECTION[source.collection]
-  return source && tab ? { assetId: e.assetId, tab, recordKey: source.record_key } : null
-}
-
-/** Compact dated list of journey events; each opens its source record. */
-export function TimelineCard({ card, onOpenRecord }: { card: TimelineCardData; onOpenRecord: (r: OpenRecord) => void }) {
+/**
+ * Dated journey events as a numbered answer list (prototype `.ans-l`): category icon, title, "asset · date",
+ * and a numbered cite chip that opens the event detail sheet. Milestones read "expected Mon yyyy".
+ */
+export function TimelineCard({ card }: { card: TimelineCardData }) {
+  const openEvent = useEventSheet((s) => s.openEvent)
   return (
-    <div className="overflow-hidden rounded-xl border bg-card">
-      <p className="border-b border-[#eef0f3] bg-[#f9fafb] px-3 py-2 text-[12.5px] font-semibold">{card.title}</p>
-      <ul className="divide-y divide-[#eef0f3]">
-        {card.events.map((e) => {
-          const record = recordFor(e)
-          return (
-            <li key={e.id}>
-              <button
-                type="button"
-                disabled={!record}
-                onClick={() => record && onOpenRecord(record)}
-                className="flex w-full items-start gap-3 px-3 py-2 text-left enabled:hover:bg-accent/60"
-              >
-                <span className="w-[76px] shrink-0 font-mono text-xs leading-5 text-muted-foreground">{formatDate(e.date)}</span>
-                <span className="min-w-0 flex-1">
-                  <span className="line-clamp-2 font-medium text-foreground">{e.title}</span>
-                  <span className="block text-[11.5px] text-muted-foreground">
-                    {[CATEGORY_META[e.category]?.label ?? e.category, e.assetName, e.is_milestone && 'Upcoming'].filter(Boolean).join(' · ')}
-                  </span>
-                </span>
-                <SignificanceBadge value={e.significance} />
-              </button>
-            </li>
-          )
-        })}
-      </ul>
-    </div>
+    <ol aria-label={card.title} className="flex flex-col gap-[6px]">
+      {card.events.map((e, i) => (
+        <li
+          key={e.id}
+          style={{ animationDelay: `${i * 90}ms` }}
+          className="flex animate-fade-up items-center gap-[10px] rounded-[10px] border bg-card px-[10px] py-[8px]"
+        >
+          <CategoryIcon category={e.category} className="size-[22px]" />
+          <span className="min-w-0 flex-1">
+            <b className="font-medium">{e.title}</b>
+            <span className="text-muted-foreground">
+              {' '}
+              · {e.assetName} · {e.is_milestone ? `expected ${formatMonth(e.date)}` : formatDay(e.date)}
+            </span>
+          </span>
+          <button
+            type="button"
+            onClick={() => openEvent(e.assetId, e.id)}
+            aria-label={`Open event ${i + 1}: ${e.title}`}
+            className="size-[20px] shrink-0 rounded-[6px] border border-[#c7d1f4] bg-primary-soft p-0 text-[11px] font-semibold text-primary outline-none hover:bg-primary hover:text-primary-foreground focus-visible:ring-[3px] focus-visible:ring-primary/12"
+          >
+            {i + 1}
+          </button>
+        </li>
+      ))}
+    </ol>
   )
 }

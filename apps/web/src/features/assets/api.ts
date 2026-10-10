@@ -88,9 +88,32 @@ export type SourceRecord = Record<string, unknown> & {
   title?: string
   url?: string
   content?: string
+  /** Journey events built from this record (records endpoints; DC §B). */
+  journey_events?: RecordEventRef[]
+}
+
+/** A journey event a record feeds, as the records API lists it. */
+export interface RecordEventRef {
+  id: string
+  title: string
+  date: string
+  category: EventCategory
+  significance?: Significance
 }
 
 export type RecordTab = 'clinical' | 'regulatory' | 'documents' | 'company-ir' | 'news' | 'publications' | 'conferences' | 'patents'
+
+/** Which asset tab shows a source record of this collection. */
+export const TAB_FOR_COLLECTION: Record<string, RecordTab> = {
+  fda_records: 'regulatory',
+  ema_records: 'regulatory',
+  trial_records: 'clinical',
+  company_records: 'company-ir',
+  articles: 'news',
+  publication_records: 'publications',
+  conference_records: 'conferences',
+  patent_records: 'patents',
+}
 
 export interface RecordsQuery {
   q?: string
@@ -98,6 +121,10 @@ export interface RecordsQuery {
   phase?: string[]
   status?: string[]
   mentionsOnly?: boolean
+  /** Trials: only studies sponsored by the asset's company. */
+  companyOnly?: boolean
+  /** Selected facet values by facet key; sent as JSON. */
+  facets?: Record<string, string>
   page?: number
   pageSize?: number
 }
@@ -107,6 +134,12 @@ export interface Page<T> {
   total: number
   page: number
   pageSize: number
+}
+
+/** A records page with the panel's whole-tab counts: `all` records and the values of each facet. */
+export interface RecordsPage extends Page<SourceRecord> {
+  all: number
+  facets: { key: string; label: string; values: { value: string; count: number }[] }[]
 }
 
 /** `{a: 1, b: ['x','y'], c: undefined}` → `?a=1&b=x,y` */
@@ -142,8 +175,12 @@ export function useTimeline(id: string, filters: TimelineFilters) {
 export function useRecords(id: string, tab: RecordTab, query: RecordsQuery) {
   return useQuery({
     queryKey: ['asset', id, 'records', tab, query],
-    queryFn: () =>
-      apiFetch<Page<SourceRecord>>(`/assets/${encodeURIComponent(id)}/records/${tab}${toQueryString(query)}`),
+    queryFn: () => {
+      const { facets, ...rest } = query
+      const picked = Object.fromEntries(Object.entries(facets ?? {}).filter(([, v]) => v))
+      const params = Object.keys(picked).length ? { ...rest, facets: JSON.stringify(picked) } : rest
+      return apiFetch<RecordsPage>(`/assets/${encodeURIComponent(id)}/records/${tab}${toQueryString(params)}`)
+    },
     placeholderData: keepPreviousData,
   })
 }

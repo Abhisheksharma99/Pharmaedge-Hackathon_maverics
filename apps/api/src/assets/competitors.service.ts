@@ -85,6 +85,9 @@ export class CompetitorsService {
     });
     const nameOf = (assetId: string) => (assetId === ref._id ? ref.name : (docs.get(assetId)?.name ?? ranked.find((c) => c.id === assetId)?.name ?? assetId));
     const companyOf = (assetId: string) => docs.get(assetId)?.company?.name ?? ranked.find((c) => c.id === assetId)?.company ?? '';
+    /** Brand names other than the generic name, "Tyvaso · Remodulin" style (the cards' "brand · company" line). */
+    const brandOf = (name: string, aliases?: string[]) =>
+      (aliases ?? []).filter((a) => a.toLowerCase() !== name.toLowerCase()).join(' · ') || null;
     const event = (e: Document) => {
       const { _id, asset, ...rest } = e;
       return { id: _id, assetId: asset, assetName: nameOf(asset), company: companyOf(asset), ...rest };
@@ -105,6 +108,7 @@ export class CompetitorsService {
           id: ref._id,
           name: ref.name,
           company: ref.company.name,
+          brand: brandOf(ref.name, ref.aliases),
           mechanism: ref.tags.mechanism ?? null,
           modality: ref.tags.modality ?? null,
           status: ref.status,
@@ -120,6 +124,7 @@ export class CompetitorsService {
             id: c.id,
             name: doc?.name ?? c.name,
             company: doc?.company?.name ?? c.company ?? '',
+            brand: brandOf(doc?.name ?? c.name, doc?.aliases),
             mechanism: doc?.tags?.mechanism ?? null,
             modality: doc?.tags?.modality ?? null,
             status: doc?.status ?? 'onboarding',

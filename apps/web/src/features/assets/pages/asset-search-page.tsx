@@ -1,6 +1,7 @@
 import { LayoutGrid, List, Plus, Search } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
+import { InlineError } from '@/components/inline-error'
 import { Page } from '@/components/layout/page'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -16,6 +17,7 @@ import { AssetCard, AssetStatusPill } from '../components/asset-card'
 import { AssetTile } from '../components/asset-tile'
 import { KindBadge } from '../components/badges'
 import { EmptyState } from '../components/panel'
+import { shortIndication } from '../components/competitors/utils'
 import { Segmented } from '../components/segmented'
 
 type Kind = 'all' | 'primary' | 'competitor'
@@ -36,15 +38,15 @@ function subline(a: AssetSummary): string {
 
 function IndicationTags({ asset }: { asset: AssetSummary }) {
   return (
-    <div className="flex flex-wrap gap-1">
+    <div className="flex flex-wrap gap-[4px]">
       {(asset.tags.indications ?? []).map((x) => (
-        <span key={x} className="rounded-[5px] bg-muted px-1.5 py-px text-[11px] whitespace-nowrap text-secondary-foreground">
-          {x}
+        <span key={x} title={x} className="rounded-[5px] bg-muted px-[6px] py-px text-[11px] whitespace-nowrap text-secondary-foreground">
+          {shortIndication(x)}
         </span>
       ))}
       {(asset.tags.investigational_indications ?? []).map((x) => (
-        <span key={`i-${x}`} className="rounded-[5px] border border-dashed bg-card px-1.5 py-px text-[11px] whitespace-nowrap text-muted-foreground">
-          {x}
+        <span key={`i-${x}`} title={x} className="rounded-[5px] border border-dashed bg-card px-[6px] py-px text-[11px] whitespace-nowrap text-muted-foreground">
+          {shortIndication(x)}
         </span>
       ))}
     </div>
@@ -91,15 +93,15 @@ export function AssetSearchPage() {
       title="Asset Search"
       description="Every tracked asset journey."
       actions={
-        <Button asChild className="h-9 rounded-[10px] px-3.5">
+        <Button asChild>
           <Link to="/chat?intent=add">
-            <Plus /> Add asset
+            <Plus className="size-[15px]" /> Add asset
           </Link>
         </Button>
       }
     >
-      <div className="mb-4 flex flex-wrap items-center gap-2.5">
-        <label className="flex h-[38px] flex-[1_1_320px] items-center gap-2 rounded-[10px] border bg-card px-3 text-muted-foreground focus-within:border-primary focus-within:shadow-focus">
+      <div className="flex flex-wrap items-center gap-[10px]">
+        <label className="flex h-[38px] flex-[1_1_320px] items-center gap-[8px] rounded-[10px] border bg-card px-[12px] text-muted-foreground focus-within:border-primary focus-within:shadow-focus">
           <Search className="size-[15px] shrink-0" />
           <input
             value={q}
@@ -122,7 +124,7 @@ export function AssetSearchPage() {
             { value: 'competitor', label: `Competitors ${all.length - primaries}` },
           ]}
         />
-        <div role="group" aria-label="View" className="inline-flex rounded-[10px] bg-muted p-0.5">
+        <div role="group" aria-label="View" className="inline-flex gap-[2px] rounded-[8px] bg-muted p-[2px]">
           {VIEWS.map((v) => (
             <button
               key={v.value}
@@ -130,7 +132,7 @@ export function AssetSearchPage() {
               aria-pressed={view === v.value}
               aria-label={v.label}
               onClick={() => setParam('view', v.value, 'table')}
-              className={cn('flex h-7 w-8 items-center justify-center rounded-lg text-text-secondary', view === v.value && 'bg-card text-foreground shadow-[0_1px_2px_rgba(16,24,40,0.08)]')}
+              className={cn('flex h-[28px] w-[32px] items-center justify-center rounded-[6px] text-text-secondary', view === v.value && 'bg-card text-foreground shadow-[0_1px_2px_rgba(16,24,40,0.1)]')}
             >
               <v.icon className="size-[13px]" />
             </button>
@@ -138,16 +140,27 @@ export function AssetSearchPage() {
         </div>
       </div>
 
-      {assets.isPending && (
-        <div className="space-y-3">
-          {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-16 w-full" />
-          ))}
-        </div>
+      {assets.isPending &&
+        (view === 'grid' ? (
+          <div role="status" aria-label="Loading assets" className="grid grid-cols-[repeat(auto-fill,minmax(270px,1fr))] gap-[16px]">
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} className="h-[230px] rounded-[14px]" />
+            ))}
+          </div>
+        ) : (
+          <div role="status" aria-label="Loading assets" className="space-y-[12px] rounded-[14px] border bg-card p-[16px] shadow-panel">
+            {[0, 1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-[52px] w-full" />
+            ))}
+          </div>
+        ))}
+      {assets.isError && (
+        <section className="rounded-[14px] border bg-card shadow-panel">
+          <InlineError message="Assets couldn't be loaded." onRetry={() => void assets.refetch()} />
+        </section>
       )}
-      {assets.isError && <p className="text-destructive">Assets couldn't be loaded.</p>}
       {assets.data && shown.length === 0 && (
-        <section className="rounded-[14px] border bg-card">
+        <section className="rounded-[14px] border bg-card shadow-panel">
           {all.length === 0 ? (
             <EmptyState title="No assets yet">
               <Link to="/chat?intent=add" className="font-medium text-primary hover:underline">
@@ -184,17 +197,17 @@ export function AssetSearchPage() {
             <TableBody>
               {shown.map((a) => (
                 <TableRow key={a.id} onClick={() => navigate(assetPath(a.id))} className="cursor-pointer">
-                  <TableCell>
-                    <div className="flex items-center gap-2.5">
+                  <TableCell className="min-w-[260px]">
+                    <div className="flex items-center gap-[10px]">
                       <AssetTile name={a.name} kind={a.kind} size={30} />
                       <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <Link to={assetPath(a.id)} onClick={(e) => e.stopPropagation()} className="font-semibold hover:text-primary">
+                        <div className="flex flex-wrap items-center gap-[7px]">
+                          <Link to={assetPath(a.id)} onClick={(e) => e.stopPropagation()} className="font-medium hover:text-primary">
                             {a.name}
                           </Link>
                           <KindBadge kind={a.kind} competitorOf={a.competitorOf.map((p) => p.name)} />
                         </div>
-                        <p className="truncate text-[12px] text-muted-foreground">{subline(a)}</p>
+                        <p className="line-clamp-1 max-w-[520px] text-[12px] whitespace-normal text-muted-foreground">{subline(a)}</p>
                       </div>
                     </div>
                   </TableCell>
@@ -206,7 +219,7 @@ export function AssetSearchPage() {
                     <AssetStatusPill asset={a} progress={progressOf(a.id)} variant="search" />
                   </TableCell>
                   <TableCell className="font-mono tabular-nums">{formatNumber(a.counts.events)}</TableCell>
-                  <TableCell className="max-w-[280px]">
+                  <TableCell className="max-w-[300px]">
                     {a.latestEvent ? (
                       <>
                         <p className="truncate">{a.latestEvent.title}</p>
@@ -224,7 +237,7 @@ export function AssetSearchPage() {
       )}
 
       {shown.length > 0 && view === 'grid' && (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(270px,1fr))] gap-4">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(270px,1fr))] gap-[16px]">
           {shown.map((a, i) => (
             <AssetCard key={a.id} asset={a} variant="search" index={i} events={byAsset.get(a.id) ?? []} progress={progressOf(a.id)} />
           ))}

@@ -1,7 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import type { Job } from '@/features/jobs/api'
-import { toQueryString, type AssetSummary, type EventCategory, type Page, type Significance } from './api'
+import { toQueryString, type AssetSummary, type EventCategory, type Page, type RecordEventRef, type Significance } from './api'
 
 export type Coverage = 'approved' | 'investigational' | 'none'
 
@@ -9,6 +9,8 @@ export interface LandscapeRow {
   id: string
   name: string
   company: string
+  /** Brand names other than the generic name, joined with " · ". */
+  brand?: string | null
   mechanism: string | null
   modality: string | null
   status: AssetSummary['status']
@@ -117,6 +119,7 @@ export interface LedgerRow {
   model: string
   decidedAt: string
   recordKey: string
+  journey_events?: RecordEventRef[]
 }
 
 export interface LedgerQuery {

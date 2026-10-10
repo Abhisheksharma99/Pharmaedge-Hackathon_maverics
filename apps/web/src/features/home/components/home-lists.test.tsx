@@ -76,7 +76,7 @@ describe('WhatChanged', () => {
     renderWith(<WhatChanged />)
     const week = await screen.findByRole('region', { name: 'Last 7 days' })
     const title = within(week).getByRole('button', { name: 'FDA accepts Tyvaso sNDA for IPF' })
-    expect(week).toHaveTextContent('AI · 4 sources')
+    expect(week).toHaveTextContent('4 sources')
     expect(week).toHaveTextContent('Oct 5, 2026')
     expect(within(week).getByRole('link', { name: 'Treprostinil' })).toHaveAttribute('href', '/assets/trep/overview')
     expect(within(screen.getByRole('region', { name: 'Last 30 days' })).getByText('HYPERION results presented')).toBeInTheDocument()

@@ -3,6 +3,7 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { ComingSoon } from '@/components/layout/coming-soon'
 import { NOT_READY_ITEMS } from '@/components/layout/nav-config'
 import { Page } from '@/components/layout/page'
+import { AnalyticsTab } from '@/features/analytics/analytics-tab'
 import { AssetLayout } from '@/features/assets/pages/asset-layout'
 import { AssetSearchPage } from '@/features/assets/pages/asset-search-page'
 import {
@@ -49,6 +50,7 @@ export const routes: RouteObject[] = [
             children: [
               { index: true, element: <Navigate to="overview" replace /> },
               { path: 'overview', element: <OverviewTab /> },
+              { path: 'analytics', element: <AnalyticsTab /> },
               { path: 'evidence', element: <EvidenceTab /> },
               { path: 'clinical', element: <ClinicalTab /> },
               { path: 'regulatory', element: <RegulatoryTab /> },

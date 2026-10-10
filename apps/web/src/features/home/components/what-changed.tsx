@@ -1,5 +1,6 @@
-import { Sparkles } from 'lucide-react'
+import { Sparkle } from 'lucide-react'
 import { Link } from 'react-router'
+import { InlineError } from '@/components/inline-error'
 import { AssetTile } from '@/features/assets/components/asset-tile'
 import { CategoryIcon, SignificanceBadge } from '@/features/assets/components/badges'
 import { EmptyState, Panel } from '@/features/assets/components/panel'
@@ -18,13 +19,13 @@ export function WhatChanged() {
   const groups = portfolio.data ? whatChanged(portfolio.data.events, todayIso()) : []
 
   return (
-    <Panel title="What changed" description="High- and medium-significance events across your assets and their competitors" bodyClassName="py-1">
+    <Panel title="What changed" description="High- and medium-significance events across your assets and their competitors" bodyClassName="pt-[4px] pb-[8px]">
       {portfolio.isPending && <ListSkeleton />}
-      {portfolio.isError && <p className="p-5 text-destructive">Recent events couldn't be loaded.</p>}
+      {portfolio.isError && <InlineError message="Recent events couldn't be loaded." onRetry={() => void portfolio.refetch()} />}
       {portfolio.data && groups.length === 0 && <EmptyState title="Quiet quarter">No new key events in the last 90 days.</EmptyState>}
       {groups.map((g) => (
-        <section key={g.label} aria-label={g.label} className="py-1">
-          <p className="mx-5 mt-2.5 mb-1 text-[11px] font-semibold tracking-[0.06em] text-muted-foreground uppercase">{g.label}</p>
+        <section key={g.label} aria-label={g.label} className="py-[4px]">
+          <p className="mx-[20px] mt-[10px] mb-[4px] text-[11px] font-semibold tracking-[0.06em] text-muted-foreground uppercase">{g.label}</p>
           <ul>
             {g.events.map((e) => (
               <ChangeRow key={`${e.asset}|${e.id}`} event={e} asset={assets.get(e.asset)} onOpen={() => openEvent(e.asset, e.id)} />
@@ -38,25 +39,25 @@ export function WhatChanged() {
 
 function ChangeRow({ event: e, asset, onOpen }: { event: JourneyEventV3; asset?: PortfolioAsset; onOpen: () => void }) {
   return (
-    <li className="flex animate-fade-up items-center gap-3 px-5 py-2.5 transition-colors hover:bg-background">
+    <li className="flex animate-fade-up items-center gap-[12px] px-[20px] py-[10px] transition-colors hover:bg-background">
       <CategoryIcon category={e.category} className="size-[30px]" />
       <div className="flex min-w-0 flex-1 flex-col gap-[3px]">
         <button type="button" onClick={onOpen} className="text-left font-medium text-pretty hover:text-primary">
           {e.title}
         </button>
-        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px] text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-[10px] gap-y-[4px] text-[12px] text-muted-foreground">
           {asset && (
-            <Link to={`/assets/${encodeURIComponent(asset.id)}/overview`} className="inline-flex items-center gap-1.5 font-medium text-secondary-foreground hover:text-primary">
+            <Link to={`/assets/${encodeURIComponent(asset.id)}/overview`} className="inline-flex items-center gap-[5px] rounded-[6px] border border-hair bg-background py-px pr-[6px] pl-[2px] font-medium text-secondary-foreground hover:border-border">
               <AssetTile name={asset.name} kind={asset.kind} size={16} />
               {asset.name}
             </Link>
           )}
-          {asset?.kind === 'competitor' && <span className="rounded-[5px] bg-muted px-1.5 py-px text-[11px] text-secondary-foreground">Competitor</span>}
+          {asset?.kind === 'competitor' && <span className="rounded-[5px] bg-muted px-[6px] py-px text-[11px] text-secondary-foreground">Competitor</span>}
           <span className="font-mono">{formatDay(e.date)}</span>
           {e.via === 'ai_events' && (
-            <span className="inline-flex items-center gap-1 text-violet">
-              <Sparkles className="size-[11px]" />
-              AI · {e.sources.length} source{e.sources.length === 1 ? '' : 's'}
+            <span className="inline-flex items-center gap-[4px] text-violet">
+              <Sparkle className="size-[11px]" />
+              {e.sources.length} source{e.sources.length === 1 ? '' : 's'}
             </span>
           )}
         </div>

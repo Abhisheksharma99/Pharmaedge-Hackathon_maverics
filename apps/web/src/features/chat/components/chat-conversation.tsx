@@ -1,5 +1,6 @@
 import { useEffect, useEffectEvent, useRef, useState, type ComponentType } from 'react'
 import { toast } from 'sonner'
+import { InlineError } from '@/components/inline-error'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ApiError } from '@/lib/api'
 import { cn } from '@/lib/utils'
@@ -114,26 +115,26 @@ export function ChatConversation({
         }}
         className="min-h-0 flex-1 overflow-y-auto"
       >
-        <div className={cn('flex flex-col gap-5 py-5', contentClassName)}>
+        <div className={cn('flex min-h-full flex-col gap-[18px] py-[24px]', contentClassName)}>
           {loading && (
-            <div className="space-y-3">
-              <Skeleton className="ml-auto h-10 w-2/3" />
-              <Skeleton className="h-24 w-full" />
+            <div className="space-y-[12px]">
+              <Skeleton className="ml-auto h-[40px] w-2/3" />
+              <Skeleton className="h-[96px] w-full" />
             </div>
           )}
-          {messages.isError && !turn && <p className="text-destructive">This conversation couldn’t be loaded.</p>}
+          {messages.isError && !turn && <InlineError message="This conversation couldn’t be loaded." onRetry={() => void messages.refetch()} className="px-0" />}
           {empty && EmptyState && <EmptyState ask={ask} prefill={prefill} />}
           {sessionId && (list.length > 0 || turn) && (
             <ChatThread sessionId={sessionId} messages={list} turn={turn} onRetry={(text) => send(sessionId, text)} />
           )}
-          {!busy && !loading && !(empty && EmptyState) && (
-            <div className={cn(!empty && 'border-t border-[#eef0f3] pt-4')}>
-              <FollowUps questions={followUps} onAsk={ask} />
-            </div>
-          )}
         </div>
       </div>
-      <div className={cn('flex flex-col gap-2 pt-2 pb-5', contentClassName)}>
+      {!busy && !loading && !(empty && EmptyState) && (
+        <div className={cn('pb-[8px]', contentClassName)}>
+          <FollowUps questions={followUps} onAsk={ask} />
+        </div>
+      )}
+      <div className={cn('pb-[18px]', contentClassName)}>
         <Composer
           value={draft}
           onChange={setDraft}
@@ -143,7 +144,6 @@ export function ChatConversation({
           placeholder={empty && emptyPlaceholder ? emptyPlaceholder : undefined}
           inputRef={inputRef}
         />
-        <p className="text-[12px] text-muted-foreground">AI answers can be wrong. Check the cited evidence before acting.</p>
       </div>
     </div>
   )

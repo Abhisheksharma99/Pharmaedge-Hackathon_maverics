@@ -44,7 +44,7 @@ export class JourneyService {
       this.db.collection<NoteDoc>('journey_notes').find({ asset: assetId }).toArray(),
     ]);
     // Team notes are key events in the same lanes, so they take part in neighbours and branch position.
-    const all: Slot[] = [...events, ...notes.map((n) => ({ _id: n._id, date: n.date, title: n.title, branch: n.branch, key: true }))].sort(
+    const all: Slot[] = [...events, ...notes.filter((n) => !n.resolved_event).map((n) => ({ _id: n._id, date: n.date, title: n.title, branch: n.branch, key: true }))].sort(
       (a, b) => a.date.localeCompare(b.date) || a._id.localeCompare(b._id),
     );
     const pool = event.key ? all.filter((e) => e.key || e._id === eventId) : all;

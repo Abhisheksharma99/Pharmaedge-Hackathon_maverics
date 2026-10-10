@@ -18,12 +18,14 @@ export interface NoteDoc {
   text: string;
   mode: 'manual' | 'ai';
   sources?: SourceRef[];
+  /** Set by the crawler's finalize when a journey event now carries this "Missed by AI" note; the timeline then skips the note. */
+  resolved_event?: string;
   by: { id: string; name: string };
   created_at: Date;
   updated_at?: Date;
 }
 
-const VIA: Record<string, Via> = { rule: 'journey', ai: 'ai_events', user: 'user' };
+const VIA: Record<string, Via> = { rule: 'journey', ai: 'ai_events', user: 'user', feedback: 'finalize' };
 const INTERNAL = new Set(['_id', 'ai_links', 'enriched_at', 'merged_from', 'updated_at']);
 
 /** A journey_events document as the v3 API returns it (DATA_CONTRACTS §A JourneyEventV3). */

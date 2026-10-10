@@ -1,6 +1,7 @@
 import { Loader2, Plus } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
+import { InlineError } from '@/components/inline-error'
 import { Page } from '@/components/layout/page'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -52,16 +53,16 @@ function AddUserDialog() {
         </Button>
       </DialogTrigger>
       <DialogContent>
-        <form onSubmit={onSubmit} className="space-y-4">
+        <form onSubmit={onSubmit} className="space-y-[16px]">
           <DialogHeader>
             <DialogTitle>Add user</DialogTitle>
             <DialogDescription>Share the temporary password with them directly.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-1.5">
+          <div className="space-y-[6px]">
             <Label htmlFor="new-name">Name</Label>
             <Input id="new-name" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           </div>
-          <div className="space-y-1.5">
+          <div className="space-y-[6px]">
             <Label htmlFor="new-email">Email</Label>
             <Input
               id="new-email"
@@ -71,7 +72,7 @@ function AddUserDialog() {
               onChange={(e) => setForm({ ...form, email: e.target.value })}
             />
           </div>
-          <div className="space-y-1.5">
+          <div className="space-y-[6px]">
             <Label htmlFor="new-password">Temporary password</Label>
             <Input
               id="new-password"
@@ -84,7 +85,7 @@ function AddUserDialog() {
             />
             <p className="text-muted-foreground">At least 12 characters.</p>
           </div>
-          <div className="space-y-1.5">
+          <div className="space-y-[6px]">
             <Label htmlFor="new-role">Role</Label>
             <Select value={form.role} onValueChange={(role) => setForm({ ...form, role: role as Role })}>
               <SelectTrigger id="new-role" className="w-full">
@@ -97,7 +98,7 @@ function AddUserDialog() {
             </Select>
           </div>
           {error && (
-            <p role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-destructive">
+            <p role="alert" className="rounded-md bg-danger-soft px-[12px] py-[8px] text-destructive">
               {error}
             </p>
           )}
@@ -123,14 +124,14 @@ export function UsersPage() {
 
   return (
     <Page title="Users" description="Who can sign in, and what they can do." actions={<AddUserDialog />}>
-      <div className="rounded-xl border bg-card">
+      <div className="overflow-hidden rounded-[14px] border bg-card shadow-panel">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
-              <TableHead className="w-40">Role</TableHead>
-              <TableHead className="w-28">Active</TableHead>
+              <TableHead className="w-[160px]">Role</TableHead>
+              <TableHead className="w-[112px]">Active</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -138,14 +139,14 @@ export function UsersPage() {
               Array.from({ length: 3 }, (_, i) => (
                 <TableRow key={i}>
                   <TableCell colSpan={4}>
-                    <Skeleton className="h-5 w-full" />
+                    <Skeleton className="h-[20px] w-full" />
                   </TableCell>
                 </TableRow>
               ))}
             {users.isError && (
               <TableRow>
-                <TableCell colSpan={4} className="text-destructive">
-                  {message(users.error)}
+                <TableCell colSpan={4} className="p-0">
+                  <InlineError message={message(users.error)} onRetry={() => void users.refetch()} />
                 </TableCell>
               </TableRow>
             )}
@@ -159,7 +160,7 @@ export function UsersPage() {
                   <TableCell>{u.email}</TableCell>
                   <TableCell>
                     <Select value={u.role} disabled={isMe} onValueChange={(role) => change(u.id, { role: role as Role })}>
-                      <SelectTrigger size="sm" className="w-32" aria-label={`Role for ${u.name}`}>
+                      <SelectTrigger size="sm" className="w-[128px]" aria-label={`Role for ${u.name}`}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>

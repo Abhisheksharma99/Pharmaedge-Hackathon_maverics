@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -39,7 +39,7 @@ const NOTES: NotificationList = {
 
 type Calls = { url: string; init?: RequestInit }[]
 
-function fakeApi(overrides: Record<string, () => Response> = {}): Calls {
+function fakeApi(overrides: Record<string, () => Response | Promise<Response>> = {}): Calls {
   const calls: Calls = []
   vi.stubGlobal(
     'fetch',
@@ -143,6 +143,34 @@ describe('AppHeader', () => {
     renderHeader()
     await userEvent.click(await screen.findByRole('button', { name: 'Notifications' }))
     expect(await screen.findByText("Notifications couldn't be loaded.")).toBeInTheDocument()
+  })
+
+  it('retries a failed notifications load from the popover', async () => {
+    let down = true
+    fakeApi({ '/api/notifications': () => (down ? json(500, { code: 'ERROR', message: 'down' }) : json(200, NOTES)) })
+    renderHeader()
+    await userEvent.click(await screen.findByRole('button', { name: 'Notifications' }))
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent("Notifications couldn't be loaded.")
+    down = false
+    await userEvent.click(within(alert).getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByRole('button', { name: /FDA accepts Tyvaso sNDA/ })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('shows a loading state in the popover while notifications load', async () => {
+    fakeApi({ '/api/notifications': () => new Promise<Response>(() => {}) })
+    renderHeader()
+    await userEvent.click(await screen.findByRole('button', { name: 'Notifications' }))
+    expect(await screen.findByRole('status', { name: 'Loading notifications' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Mark all read' })).toBeDisabled()
+  })
+
+  it('says "You\'re all caught up" when there are no notifications', async () => {
+    fakeApi({ '/api/notifications': () => json(200, { items: [], unread: 0 }) })
+    renderHeader()
+    await userEvent.click(await screen.findByRole('button', { name: 'Notifications' }))
+    expect(await screen.findByText("You're all caught up")).toBeInTheDocument()
   })
 
   it('shows no crawl status, rather than a false "All crawls finished", when jobs cannot load', async () => {

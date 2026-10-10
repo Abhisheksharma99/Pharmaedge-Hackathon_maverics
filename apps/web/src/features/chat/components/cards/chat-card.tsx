@@ -1,4 +1,4 @@
-import type { Card, OpenRecord } from '../../api'
+import type { Card } from '../../api'
 import { ComparisonCard } from './comparison-card'
 import { IdentityCard } from './identity-card'
 import { JobCard } from './job-card'
@@ -9,23 +9,29 @@ export function ChatCard({
   card,
   sessionId,
   startedAssets,
-  onOpenRecord,
 }: {
   card: Card
   sessionId: string
   /** Assets with a job card in this chat (their identity card is done). */
   startedAssets: ReadonlySet<string>
-  onOpenRecord: (r: OpenRecord) => void
 }) {
   switch (card.type) {
     case 'identity':
-      return <IdentityCard identity={card.identity} sessionId={sessionId} crawlStarted={startedAssets.has(card.identity.id)} />
+      return (
+        <div className="max-w-[560px]">
+          <IdentityCard identity={card.identity} sessionId={sessionId} crawlStarted={startedAssets.has(card.identity.id)} />
+        </div>
+      )
     case 'job':
-      return <JobCard card={card} />
+      return (
+        <div className="max-w-[560px]">
+          <JobCard card={card} />
+        </div>
+      )
     case 'comparison':
       return <ComparisonCard card={card} />
     case 'timeline':
-      return <TimelineCard card={card} onOpenRecord={onOpenRecord} />
+      return <TimelineCard card={card} />
     default:
       return null
   }

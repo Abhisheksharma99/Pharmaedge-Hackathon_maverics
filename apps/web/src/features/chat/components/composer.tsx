@@ -32,7 +32,7 @@ export function Composer({
         e.preventDefault()
         submit()
       }}
-      className="flex items-end gap-2 rounded-xl border border-input bg-card py-1.5 pr-1.5 pl-3.5 shadow-[0_1px_2px_rgba(16,24,40,0.05)] focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/20"
+      className="flex items-end gap-[8px] rounded-[14px] border bg-card py-[8px] pr-[8px] pl-[14px] shadow-[0_4px_14px_rgba(16,24,40,0.06)] focus-within:border-primary"
     >
       <label htmlFor={id} className="sr-only">
         Ask Asset AI
@@ -50,14 +50,14 @@ export function Composer({
             submit()
           }
         }}
-        className="max-h-40 min-h-10 flex-1 resize-none bg-transparent py-2.5 text-[14px] leading-5 outline-none field-sizing-content placeholder:text-muted-foreground"
+        className="max-h-[140px] flex-1 resize-none bg-transparent py-[6px] text-[13.5px] leading-[1.5] outline-none field-sizing-content placeholder:text-muted-foreground"
       />
       {streaming ? (
-        <Button type="button" variant="outline" size="icon-lg" aria-label="Stop answering" onClick={onStop} className="size-10 rounded-[10px]">
+        <Button type="button" variant="outline" size="sm" aria-label="Stop answering" onClick={onStop} className="w-[34px] px-0">
           <Square className="fill-current" />
         </Button>
       ) : (
-        <Button type="submit" size="icon-lg" aria-label="Send" disabled={!text} className="size-10 rounded-[10px]">
+        <Button type="submit" size="sm" aria-label="Send" disabled={!text} className="w-[34px] px-0">
           <Send />
         </Button>
       )}

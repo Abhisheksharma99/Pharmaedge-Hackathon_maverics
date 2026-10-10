@@ -50,7 +50,7 @@ export function FormingTimeline({
   const shown = hover ? placed.find((e) => e.id === hover) : undefined
 
   return (
-    <div className="px-4 pt-3.5 pb-1">
+    <div className="px-[16px] pt-[14px] pb-[4px]">
       <div ref={ref} className="relative">
         <svg aria-hidden="true" width={W} height={H} className="block overflow-visible">
           <defs>
@@ -129,7 +129,7 @@ export function FormingTimeline({
         {shown && (
           <div
             role="tooltip"
-            className="pointer-events-none absolute z-20 flex w-max max-w-[260px] animate-fade flex-col gap-0.5 rounded-lg bg-foreground px-[9px] py-[7px] text-[12px] leading-[1.35] text-white shadow-[0_6px_16px_rgba(16,24,40,0.18)]"
+            className="pointer-events-none absolute z-20 flex w-max max-w-[260px] animate-fade flex-col gap-[2px] rounded-lg bg-foreground px-[9px] py-[7px] text-[12px] leading-[1.35] text-white shadow-[0_6px_16px_rgba(16,24,40,0.18)]"
             style={{ left: x(yearFraction(shown.date)), top: laneY(shown) - 6, transform: 'translate(-50%, calc(-100% - 8px))' }}
           >
             <b className="font-medium">{shown.title}</b>
