@@ -147,3 +147,47 @@ def test_a_second_run_changes_nothing(db, feed):
     events_before = [dict(e) for e in db.journey_events.docs]
     assert run(db, feed) == {} and [dict(e) for e in db.journey_events.docs] == events_before
     assert len(db.journey_events.docs) == 1 and stored(db)["status"] == "resolved"
+
+
+def hints(db):
+    return (db.assets.find_one({"_id": ASSET}) or {}).get("crawl_hints", {}).get("domains", [])
+
+
+def web_page(db, key, url, **fields):
+    db.web_records.insert_one({"key": key, "assets": [ASSET], "url": url, "title": "Phase 3 topline results announced",
+                               "content": "Topline results", "fetched_at": "2024-02-10", **fields})
+
+
+def test_web_pages_behind_a_new_event_add_their_allowed_hosts_to_crawl_hints(db, feed):
+    db.assets.insert_one({"_id": ASSET, "company": {"ir_url": "https://investors.unither.com/news"}})
+    web_page(db, "web:1", "https://www.accessdata.fda.gov/doc/1", date="2024-02-10")
+    web_page(db, "web:2", "https://investors.unither.com/pr/2", date="2024-02-10")
+    web_page(db, "web:3", "https://random-blog.example.com/x", date="2024-02-10")
+    note(db, title="Phase 3 topline results", date="2024-02-10")
+    run(db, feed)
+    assert stored(db)["status"] == "resolved"
+    assert hints(db) == ["accessdata.fda.gov", "investors.unither.com"]
+    run(db, feed)  # idempotent: $addToSet
+    assert hints(db) == ["accessdata.fda.gov", "investors.unither.com"]
+
+
+def test_web_sources_of_a_matched_event_are_hinted_too_but_other_records_and_unresolved_notes_are_not(db, feed):
+    db.assets.insert_one({"_id": ASSET, "company": {}})
+    web_page(db, "web:1", "https://www.sec.gov/Archives/x")
+    web_page(db, "web:2", "https://random-blog.example.com/x")
+    event(db, sources=[{"collection": "web_records", "record_key": "web:1"}, {"collection": "web_records", "record_key": "web:2"},
+                       {"collection": "fda_records", "record_key": "K1"}])
+    note(db, "n1", date="2024-03-01")
+    note(db, "n2", title="Unrelated gibberish zzz")
+    run(db, feed)
+    assert hints(db) == ["sec.gov"]
+
+
+def test_nothing_is_hinted_without_a_resolution_or_an_asset_doc(db, feed):
+    web_page(db, "web:1", "https://www.sec.gov/Archives/x")
+    note(db, title="Unrelated gibberish zzz")
+    run(db, feed)
+    assert hints(db) == []
+    note(db, "n2", title="Phase 3 topline results", date="2024-02-10")
+    run(db, feed)
+    assert stored(db, "n2")["status"] == "resolved" and db.assets.docs == []

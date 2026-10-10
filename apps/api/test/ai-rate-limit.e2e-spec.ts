@@ -1,4 +1,5 @@
 import { vi } from 'vitest';
+import { ValkeyService } from '../src/valkey/valkey.service.js';
 import { AnalyticsBuildService } from '../src/analytics/analytics.build.service.js';
 import { NotesFinderService } from '../src/annotations/notes-finder.service.js';
 import {
@@ -66,4 +67,11 @@ describe('per-user limits on the AI routes', () => {
       expect((await call(analyst, url, body)).statusCode).toBeLessThan(300);
     },
   );
+
+  it('counts in Valkey, so the limit holds across API processes', async () => {
+    const valkey = ctx.app.get(ValkeyService);
+    const keys = (await valkey.client.keys(valkey.key('throttle', 'ai_minute', '*')));
+    const counts = await Promise.all(keys.map(async (k) => Number(await valkey.client.get(k))));
+    expect(Math.max(...counts)).toBeGreaterThanOrEqual(3);
+  });
 });

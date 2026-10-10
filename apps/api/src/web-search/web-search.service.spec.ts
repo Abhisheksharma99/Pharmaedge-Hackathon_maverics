@@ -58,6 +58,34 @@ describe('WebSearchService', () => {
     expect(out.results[0]).toMatchObject({ url: 'https://www.fda.gov/x', content: 'FDA approved it.' });
   });
 
+  it("adds the asset's crawl_hints.domains to its allowed_domains, re-validated against the allow-list and IR host", async () => {
+    await db.collection('assets').insertOne({
+      _id: 'a' as never,
+      company: { name: 'Co', ir_url: 'https://ir.example.com/news' },
+      crawl_hints: { domains: ['www.accessdata.fda.gov', 'investors.ir.example.com', 'spam.com', 'fda.gov.evil.com', 42, ''] },
+    });
+    const create = vi.fn().mockResolvedValue(response(['https://accessdata.fda.gov/doc', 'Label.']));
+    const { svc } = setup(ON, create);
+    const out = await svc.search('q', { asset: 'a' });
+    const allowed = create.mock.calls[0]![0].tools[0].filters.allowed_domains as string[];
+    expect(allowed).toEqual(expect.arrayContaining(['fda.gov', 'ir.example.com', 'accessdata.fda.gov', 'investors.ir.example.com']));
+    expect(allowed).not.toEqual(expect.arrayContaining(['spam.com']));
+    expect(allowed).not.toContain('fda.gov.evil.com');
+    expect(allowed).not.toContain(42);
+    expect(out.results.map((r) => r.domain)).toEqual(['accessdata.fda.gov']);
+  });
+
+  it('addCrawlHints $addToSets only allowed hosts and is idempotent', async () => {
+    await db.collection('assets').insertOne({ _id: 'a' as never, company: { ir_url: 'https://ir.example.com/news' } });
+    const { svc } = setup(ON);
+    const urls = ['https://www.accessdata.fda.gov/x', 'https://spam.com/y', 'https://pr.ir.example.com/q', 'not a url'];
+    await svc.addCrawlHints('a', urls);
+    await svc.addCrawlHints('a', urls);
+    expect((await db.collection('assets').findOne({ _id: 'a' as never }))?.crawl_hints).toEqual({ domains: ['accessdata.fda.gov', 'pr.ir.example.com'] });
+    await svc.addCrawlHints('a', ['https://spam.com/y']);
+    expect((await db.collection('assets').findOne({ _id: 'a' as never }))?.crawl_hints.domains).toHaveLength(2);
+  });
+
   it('persists web_records and chunks, and upserts by key adding assets', async () => {
     const long = 'word '.repeat(700);
     const create = vi.fn().mockResolvedValue(response(['https://www.fda.gov/x', long]));

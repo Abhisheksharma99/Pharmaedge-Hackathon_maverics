@@ -6,6 +6,7 @@ import type { AuthUser } from '../auth/auth.types.js';
 import { MONGO_DB } from '../database/database.module.js';
 import { noteToEvent, type NoteDoc } from '../journey/events.js';
 import { NotificationsService } from '../me/notifications.service.js';
+import { CacheService } from '../valkey/cache.service.js';
 import type { CommentDto, NoteDto, NotePatchDto } from './annotations.dto.js';
 
 interface CommentDoc {
@@ -29,6 +30,7 @@ export class AnnotationsService implements OnModuleInit {
     @Inject(MONGO_DB) private readonly db: Db,
     private readonly assets: AssetsService,
     private readonly notifications: NotificationsService,
+    private readonly cache: CacheService,
   ) {}
 
   async onModuleInit() {
@@ -115,13 +117,18 @@ export class AnnotationsService implements OnModuleInit {
   }
 
   async deleteNote(asset: string, id: string, user: AuthUser) {
-    await this.ownNote(asset, id, user);
+    const note = await this.ownNote(asset, id, user);
+    // The crawler made `feedback:<asset>:<note>` for a resolved "Missed by AI" note; it goes with the note.
+    // A pre-existing journey event the note merely matched (any other id / origin) is never touched.
+    const eventId = `feedback:${asset}:${id}`;
+    const ownEvent = note.resolved_event === eventId ? await this.db.collection('journey_events').deleteOne({ _id: eventId as never, asset, origin: 'feedback' }) : null;
     await Promise.all([
       this.db.collection('journey_notes').deleteOne({ _id: id as never }),
       this.db.collection('event_stars').deleteMany({ event: id }),
       this.db.collection('event_comments').deleteMany({ event: id }),
       this.db.collection('crawl_feedback').deleteMany({ note_id: id }),
     ]);
+    if (ownEvent?.deletedCount) await this.cache.bump(`asset:${asset}:ver`);
   }
 
   private async ownNote(asset: string, id: string, user: AuthUser) {

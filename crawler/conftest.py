@@ -34,8 +34,13 @@ def _apply(doc, update):
     for key, value in update.get("$inc", {}).items():
         doc[key] = doc.get(key, 0) + value
     for key, value in update.get("$addToSet", {}).items():
-        if value not in doc.setdefault(key, []):
-            doc[key].append(value)
+        *parents, leaf = key.split(".")  # dotted paths and {"$each": [...]}
+        target = doc
+        for part in parents:
+            target = target.setdefault(part, {})
+        for item in value["$each"] if isinstance(value, dict) and "$each" in value else [value]:
+            if item not in target.setdefault(leaf, []):
+                target[leaf].append(item)
     for key, value in update.get("$pull", {}).items():
         doc[key] = [x for x in doc.get(key, []) if x != value]
 
