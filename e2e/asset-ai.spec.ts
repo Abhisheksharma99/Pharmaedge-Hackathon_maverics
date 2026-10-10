@@ -24,7 +24,7 @@ test('asset tabs, a cited Asset AI answer and the add-asset identity card', asyn
   // Asset AI in the asset panel: the answer cites records that open in the record sheet.
   const ask = page.getByRole('button', { name: /Ask Asset AI|Close Asset AI/ })
   if ((await ask.getAttribute('aria-pressed')) !== 'true') await ask.click()
-  const composer = page.getByRole('textbox').last()
+  const composer = page.getByRole('textbox', { name: 'Message Asset AI' })
   const citationsBefore = await page.getByRole('button', { name: /^Source \d+:/ }).count()
   await composer.fill('Which phase 3 trials are active?')
   await composer.press('Enter')
@@ -36,9 +36,9 @@ test('asset tabs, a cited Asset AI answer and the add-asset identity card', asyn
 
   // Add-asset: the model resolves the drug and shows the identity card; confirming is the user's click.
   await page.goto('/chat?intent=add')
-  await expect(page.getByRole('textbox').last()).toHaveValue(/^Add/)
-  await page.getByRole('textbox').last().fill(`Add ${NEW_DRUG}`)
-  await page.getByRole('textbox').last().press('Enter')
+  await expect(page.getByRole('textbox', { name: 'Message Asset AI' })).toHaveValue(/^Add/)
+  await page.getByRole('textbox', { name: 'Message Asset AI' }).fill(`Add ${NEW_DRUG}`)
+  await page.getByRole('textbox', { name: 'Message Asset AI' }).press('Enter')
   await expect(page).toHaveURL(/\/chat\/[\w-]+$/)
   await expect(page.getByRole('button', { name: /Confirm & start crawl|Track fully|Open asset/ })).toBeVisible({ timeout: 150_000 })
 })

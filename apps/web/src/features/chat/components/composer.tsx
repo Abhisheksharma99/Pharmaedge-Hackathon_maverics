@@ -41,6 +41,7 @@ export function Composer({
         id={id}
         ref={inputRef}
         rows={1}
+        aria-label="Message Asset AI"
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
