@@ -6,6 +6,7 @@ import { EmptyState } from '@/features/assets/components/panel'
 import { useEventSheet } from '@/stores/event-sheet-store'
 import { useAnnotations, useToggleStar } from './annotations-api'
 import { useBranches, useEndedBranchEvents, useJourneyEvents } from './api'
+import { ExportMenu } from './export/export-menu'
 import { HorizontalTrack } from './horizontal-track'
 import { eventIndications, indicationOptions } from './indications'
 import { JourneyHeader } from './journey-header'
@@ -24,7 +25,7 @@ const NO_COMMENTS = {}
  * with its HUD) or tree, oldest or newest first, filters in the URL, `?focus=<eventId>` deep links and in-place
  * "Locate on timeline" from the event sheet.
  */
-export function JourneySection({ asset }: { asset: Pick<AssetDetail, 'id' | 'name'> }) {
+export function JourneySection({ asset }: { asset: Pick<AssetDetail, 'id' | 'name'> & { company?: { name: string } } }) {
   const assetId = asset.id
   const f = useJourneyFilters()
   const events = useJourneyEvents(assetId, f.scope)
@@ -174,6 +175,18 @@ export function JourneySection({ asset }: { asset: Pick<AssetDetail, 'id' | 'nam
           setFocusBranch(null)
         }}
         onAdd={() => setDraft({ date: '', branch: model.trunk.id })}
+        exportMenu={
+          <ExportMenu
+            ctx={{
+              asset: { id: assetId, name: asset.name, company: asset.company?.name },
+              scope: f.scope,
+              order: f.order,
+              filters: { cats: f.cats, mine: f.mine, ind: f.ind, q: f.q },
+              events: ordered,
+            }}
+            disabled={!ready}
+          />
+        }
       />
       {(events.isPending || branches.isPending) && !events.isError && <JourneySkeleton view={f.view} />}
       {(branches.isError || annotations.isError) && !events.isError && (

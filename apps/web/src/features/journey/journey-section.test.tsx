@@ -3,6 +3,7 @@ import { act, cleanup, render, screen, waitFor, within } from '@testing-library/
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import type { Mock } from 'vitest'
+import { Toaster } from '@/components/ui/sonner'
 import { useEventSheet } from '@/stores/event-sheet-store'
 import { JourneySection } from './journey-section'
 import type { Branch, JourneyEventV3 } from './types'
@@ -25,6 +26,7 @@ function renderAt(path: string) {
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <RouterProvider router={router} />
+      <Toaster />
     </QueryClientProvider>,
   )
   return router
@@ -43,7 +45,10 @@ beforeEach(() => {
   })
   vi.stubGlobal('fetch', fetchMock)
 })
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.restoreAllMocks()
+})
 
 describe('JourneySection', () => {
   it('shows the horizontal journey by default with the HUD, and the vertical tree when chosen (never saved)', async () => {
@@ -186,5 +191,40 @@ describe('JourneySection', () => {
     const post = fetchMock.mock.calls.find(([u, i]) => u.endsWith('/notes') && i?.method === 'POST')!
     expect(JSON.parse(String(post[1]!.body))).toMatchObject({ title: 'My note', branch: 'PAH', mode: 'manual' })
     expect(screen.queryByRole('dialog', { name: 'Add to the journey' })).not.toBeInTheDocument()
+  })
+
+  it('exports exactly what the journey shows: the scope, the filters and the order', async () => {
+    let saved: { blob: Blob; name: string } | null = null
+    vi.spyOn(URL, 'createObjectURL').mockImplementation((b) => {
+      saved = { blob: b as Blob, name: '' }
+      return 'blob:export'
+    })
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      saved!.name = this.download
+    })
+    renderAt('/assets/trep/overview?scope=all&order=newest&ind=PH-COPD')
+    await screen.findByTestId('journey-horizontal')
+    await userEvent.click(screen.getByRole('button', { name: 'Export' }))
+    const menu = await screen.findByRole('menu')
+    expect(menu).toHaveTextContent('Exports the 2 events shown')
+    expect(menu).toHaveTextContent('All events · newest first · filters: Indication: PH-COPD')
+    await userEvent.click(within(menu).getByRole('menuitem', { name: /CSV/ }))
+    await waitFor(() => expect(saved?.name).toMatch(/^trep-journey-all-events-\d{4}-\d{2}-\d{2}\.csv$/))
+    const rows = (await saved!.blob.text()).replace(/^\uFEFF/, '').trim().split('\r\n')
+    expect(rows.map((r) => r.split(',').slice(0, 3).join(','))).toEqual(['Date,Expected,Title', '2022-11-29,no,Event stop', '2018-05-08,no,Event c'])
+    expect(await screen.findByText('Exported 2 events')).toBeInTheDocument()
+  })
+
+  it('says so when an export fails, and lets the user try again', async () => {
+    vi.spyOn(URL, 'createObjectURL').mockImplementation(() => {
+      throw new Error('Blocked by the browser')
+    })
+    renderAt('/assets/trep/overview')
+    await screen.findByTestId('journey-horizontal')
+    await userEvent.click(screen.getByRole('button', { name: 'Export' }))
+    await userEvent.click(within(await screen.findByRole('menu')).getByRole('menuitem', { name: /JSON/ }))
+    expect(await screen.findByText('The export failed')).toBeInTheDocument()
+    expect(screen.getByText('Blocked by the browser')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled()
   })
 })

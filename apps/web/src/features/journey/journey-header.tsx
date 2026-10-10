@@ -1,5 +1,5 @@
 import { Activity, Columns2, Flag, Plus, Rows2, Search, Star } from 'lucide-react'
-import { useId, useMemo, useState, type CSSProperties } from 'react'
+import { useId, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { FiltersToggle } from '@/components/filters-toggle'
 import { Button } from '@/components/ui/button'
@@ -42,6 +42,8 @@ export interface JourneyHeaderProps {
   onFocusBranch: (id: string | null) => void
   onClear: () => void
   onAdd: () => void
+  /** The Export menu, beside "Add to timeline" (stays with the actions when the filters are hidden). */
+  exportMenu?: ReactNode
 }
 
 /**
@@ -108,6 +110,7 @@ export function JourneyHeader(p: JourneyHeaderProps) {
         <Button size="sm" className={BTN_SM} onClick={p.onAdd}>
           <Plus /> Add to timeline
         </Button>
+        {p.exportMenu}
         <FiltersToggle collapsed={collapsed} onCollapsed={setCollapsed} controls={filtersId} active={nActive} onClear={p.onClear} />
       </div>
       <div id={filtersId} hidden={collapsed} className="flex basis-full flex-col gap-[12px]">
