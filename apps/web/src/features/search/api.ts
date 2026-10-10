@@ -1,5 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { toQueryString, type EventCategory } from '@/features/assets/api'
+import type { IndicationSource } from '@/features/journey/indications'
 import { apiFetch } from '@/lib/api'
 import { useDebouncedValue } from '@/lib/use-debounced-value'
 
@@ -11,7 +12,8 @@ export interface SearchAsset {
   competitorOf: string[]
 }
 
-export interface SearchEvent {
+/** `branch`/`span`/`indications` say which indication an event belongs to (absent on older API responses). */
+export interface SearchEvent extends IndicationSource {
   id: string
   asset: string
   assetName: string

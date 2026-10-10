@@ -7,7 +7,6 @@ import {
   Search,
   Settings,
   Sparkle,
-  Upload,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -60,11 +59,10 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       {
         label: 'Asset Journey',
-        to: '/assets',
+        to: '/journey',
         icon: Route,
         ready: true,
         summary: 'The dated journey of an asset: approvals, trials, publications, filings and milestones.',
-        assetTab: 'overview',
       },
       {
         label: 'Company IR',
@@ -87,14 +85,6 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Data',
     items: [
-      {
-        label: 'Uploads',
-        to: '/uploads',
-        icon: Upload,
-        ready: false,
-        summary: 'Add your own documents to an asset journey.',
-        detail: 'Drop PDFs, slide decks and internal reports onto an asset. They’ll be triaged and dated like any other source, and cited by Asset AI.',
-      },
       {
         label: 'Crawl jobs',
         to: '/jobs',
