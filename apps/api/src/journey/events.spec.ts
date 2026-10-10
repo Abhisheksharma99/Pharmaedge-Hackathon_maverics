@@ -10,6 +10,7 @@ describe('toEventV3', () => {
     expect(out.links).toEqual(['a', 'b', 'c']);
     for (const k of ['_id', 'ai_links', 'enriched_at', 'merged_from', 'updated_at']) expect(out).not.toHaveProperty(k);
     expect(toEventV3({ _id: 'ai:1', origin: 'ai' }).via).toBe('ai_events');
+    expect(toEventV3({ _id: 'r:1', category: 'safety' }).category).toBe('clinical');
     expect(toEventV3({ _id: 'ai:2', origin: 'ai' })).not.toHaveProperty('links');
   });
 });
@@ -24,6 +25,13 @@ describe('noteToEvent', () => {
       id: 'note:1', via: 'user', type: 'note', key: true, is_milestone: true, branch: 'PH-ILD', summary: 'Seen in the press',
       user: { tag: 'Missed by AI', by: { id: 'u1', name: 'Alex' }, created_at: '2026-10-01T10:00:00.000Z', mode: 'manual' },
     });
+  });
+});
+
+describe('noteToEvent legacy category', () => {
+  it('maps a stored safety note to clinical', () => {
+    const note = { _id: 'note:2', asset: 'trep', date: '2026-01-01', category: 'safety', tag: 'Risk', title: 't', text: 'x', mode: 'manual', by: { id: 'u', name: 'A' }, created_at: new Date() } as NoteDoc;
+    expect(noteToEvent(note).category).toBe('clinical');
   });
 });
 

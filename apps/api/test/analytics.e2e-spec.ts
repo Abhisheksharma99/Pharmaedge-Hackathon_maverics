@@ -50,7 +50,7 @@ describe('analytics', () => {
     const out = res.json();
     expect(out.pipeline).toEqual([]);
     expect(out.trials).toEqual([]);
-    expect(out.stats).toMatchObject({ nextCatalyst: null, patentRunwayYears: null, evidenceRecords: 0 });
+    expect(out.stats).toMatchObject({ nextCatalyst: null, evidenceRecords: 0 });
   });
 });
 
@@ -169,7 +169,7 @@ describe('analytics suggestions', () => {
     expect(Object.keys(out).sort()).toEqual(['activityByYear', 'landscape', 'patents', 'pipeline', 'recordsByYear', 'significance', 'sourceMix', 'stats', 'triageFunnel', 'trials']);
     expect(out).toMatchObject({ patents: [], recordsByYear: [], sourceMix: [], activityByYear: { cols: [] }, significance: { High: 0, Medium: 0, Low: 0 }, triageFunnel: { screened: 0, relevant: 0, ingested: 0, candidates: 0, journey: 0 } });
     expect(out.landscape.rows).toHaveLength(1);
-    expect(out.stats).toEqual({ approvedIndications: 0, inDevelopment: [], activeTrials: 0, phase3: 0, patients: 0, nextCatalyst: null, patentRunwayYears: null, evidenceRecords: 0 });
+    expect(out.stats).toEqual({ approvedIndications: 0, approved: [], inDevelopment: [], activeTrials: 0, phase3: 0, patients: 0, nextCatalyst: null, evidenceRecords: 0 });
     const bad: string[] = [];
     const walk = (v: unknown, path: string) => {
       if (typeof v === 'number' && !Number.isFinite(v)) bad.push(path);

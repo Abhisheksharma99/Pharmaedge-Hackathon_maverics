@@ -3,7 +3,7 @@ import { ArrayMaxSize, IsArray, IsIn, IsOptional, IsString, Matches, MaxLength, 
 import { RECORD_COLLECTIONS } from '../assets/source-registry.js';
 
 export const NOTE_TAGS = ['Important', 'Missed by AI', 'Question', 'Risk', 'Opportunity'] as const;
-export const CATEGORIES = ['regulatory', 'clinical', 'safety', 'company', 'ip'] as const;
+export const CATEGORIES = ['regulatory', 'clinical', 'company', 'ip'] as const;
 
 export class CommentDto {
   @IsString() @MinLength(1) @MaxLength(2000) text: string;

@@ -26,12 +26,15 @@ export interface NoteDoc {
 }
 
 const VIA: Record<string, Via> = { rule: 'journey', ai: 'ai_events', user: 'user', feedback: 'finalize' };
+/** 'safety' was folded into 'clinical'; stored or client-sent legacy values are mapped, never returned. */
+export const normCategory = (c: string): string => (c === 'safety' ? 'clinical' : c);
 const INTERNAL = new Set(['_id', 'ai_links', 'enriched_at', 'merged_from', 'updated_at']);
 
 /** A journey_events document as the v3 API returns it (DATA_CONTRACTS §A JourneyEventV3). */
 export function toEventV3(doc: Document): EventV3 {
   const out: Document = { id: doc._id };
   for (const [k, v] of Object.entries(doc)) if (!INTERNAL.has(k)) out[k] = v;
+  if (typeof out.category === 'string') out.category = normCategory(out.category);
   out.via = VIA[doc.origin as string] ?? 'journey';
   const links = [...new Set<string>([...(doc.links ?? []), ...(doc.ai_links ?? [])])].filter((l) => l !== doc._id);
   if (links.length) out.links = links;
@@ -46,7 +49,7 @@ export function noteToEvent(n: NoteDoc, today = new Date().toISOString().slice(0
     asset: n.asset,
     date: n.date,
     type: 'note',
-    category: n.category,
+    category: normCategory(n.category),
     title: n.title,
     summary: n.text,
     significance: 'Medium',

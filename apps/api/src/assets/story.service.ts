@@ -7,7 +7,7 @@ import { composeStory, type Story, type StorySpec } from './story.js';
 
 const EVENT_FIELDS = {
   title: 1, date: 1, type: 1, category: 1, summary: 1, significance: 1, is_milestone: 1, origin: 1, region: 1,
-  indication: 1, phase: 1, verification: 1, sponsor: 1, sponsor_is_company: 1, sources: { $slice: 3 }, merged_sources: 1,
+  indication: 1, branch: 1, indications: 1, span: 1, phase: 1, verification: 1, sponsor: 1, sponsor_is_company: 1, sources: { $slice: 3 }, merged_sources: 1,
 };
 
 /**

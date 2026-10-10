@@ -109,3 +109,9 @@ def test_trial_events_match_the_company_sponsor_loosely():
     from journey.rules import trial_events
     rec = {"record_key": "k", "nct_id": "NCT1", "phases": ["PHASE3"], "start_date": "2010-01-01", "lead_sponsor": "Biogen"}
     assert trial_events("nat", [rec], "Biogen Inc.")[0]["sponsor_is_company"] is True
+
+
+def test_safety_events_stay_key_without_a_company_sponsor():
+    events = [e("rc", "2025-01-17", type="recall", category="clinical"),
+              e("ct", "2015-01-01", type="trial_start", category="clinical", sponsor_is_company=False)]
+    assert select(events, TODAY) == ["rc"]
