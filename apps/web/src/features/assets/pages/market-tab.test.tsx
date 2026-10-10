@@ -57,6 +57,9 @@ function renderTab(body: AssetMarket) {
 }
 const lastUrl = () => decodeURIComponent(fetchMock.mock.calls.at(-1)![0])
 beforeAll(() => {
+  Element.prototype.hasPointerCapture ??= () => false
+  Element.prototype.setPointerCapture ??= () => {}
+  Element.prototype.releasePointerCapture ??= () => {}
   Element.prototype.scrollIntoView ??= () => {}
 })
 afterEach(() => vi.unstubAllGlobals())
@@ -87,6 +90,31 @@ describe('MarketTab', () => {
     expect(lastUrl()).toBe('/api/assets/selexipag/market?drugs=macitentan&significance=High,Medium')
     await userEvent.click(screen.getByRole('button', { name: /^Patents\s*2$/ }))
     expect(lastUrl()).toBe('/api/assets/selexipag/market?drugs=macitentan&category=ip&significance=High,Medium')
+  })
+
+  it('shows which indication each event belongs to and filters the moves table by indication and search', async () => {
+    renderTab({
+      ...LISTED,
+      events: [
+        event('small', recent(300), 2.04, { branch: 'PAH' }),
+        event('big', recent(200), -12.5, { branch: 'PH-ILD', span: ['PAH'] }),
+        event('none', recent(250), 1),
+      ],
+    })
+    const table = await screen.findByRole('table')
+    const rows = () => within(table).getAllByRole('row').slice(1)
+    expect(within(rows()[0]!).getByTitle('Indication: PH-ILD')).toBeInTheDocument()
+    expect(within(rows()[0]!).getByTitle('Indication: PAH')).toBeInTheDocument()
+    expect(rows()).toHaveLength(3)
+
+    await userEvent.click(screen.getByRole('combobox', { name: 'Indication' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'PH-ILD' }))
+    expect(rows().map((r) => within(r).getAllByText(/^Event /)[0]!.textContent)).toEqual(['Event big'])
+    expect(screen.getByText(/1 of 3 events/)).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Clear' }))
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search events' }), 'small')
+    expect(rows().map((r) => within(r).getAllByText(/^Event /)[0]!.textContent)).toEqual(['Event small'])
   })
 
   it('names the event under the cursor and details the one clicked: dip and peak with their day', async () => {

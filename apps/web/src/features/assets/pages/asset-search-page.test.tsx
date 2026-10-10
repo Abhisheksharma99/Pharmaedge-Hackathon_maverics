@@ -93,6 +93,12 @@ function renderSearch(path = '/assets') {
 
 const rowOf = (name: string) => screen.getByRole('link', { name }).closest('tr')!
 
+beforeAll(() => {
+  Element.prototype.hasPointerCapture ??= () => false
+  Element.prototype.setPointerCapture ??= () => {}
+  Element.prototype.releasePointerCapture ??= () => {}
+  Element.prototype.scrollIntoView ??= () => {}
+})
 beforeEach(() => (assetsMode = 'ok'))
 afterEach(() => vi.unstubAllGlobals())
 
@@ -134,6 +140,26 @@ describe('AssetSearchPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'All 3' }))
     expect(router.state.location.search).toBe('')
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(4))
+  })
+
+  it('filters by indication (approved or investigational), keeps it in the URL and says when none match', async () => {
+    const router = renderSearch()
+    await screen.findByRole('link', { name: 'Treprostinil' })
+    await userEvent.click(screen.getByRole('combobox', { name: 'Indication' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'PH-ILD' }))
+    expect(router.state.location.search).toBe('?indication=PH-ILD')
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(2))
+    expect(screen.getByRole('link', { name: 'Treprostinil' })).toBeInTheDocument()
+
+    await userEvent.type(screen.getByRole('textbox', { name: 'Search assets' }), 'zzz')
+    expect(screen.getByText('No assets match “zzz”')).toBeInTheDocument()
+  })
+
+  it('lists every indication of an asset on its row, investigational ones dashed', async () => {
+    renderSearch()
+    const trep = rowOf(await screen.findByRole('link', { name: 'Treprostinil' }).then(() => 'Treprostinil'))
+    expect(within(trep).getByText('PAH')).toBeInTheDocument()
+    expect(within(trep).getByText('PH-ILD')).toHaveClass('border-dashed')
   })
 
   it('searches by brand and shows an empty state that points to Asset AI', async () => {

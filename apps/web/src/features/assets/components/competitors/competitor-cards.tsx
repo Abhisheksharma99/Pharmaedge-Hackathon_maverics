@@ -2,9 +2,11 @@ import type { ReactNode } from 'react'
 import { ArrowRight } from 'lucide-react'
 import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'
+import { CardFilters, useCardFilter } from '@/components/card-filters'
 import { cn } from '@/lib/utils'
 import type { CompetitorsOverview, Coverage, LandscapeRow } from '../../competitors-api'
 import { AssetTile } from '../asset-tile'
+import { IndicationBadges } from '../badges'
 import { shortIndication } from './utils'
 
 const STAGE: Partial<Record<NonNullable<LandscapeRow['stage']>, { label: string; className: string }>> = {
@@ -70,41 +72,64 @@ export function AssetCard({
 
 export const CARD_GRID = 'grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-[14px] px-[20px] pt-[16px] pb-[20px]'
 
+/** Every indication a competitor is in (short): the reference's ones it covers, plus its own other ones. */
+export const competitorIndications = (r: LandscapeRow) => [
+  ...new Set([...Object.entries(r.coverage).filter(([, c]) => c !== 'none').map(([x]) => shortIndication(x)), ...r.otherIndications.map(shortIndication)]),
+]
+
 /** The primary asset's ranked competitors, each with chip coverage of the primary's indications. */
 export function CompetitorCards({ data }: { data: CompetitorsOverview }) {
   const indications = data.reference.indications
-  const rows = data.landscape.filter((r) => !r.isReference)
+  const all = data.landscape.filter((r) => !r.isReference)
+  const { filtered: rows, filters } = useCardFilter(
+    all,
+    (r) => [r.name, r.brand, r.company, r.mechanism, r.modality].filter(Boolean).join(' '),
+    [
+      { label: 'Indication', of: competitorIndications },
+      { label: 'Stage', of: (r) => (r.stage ? [STAGE[r.stage]?.label ?? 'Other'] : []) },
+      { label: 'Shared by', of: (r) => (r.basis ? [BASIS[r.basis]] : []) },
+    ],
+  )
   return (
-    <div className={CARD_GRID}>
-      {rows.map((r, i) => {
-        const stage = r.stage ? STAGE[r.stage] : undefined
-        return (
-          <AssetCard
-            key={r.id}
-            index={i}
-            tile={<AssetTile name={r.name} kind="competitor" size={34} />}
-            name={r.name}
-            sub={[r.brand, r.company].filter(Boolean).join(' · ')}
-            tag={stage && <span className={cn('rounded-[5px] px-[6px] py-px text-[11px] whitespace-nowrap', stage.className)}>{stage.label}</span>}
-            mechanism={r.mechanism}
-            note={r.basis && `Shared ${BASIS[r.basis]}`}
-            to={`/assets/${encodeURIComponent(r.id)}/overview`}
-          >
-            {indications.length > 0 && (
-              <div className="flex flex-wrap gap-[4px]">
-                {indications.map((x) => {
-                  const cov = COVERAGE[r.coverage[x] ?? 'none']
-                  return (
-                    <span key={x} title={`${x}: ${cov.label}`} className={cn('rounded-[6px] border px-[7px] py-[2px] text-[11.5px]', cov.className)}>
-                      {shortIndication(x)}
-                    </span>
-                  )
-                })}
-              </div>
-            )}
-          </AssetCard>
-        )
-      })}
-    </div>
+    <>
+      <CardFilters {...filters} placeholder="Search competitors" />
+      {rows.length === 0 && <p className="px-[20px] py-[24px] text-center text-text-secondary">No competitors match these filters.</p>}
+      <div className={CARD_GRID}>
+        {rows.map((r, i) => {
+          const stage = r.stage ? STAGE[r.stage] : undefined
+          return (
+            <AssetCard
+              key={r.id}
+              index={i}
+              tile={<AssetTile name={r.name} kind="competitor" size={34} />}
+              name={r.name}
+              sub={[r.brand, r.company].filter(Boolean).join(' · ')}
+              tag={stage && <span className={cn('rounded-[5px] px-[6px] py-px text-[11px] whitespace-nowrap', stage.className)}>{stage.label}</span>}
+              mechanism={r.mechanism}
+              note={[r.basis && `Shared ${BASIS[r.basis]}`, r.overlap.of > 0 && `overlap ${r.overlap.shared} of ${r.overlap.of}`].filter(Boolean).join(' · ')}
+              to={`/assets/${encodeURIComponent(r.id)}/overview`}
+            >
+              {indications.length > 0 && (
+                <div className="flex flex-wrap gap-[4px]">
+                  {indications.map((x) => {
+                    const cov = COVERAGE[r.coverage[x] ?? 'none']
+                    return (
+                      <span key={x} title={`${x}: ${cov.label}`} className={cn('rounded-[6px] border px-[7px] py-[2px] text-[11.5px]', cov.className)}>
+                        {shortIndication(x)}
+                      </span>
+                    )
+                  })}
+                </div>
+              )}
+              {r.otherIndications.length > 0 && (
+                <div className="flex flex-wrap items-center gap-[6px] text-[12px] text-muted-foreground">
+                  Also in <IndicationBadges items={r.otherIndications.map(shortIndication)} max={3} />
+                </div>
+              )}
+            </AssetCard>
+          )
+        })}
+      </div>
+    </>
   )
 }

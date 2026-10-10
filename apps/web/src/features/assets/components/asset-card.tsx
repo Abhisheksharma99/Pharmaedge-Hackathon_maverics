@@ -115,12 +115,11 @@ export function AssetCard({
             {shortIndication(x)}
           </Tag>
         ))}
-        {variant === 'home' &&
-          (asset.tags.investigational_indications ?? []).map((x) => (
-            <Tag key={`i-${x}`} dashed title={x}>
-              {shortIndication(x)}
-            </Tag>
-          ))}
+        {(asset.tags.investigational_indications ?? []).map((x) => (
+          <Tag key={`i-${x}`} dashed title={`${x} (investigational)`}>
+            {shortIndication(x)}
+          </Tag>
+        ))}
         {variant === 'search' && asset.kind === 'competitor' && rivals.length > 0 && <Tag>vs {rivals.join(', ')}</Tag>}
       </span>
       <Sparkline events={events} thisYear={Number(today.slice(0, 4))} />

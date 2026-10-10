@@ -55,11 +55,11 @@ const SAVED: SavedStory = {
 let fetchMock: Mock<(url: string) => Promise<Response>>
 const lastUrl = () => decodeURIComponent(fetchMock.mock.calls.at(-1)![0])
 
-function renderPanel() {
+function renderPanel(saved: SavedStory = SAVED) {
   fetchMock = vi.fn(async (url: string) =>
     url.includes('compare=nint')
-      ? json(200, { ...SAVED, story: { ...SAVED.story, compare: { asset: { id: 'nint', name: 'Nintedanib' }, events: [ev('ofev', '2021-06-01', { type: 'approval', category: 'regulatory', title: 'FDA approves Ofev for SSc-ILD' })], deltas: [{ label: 'First FDA approval', primary: 'May 2002 (Remodulin)', other: 'Oct 2014 (Ofev)', note: 'Treprostinil first by 12.4 years' }] } } })
-      : json(200, SAVED),
+      ? json(200, { ...saved, story: { ...saved.story, compare: { asset: { id: 'nint', name: 'Nintedanib' }, events: [ev('ofev', '2021-06-01', { type: 'approval', category: 'regulatory', title: 'FDA approves Ofev for SSc-ILD' })], deltas: [{ label: 'First FDA approval', primary: 'May 2002 (Remodulin)', other: 'Oct 2014 (Ofev)', note: 'Treprostinil first by 12.4 years' }] } } })
+      : json(200, saved),
   )
   vi.stubGlobal('fetch', fetchMock)
   const router = createMemoryRouter(
@@ -123,6 +123,35 @@ describe('journey story', () => {
     expect(within(inspector).getByText('Not confirmed by a regulator record')).toBeInTheDocument()
     expect(within(inspector).getByText(/vs 31 Mar 2021 · FDA approves efficacy supplement for Tyvaso/)).toBeInTheDocument()
     expect(within(inspector).getByRole('button', { name: 'Ask about this' })).toBeInTheDocument()
+  })
+
+  it('shows which indication an event belongs to in the inspector and the lists, and filters the story by indication', async () => {
+    const tagged = {
+      ...SAVED,
+      story: {
+        ...SAVED.story,
+        lanes: [
+          { category: 'regulatory' as const, events: [{ ...TYVASO, branch: 'PAH' }, { ...PHILD, branch: 'PH-ILD', span: ['PAH'] }, DECISION], total: 3 },
+          { category: 'clinical' as const, events: [TETON], total: 9 },
+          { category: 'company' as const, events: [], total: 0 },
+        ],
+        changes: { ...SAVED.story.changes, developments: [{ ...PHILD, branch: 'PH-ILD', span: ['PAH'] }, TETON], checks: [] },
+      },
+    }
+    renderPanel(tagged)
+    const timeline = await screen.findByTestId('story-timeline')
+    const changed = screen.getByRole('region', { name: 'What changed' })
+    expect(within(changed).getByTitle('Indication: PH-ILD')).toBeInTheDocument()
+
+    await userEvent.click(within(timeline).getByRole('button', { name: /FDA approves efficacy supplement for Tyvaso \(PAH\)/ }))
+    const inspector = screen.getByRole('complementary', { name: 'Selected event' })
+    expect(within(inspector).getByTitle('Indication: PAH')).toBeInTheDocument()
+
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Indication' }), 'PH-ILD')
+    expect(within(timeline).getByRole('button', { name: /inhaled treprostinil for PH-ILD/ })).toBeInTheDocument()
+    expect(within(timeline).queryByRole('button', { name: /efficacy supplement for Tyvaso/ })).not.toBeInTheDocument()
+    expect(within(timeline).queryByRole('button', { name: /TETON-1/ })).not.toBeInTheDocument()
+    expect(screen.getByText(/1 events shown of 120/)).toBeInTheDocument()
   })
 
   it('re-reads the story with the filters: categories, all events, a chapter range, a comparison', async () => {

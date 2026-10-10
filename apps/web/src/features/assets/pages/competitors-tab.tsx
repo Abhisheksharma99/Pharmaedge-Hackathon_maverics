@@ -2,6 +2,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useAssetDetails, type AssetDetail } from '../api'
 import { useCompetitors } from '../competitors-api'
 import { AssetTile } from '../components/asset-tile'
+import { IndicationBadges } from '../components/badges'
+import { shortIndication } from '../components/competitors/utils'
 import { AssetCard, CARD_GRID, CompetitorCards } from '../components/competitors/competitor-cards'
 import { IdentifyCompetitors } from '../components/competitors/identify-competitors'
 import { LoadError } from '../components/competitors/load-error'
@@ -63,7 +65,9 @@ function CompetitorNote({ asset }: { asset: AssetDetail }) {
                 sub={[brand, d?.company.name].filter(Boolean).join(' · ')}
                 mechanism={d?.tags.mechanism}
                 to={`/assets/${encodeURIComponent(p.id)}/overview`}
-              />
+              >
+                {!!d?.tags.indications?.length && <IndicationBadges items={d.tags.indications.map(shortIndication)} max={4} />}
+              </AssetCard>
             )
           })}
         </div>

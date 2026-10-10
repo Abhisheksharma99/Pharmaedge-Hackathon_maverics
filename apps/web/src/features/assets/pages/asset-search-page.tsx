@@ -4,15 +4,17 @@ import { Link, useNavigate, useSearchParams } from 'react-router'
 import { InlineError } from '@/components/inline-error'
 import { Page } from '@/components/layout/page'
 import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { eventsByAsset, usePortfolioTimeline } from '@/features/home/api'
+import { indicationOptions } from '@/features/journey/indications'
 import { useJobs } from '@/features/jobs/api'
 import { jobProgress, runningByAsset } from '@/features/jobs/steps'
 import { formatDay } from '@/lib/dates'
 import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { assetMatches, byKindThenName, useAssetDetails, useAssets, type AssetSummary } from '../api'
+import { assetIndications, assetMatches, byKindThenName, useAssetDetails, useAssets, type AssetSummary } from '../api'
 import { AssetCard, AssetStatusPill } from '../components/asset-card'
 import { AssetTile } from '../components/asset-tile'
 import { KindBadge } from '../components/badges'
@@ -28,6 +30,8 @@ const VIEWS: { value: View; label: string; icon: typeof List }[] = [
   { value: 'table', label: 'Table view', icon: List },
   { value: 'grid', label: 'Grid view', icon: LayoutGrid },
 ]
+
+const ALL_INDICATIONS = '__all__'
 
 /** "Tyvaso · United Therapeutics · vs Treprostinil" */
 function subline(a: AssetSummary): string {
@@ -64,6 +68,7 @@ export function AssetSearchPage() {
   const [q, setQ] = useState(() => params.get('q') ?? '')
   const kind: Kind = KINDS.find((k) => k === params.get('kind')) ?? 'all'
   const view: View = params.get('view') === 'grid' ? 'grid' : 'table'
+  const indication = params.get('indication') ?? ''
 
   /** Set a URL param; its default removes it, so plain /assets stays clean. */
   const setParam = (key: string, value: string, fallback: string) =>
@@ -79,7 +84,8 @@ export function AssetSearchPage() {
 
   const all = [...(assets.data ?? [])].sort(byKindThenName)
   const primaries = all.filter((a) => a.kind === 'primary').length
-  const shown = all.filter((a) => (kind === 'all' || a.kind === kind) && assetMatches(a, q.trim()))
+  const indications = indicationOptions(all, assetIndications)
+  const shown = all.filter((a) => (kind === 'all' || a.kind === kind) && (!indication || assetIndications(a).includes(indication)) && assetMatches(a, q.trim()))
   const details = useAssetDetails(shown.map((a) => a.id))
   const byAsset = eventsByAsset(portfolio.data?.events ?? [])
   const progressOf = (id: string) => {
@@ -124,6 +130,21 @@ export function AssetSearchPage() {
             { value: 'competitor', label: `Competitors ${all.length - primaries}` },
           ]}
         />
+        {(indications.length > 1 || indication) && (
+          <Select value={indication || ALL_INDICATIONS} onValueChange={(v) => setParam('indication', v, ALL_INDICATIONS)}>
+            <SelectTrigger aria-label="Indication" className="h-[38px] max-w-[220px] min-w-[150px] gap-[6px] rounded-[10px] border-border bg-card px-[10px] py-0 text-[13px] text-secondary-foreground">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_INDICATIONS}>Indication: all</SelectItem>
+              {indications.map((i) => (
+                <SelectItem key={i} value={i}>
+                  {i}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         <div role="group" aria-label="View" className="inline-flex gap-[2px] rounded-[8px] bg-muted p-[2px]">
           {VIEWS.map((v) => (
             <button
@@ -168,8 +189,8 @@ export function AssetSearchPage() {
               </Link>{' '}
               with Asset AI to start building its journey.
             </EmptyState>
-          ) : q.trim() ? (
-            <EmptyState title={`No assets match “${q.trim()}”`}>
+          ) : q.trim() || indication ? (
+            <EmptyState title={q.trim() ? `No assets match “${q.trim()}”` : `No assets in ${indication}`}>
               <Link to="/chat?intent=add" className="font-medium text-primary hover:underline">
                 Add it with Asset AI
               </Link>{' '}

@@ -1,5 +1,6 @@
 import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
+import { shortIndication } from './components/competitors/utils'
 
 export type Significance = 'High' | 'Medium' | 'Low'
 /** Safety events (recalls, safety communications) are clinical: one lane, one filter. */
@@ -217,6 +218,11 @@ export function assetMatches(asset: AssetSummary, q: string): boolean {
   return q.toLowerCase().split(/\s+/).filter(Boolean).every((word) => haystack.includes(word))
 }
 
+/** Every indication of an asset, approved and investigational, short form ("Pulmonary arterial hypertension (PAH)" → "PAH"). */
+export const assetIndications = (asset: Pick<AssetSummary, 'tags'>): string[] => [
+  ...new Set([...(asset.tags.indications ?? []), ...(asset.tags.investigational_indications ?? [])].map(shortIndication)),
+]
+
 /** Primary assets first, then by name. */
 export const byKindThenName = (a: Pick<AssetSummary, 'kind' | 'name'>, b: Pick<AssetSummary, 'kind' | 'name'>) =>
   Number(a.kind === 'competitor') - Number(b.kind === 'competitor') || a.name.localeCompare(b.name)
@@ -256,6 +262,10 @@ export interface MarketEvent {
   type: string
   category: EventCategory
   significance: Significance
+  /** Which indication the event belongs to (see journey/indications.ts eventIndications). */
+  branch?: string
+  span?: string[]
+  indications?: string[]
   /** The drug (tracked asset) the event belongs to. */
   drug: { id: string; name: string }
   source: { collection: string; record_key: string } | null

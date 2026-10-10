@@ -91,6 +91,13 @@ describe('AssetCard', () => {
     expect(card).toHaveTextContent('Latest—')
   })
 
+  it('search: shows approved and investigational indications (the latter dashed)', () => {
+    wrap(<AssetCard asset={TREP} events={[]} progress={null} variant="search" />)
+    const card = screen.getByRole('link', { name: /Treprostinil/ })
+    expect(within(card).getByText('PAH')).not.toHaveClass('border-dashed')
+    expect(within(card).getByText('IPF')).toHaveClass('border-dashed')
+  })
+
   it('home: hides the Latest line when there is no latest event', () => {
     wrap(<AssetCard asset={NINT} events={[]} progress={null} variant="home" />)
     expect(screen.getByRole('link', { name: /Nintedanib/ })).not.toHaveTextContent('Latest')
