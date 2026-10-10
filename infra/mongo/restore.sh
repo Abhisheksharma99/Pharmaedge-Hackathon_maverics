@@ -7,6 +7,9 @@
 #   DRY_RUN=1 infra/mongo/restore.sh <archive>      # read the archive and report, write nothing
 #
 # Collections in the archive replace the target's (--drop); collections not in the archive are left alone.
+# On a freshly created instance the first run ends with "applyOps requires authentication": the backup's users
+# replace the ones created at first start, which logs this session out before the oplog replay. Run it again;
+# the users then match and the replay completes. mongot is logged out the same way: `docker compose restart mongot`.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 archive="${1:?Usage: infra/mongo/restore.sh <backup archive>}"
