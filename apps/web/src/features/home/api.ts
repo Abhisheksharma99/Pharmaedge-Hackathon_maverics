@@ -28,11 +28,7 @@ export interface PortfolioTimeline {
 export function usePortfolioTimeline({ live = false }: { live?: boolean } = {}) {
   return useQuery({
     queryKey: ['portfolio', 'timeline', { competitors: true }],
-    queryFn: async () => {
-      const data = await apiFetch<PortfolioTimeline>('/portfolio/timeline?competitors=true')
-      // Until stored events are migrated, the API can still send the retired 'safety' category: it is clinical.
-      return { ...data, events: data.events.map((e) => ((e.category as string) === 'safety' ? { ...e, category: 'clinical' as const } : e)) }
-    },
+    queryFn: () => apiFetch<PortfolioTimeline>('/portfolio/timeline?competitors=true'),
     refetchInterval: live ? 10_000 : false,
   })
 }

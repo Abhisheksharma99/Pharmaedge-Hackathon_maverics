@@ -84,8 +84,8 @@ export function IndicationBadges({ items, max = 2, className }: { items: string[
   return (
     <span className={cn('inline-flex min-w-0 flex-wrap items-center gap-[4px]', className)}>
       {shown.map((i) => (
-        <span key={i} title={`Indication: ${i}`} className="inline-flex h-[20px] max-w-[160px] items-center truncate rounded-[6px] bg-primary-soft px-[6px] text-[11.5px] font-semibold text-primary">
-          {i}
+        <span key={i} title={`Indication: ${i}`} className="inline-flex h-[20px] max-w-[160px] min-w-0 items-center rounded-[6px] bg-primary-soft px-[6px] text-[11.5px] font-semibold text-primary">
+          <span className="truncate">{i}</span>
         </span>
       ))}
       {rest.length > 0 && (
