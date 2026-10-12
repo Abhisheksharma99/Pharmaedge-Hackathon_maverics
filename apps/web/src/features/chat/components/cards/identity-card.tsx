@@ -1,4 +1,4 @@
-import { ArrowUpRight, BadgeCheck, Check, ChevronDown, Info, Loader2, Pill } from 'lucide-react'
+import { ArrowUpRight, BadgeCheck, Check, ChevronDown, Loader2, Pill } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'
@@ -160,17 +160,6 @@ export function IdentityCard({
             </ol>
           )}
         </div>
-      )}
-
-      {identity.notes.length > 0 && (
-        <ul className="space-y-[4px] text-[12.5px] text-text-secondary">
-          {identity.notes.map((note) => (
-            <li key={note} className="flex items-start gap-[6px]">
-              <Info className="mt-[2px] size-[14px] shrink-0 text-muted-foreground" />
-              {note}
-            </li>
-          ))}
-        </ul>
       )}
 
       <div className="flex flex-wrap items-center gap-[12px] border-t border-hair pt-[10px]">

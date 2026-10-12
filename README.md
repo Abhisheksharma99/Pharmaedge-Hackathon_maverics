@@ -26,6 +26,7 @@ the collected records and cites every fact.
 - [Data model](#data-model)
 - [Asset AI](#asset-ai)
 - [Security](#security)
+- [Source access](#source-access)
 - [Operations](#operations)
 - [Testing](#testing)
 - [Component documentation](#component-documentation)
@@ -138,10 +139,14 @@ required for SEC EDGAR; without it the regulatory and calendar steps skip SEC so
 4. **Journey.** Rule-based events (FDA, EMA, trials, patents) plus AI-extracted events from `ingest` items, then
    AI consolidation of duplicates within a 10-day window. Each event carries significance, milestone flag and
    source references.
-5. **Index.** `ingest` items, prescribing information and annual reports are chunked (1,500 chars, 200 overlap),
-   embedded and stored in `record_chunks`; unchanged text is never re-embedded.
+5. **Index.** `ingest` items, prescribing information, annual reports, investor slides, trials, patents and the
+   FDA calendar / SEC evidence sentences are chunked (1,500 chars, 200 overlap), embedded and stored in
+   `record_chunks`; unchanged text is never re-embedded.
 6. **Competitors.** A reasoning model proposes the top competitors; each gets a lighter crawl.
-7. **Finalize.** Suggested questions are generated, the asset becomes `ready`, caches are invalidated.
+7. **Finalize.** Records stored after the AI steps are caught up, rule events are rebuilt (changes go to
+   `journey_changes`), cross-source checks flag unconfirmed approvals and conflicting decision dates, confirmed
+   duplicate approvals are folded, suggested questions are generated, the asset becomes `ready`, caches are
+   invalidated.
 
 Shared corpora (newsrooms, conference abstracts, EMA reports, CHMP meetings, FDA designations) are crawled once
 into the `pharmaedge` database by `crawler-corpus` and matched to assets by the steps.
@@ -208,6 +213,29 @@ Details: [apps/README.md](apps/README.md).
 
 ---
 
+## Source access
+
+How each source is reached, stated as the code does it:
+
+| Access | Sources |
+| --- | --- |
+| Official APIs and bulk files | openFDA, EMA JSON reports, ClinicalTrials.gov v2, NCBI E-utilities (PubMed), SEC EDGAR (declared `SEC_USER_AGENT`), FDA designation PDFs, PubChem, FDA Tracker public iCal feeds, the ATS congress portal's public GraphQL API |
+| Web pages, paced | EMA news / CHMP pages, Google Patents `/patent/` pages, AdisInsight profiles, company websites, newswire search pages and RSS |
+| Browser TLS impersonation (curl_cffi) | ERS and CHEST abstracts (Cloudflare-protected: requests impersonate Chrome and retry Cloudflare challenge pages), company newsroom spiders on protected sites (`company_pr/crawler/handlers.py`), the Google Patents search seeds for assets without an AdisInsight id (`crawler/integrations/patents.py`), the generic company crawler and onboarding site checks |
+
+- `company_pr/` Scrapy spiders run with `ROBOTSTXT_OBEY = False`; the generic company crawler reads `robots.txt`
+  for sitemaps only and does not apply its `Disallow` rules.
+- `crawler/utils/proxy_manager.py` supports residential proxies with sticky sessions; it is used only when proxy
+  credentials are configured.
+- Requests are paced per host (e.g. EMA 3 s between reports, conferences 0.25–0.5 s, company sites 0.5–1 s, RSS
+  2 s, Scrapy AutoThrottle), corpora are crawled once and shared, and refreshes are incremental.
+- Some protected sites are skipped rather than crawled (Fierce, Business Wire); press-release links that block
+  automated clients on the FDA calendar path are recorded as unavailable, and Google rate-limit pages stop the
+  crawl.
+- Review each source's terms of use before production use; the impersonation and proxy paths in particular.
+
+---
+
 ## Operations
 
 - **Health:** `GET /api/health` (api), `GET /health` (crawler-api), container healthchecks for mongo, mongot and
@@ -255,8 +283,8 @@ API e2e tests need Valkey running (`docker compose up -d valkey`).
 ## Known limitations
 
 - Asset data is shared by all users (no tenant or project isolation).
-- Only triaged `ingest` items, prescribing information, annual reports and investor slides are embedded; trials,
-  regulatory records and patents are reached through structured tools.
+- Only triaged `ingest` items, company documents, investor slides, trials, patents and FDA calendar / SEC evidence
+  are embedded; other regulatory records are reached through structured tools.
 - Crawled text is fenced and marked untrusted in every prompt; that limits prompt injection, it does not rule it out.
 - Citations guarantee the cited record exists and that its numbers and dates appear in it, not that it fully supports
   every sentence.
@@ -264,4 +292,7 @@ API e2e tests need Valkey running (`docker compose up -d valkey`).
   heuristics that flag what to look at, not verdicts.
 - Market prices come from Yahoo Finance's keyless endpoint: unofficial, for local testing only. A licensed price
   source must be wired into `patent_intel/market/prices.py` before production use.
-- Some sources block automated clients (bot protection); such items are recorded as unavailable, never bypassed.
+- Several crawlers impersonate a browser's TLS fingerprint, and the newsroom spiders do not obey `robots.txt`
+  (see [Source access](#source-access)); review the sources' terms before production use.
+- The generic company crawler and onboarding site checks fetch company websites without the SSRF guard that
+  `patent_intel/net.py` applies elsewhere.
