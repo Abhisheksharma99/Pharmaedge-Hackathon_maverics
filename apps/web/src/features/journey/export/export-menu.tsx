@@ -1,4 +1,4 @@
-import { CalendarPlus, ChevronDown, Download, FileBraces, FileSpreadsheet, FileText, LoaderCircle, Sheet, type LucideIcon } from 'lucide-react'
+import { CalendarPlus, ChevronDown, Download, FileBraces, FileSpreadsheet, FileText, LoaderCircle, Presentation, Sheet, type LucideIcon } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -6,22 +6,25 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { todayIso } from '@/lib/dates'
 import { BTN_SM } from '../controls'
 import { filtersLabel, ORDER_LABEL, SCOPE_LABEL, upcomingMilestones, type ExportContext, type ExportFormat } from './model'
+import { useJourneyExport, type ExportDraft } from './use-journey-export'
 
 const FORMATS: { format: ExportFormat; label: string; hint: string; icon: LucideIcon }[] = [
   { format: 'csv', label: 'CSV', hint: '.csv · any spreadsheet or script', icon: Sheet },
   { format: 'xlsx', label: 'Excel workbook', hint: '.xlsx · filterable, with an About sheet', icon: FileSpreadsheet },
   { format: 'json', label: 'JSON', hint: '.json · every event field and source', icon: FileBraces },
   { format: 'pdf', label: 'PDF report', hint: '.pdf · printable, grouped by year', icon: FileText },
+  { format: 'pptx', label: 'PowerPoint deck', hint: '.pptx · overview charts and timeline slides', icon: Presentation },
 ]
 
 const ITEM = 'items-start gap-[10px] rounded-[8px] px-[10px] py-[7px] [&_svg]:mt-[2px]'
 
 /**
  * "Export" in the journey header: what the journey shows right now (scope, filters, order) as CSV, Excel, JSON, a PDF
- * report, or the upcoming milestones as a calendar. `ctx` leaves out the export time and origin, set on click;
- * `disabled` while the shown events are still loading (or are the previous scope's, kept on screen).
+ * report, a PowerPoint deck, or the upcoming milestones as a calendar. `ctx` leaves out the export time and origin, set
+ * on click; `disabled` while the shown events are still loading (or are the previous scope's, kept on screen).
+ * `size="default"` matches page-header buttons.
  */
-export function ExportMenu({ ctx, disabled = false }: { ctx: Omit<ExportContext, 'exportedAt' | 'origin'>; disabled?: boolean }) {
+export function ExportMenu({ ctx, disabled = false, label = 'Export', size = 'sm' }: { ctx: ExportDraft; disabled?: boolean; label?: string; size?: 'sm' | 'default' }) {
   const [busy, setBusy] = useState<ExportFormat | null>(null)
   const n = ctx.events.length
   const upcoming = upcomingMilestones(ctx.events, todayIso()).length
@@ -45,9 +48,9 @@ export function ExportMenu({ ctx, disabled = false }: { ctx: Omit<ExportContext,
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild disabled={disabled || !!busy || n === 0}>
-        <Button variant="outline" size="sm" className={BTN_SM}>
+        <Button variant="outline" size={size} className={size === 'sm' ? BTN_SM : undefined}>
           {busy ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Download aria-hidden="true" />}
-          {busy ? 'Exporting…' : 'Export'}
+          {busy ? 'Exporting…' : label}
           <ChevronDown className="-mr-[2px] size-[13px] text-muted-foreground" aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
@@ -83,4 +86,10 @@ export function ExportMenu({ ctx, disabled = false }: { ctx: Omit<ExportContext,
       </DropdownMenuContent>
     </DropdownMenu>
   )
+}
+
+/** The journey's Export menu away from the journey (asset header, Asset Journey page header), fed by the URL's filters. */
+export function JourneyExportButton({ asset, label, size }: { asset: ExportContext['asset']; label?: string; size?: 'sm' | 'default' }) {
+  const { ctx, disabled } = useJourneyExport(asset)
+  return <ExportMenu ctx={ctx} disabled={disabled} label={label} size={size} />
 }

@@ -17,7 +17,7 @@ export interface ExportContext {
   origin: string
 }
 
-export type ExportFormat = 'csv' | 'xlsx' | 'json' | 'pdf' | 'ics'
+export type ExportFormat = 'csv' | 'xlsx' | 'json' | 'pdf' | 'pptx' | 'ics'
 
 export const SCOPE_LABEL: Record<JourneyScope, string> = { key: 'Key events', all: 'All events' }
 export const ORDER_LABEL: Record<JourneyOrder, string> = { oldest: 'Oldest first', newest: 'Newest first' }

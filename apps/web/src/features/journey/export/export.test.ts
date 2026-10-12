@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs'
+import JSZip from 'jszip'
 import { filterJourney } from '../journey-model'
 import type { JourneyEventV3 } from '../types'
 import { buildExport } from './build'
@@ -7,6 +8,7 @@ import { toIcs } from './ics'
 import { toJson } from './json'
 import { COLUMNS, exportFileName, filtersLabel, upcomingMilestones, type ExportContext } from './model'
 import { buildPdf, pdfText } from './pdf'
+import { buildPptx, clip, PPTX_TYPE, timelinePages } from './pptx'
 import { buildXlsx } from './xlsx'
 
 const ev = (id: string, date: string, extra: Partial<JourneyEventV3> = {}): JourneyEventV3 => ({
@@ -144,6 +146,53 @@ describe('journey export', () => {
     expect(text.startsWith('%PDF-')).toBe(true)
     expect(text).toContain('Treprostinil: asset journey')
     expect((text.match(/\/Type \/Page\b/g) ?? []).length).toBeGreaterThan(1)
+  })
+
+  it('splits the timeline into slide tables of at most 12 lines, with year rows and "(cont.)" rows', () => {
+    const lines = (pages: ReturnType<typeof timelinePages>) => pages.map((p) => p.map((l) => ('year' in l ? `${l.year}${l.cont ? '+' : ''}` : l.event.id)))
+    const year = Array.from({ length: 25 }, (_, i) => ev(`y${i}`, '2019-01-01'))
+    const pages = lines(timelinePages(year))
+    expect(pages.map((p) => p.length)).toEqual([12, 12, 4])
+    expect(pages.map((p) => p[0])).toEqual(['2019', '2019+', '2019+'])
+    // A year never starts on a slide's last line: 2001 and its 10 events, then 2002 opens the next slide.
+    const two = lines(timelinePages([...Array.from({ length: 10 }, (_, i) => ev(`a${i}`, '2001-01-01')), ev('b', '2002-01-01')]))
+    expect(two).toEqual([['2001', ...Array.from({ length: 10 }, (_, i) => `a${i}`)], ['2002', 'b']])
+    expect(clip('A long event title that keeps going on and on', 20)).toBe('A long event title…')
+    expect(clip('short', 20)).toBe('short')
+  })
+
+  it('builds a PowerPoint deck: title, overview, timeline and upcoming milestone slides, each with a footer', async () => {
+    const { blob, filename } = await buildExport('pptx', ctx())
+    expect(filename).toBe('treprostinil-journey-key-events-2026-10-10.pptx')
+    expect(blob.type).toBe(PPTX_TYPE)
+    const zip = await JSZip.loadAsync(await blob.arrayBuffer())
+    expect(zip.file('[Content_Types].xml')).toBeTruthy()
+    const slides = Object.keys(zip.files).filter((f) => /^ppt\/slides\/slide\d+\.xml$/.test(f))
+    // Title, overview, one timeline slide (3 events in 3 years), one upcoming slide (TETON-2, 2027-03).
+    expect(slides).toHaveLength(4)
+    const xml = (n: number) => zip.file(`ppt/slides/slide${n}.xml`)!.async('string')
+    const cover = await xml(1)
+    expect(cover).toContain('Treprostinil — Asset journey')
+    expect(cover).toContain('United Therapeutics')
+    expect(cover).toContain('Key events · Oldest first · Filters: None')
+    expect(await xml(2)).toContain('Indications covered')
+    expect(await xml(2)).toMatch(/Events by category.*Regulatory.*Clinical.*Events by significance.*High.*Medium.*Events by year.*2002/s)
+    const timeline = await xml(3)
+    expect(timeline).toContain('Timeline · 2002–2027')
+    expect(timeline).toContain('FDA approves Remodulin, &quot;first&quot; PAH therapy, for Sàrl')
+    expect(timeline).toContain('PH-ILD, PAH')
+    expect(await xml(4)).toContain('Upcoming milestones · 2027')
+    for (let i = 1; i <= 4; i++) expect(await xml(i)).toContain(`PharmaEdge · Treprostinil journey · page ${i}`)
+  })
+
+  it('pages a long journey into "(cont.)" slides and leaves out the upcoming slide when nothing is ahead', async () => {
+    const many = Array.from({ length: 30 }, (_, i) => ev(`e${i}`, '2020-06-01', { title: `Event ${i} `.repeat(30) }))
+    const zip = await JSZip.loadAsync(await (await buildPptx(ctx({ scope: 'all', events: many }))).arrayBuffer())
+    const slides = Object.keys(zip.files).filter((f) => /^ppt\/slides\/slide\d+\.xml$/.test(f))
+    expect(slides).toHaveLength(2 + 3)
+    const second = await zip.file('ppt/slides/slide4.xml')!.async('string')
+    expect(second).toContain('Timeline · 2020 (cont.)')
+    expect(second).toMatch(/>(Event 11 ){11}Event 11…</)
   })
 
   it('lists upcoming expected milestones as an iCalendar file', async () => {

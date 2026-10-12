@@ -3,9 +3,10 @@ import { toIcs } from './ics'
 import { toJson } from './json'
 import { exportFileName, type ExportContext, type ExportFormat } from './model'
 import { buildPdf } from './pdf'
+import { buildPptx } from './pptx'
 import { buildXlsx } from './xlsx'
 
-/** The file for one format; the Excel and PDF libraries load on first use. */
+/** The file for one format; the Excel, PDF and PowerPoint libraries load on first use. */
 export async function buildExport(format: ExportFormat, ctx: ExportContext): Promise<{ blob: Blob; filename: string }> {
   const filename = exportFileName(ctx, format)
   switch (format) {
@@ -19,6 +20,8 @@ export async function buildExport(format: ExportFormat, ctx: ExportContext): Pro
       return { blob: await buildXlsx(ctx), filename }
     case 'pdf':
       return { blob: await buildPdf(ctx), filename }
+    case 'pptx':
+      return { blob: await buildPptx(ctx), filename }
   }
 }
 
