@@ -7,6 +7,7 @@ import { useEventSheet } from '@/stores/event-sheet-store'
 import { useAnnotations, useToggleStar } from './annotations-api'
 import { useBranches, useEndedBranchEvents, useJourneyEvents } from './api'
 import { ExportMenu } from './export/export-menu'
+import { journeyExportDraft } from './export/use-journey-export'
 import { HorizontalTrack } from './horizontal-track'
 import { eventIndications, indicationOptions } from './indications'
 import { JourneyHeader } from './journey-header'
@@ -176,16 +177,7 @@ export function JourneySection({ asset }: { asset: Pick<AssetDetail, 'id' | 'nam
         }}
         onAdd={() => setDraft({ date: '', branch: model.trunk.id })}
         exportMenu={
-          <ExportMenu
-            ctx={{
-              asset: { id: assetId, name: asset.name, company: asset.company?.name },
-              scope: f.scope,
-              order: f.order,
-              filters: { cats: f.cats, mine: f.mine, ind: f.ind, q: f.q },
-              events: ordered,
-            }}
-            disabled={!ready}
-          />
+          <ExportMenu ctx={journeyExportDraft({ id: assetId, name: asset.name, company: asset.company?.name }, f, ordered)} disabled={!ready} />
         }
       />
       {(events.isPending || branches.isPending) && !events.isError && <JourneySkeleton view={f.view} />}

@@ -3,6 +3,7 @@ import { Fragment, useEffect, useRef } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { AssetAiPanel } from '@/features/chat/components/asset-ai-panel'
+import { JourneyExportButton } from '@/features/journey/export/export-menu'
 import { useRefreshAsset } from '@/features/jobs/api'
 import { InlineError } from '@/components/inline-error'
 import { Page } from '@/components/layout/page'
@@ -164,8 +165,9 @@ function AssetHeader({
             )}
           </div>
         </div>
-        <div className="flex items-center gap-[8px]">
+        <div className="flex flex-wrap items-center gap-[8px]">
           <RefreshButton assetId={asset.id} building={asset.status === 'onboarding'} />
+          <JourneyExportButton asset={{ id: asset.id, name: asset.name, company: asset.company.name }} label="Export journey" size="default" />
           <Button
             variant={aiOpen ? 'outline' : 'default'}
             aria-pressed={aiOpen}

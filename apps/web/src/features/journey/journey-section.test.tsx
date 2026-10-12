@@ -5,6 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import type { Mock } from 'vitest'
 import { Toaster } from '@/components/ui/sonner'
 import { useEventSheet } from '@/stores/event-sheet-store'
+import { JourneyExportButton } from './export/export-menu'
 import { JourneySection } from './journey-section'
 import type { Branch, JourneyEventV3 } from './types'
 
@@ -213,6 +214,38 @@ describe('JourneySection', () => {
     const rows = (await saved!.blob.text()).replace(/^\uFEFF/, '').trim().split('\r\n')
     expect(rows.map((r) => r.split(',').slice(0, 3).join(','))).toEqual(['Date,Expected,Title', '2022-11-29,no,Event stop', '2018-05-08,no,Event c'])
     expect(await screen.findByText('Exported 2 events')).toBeInTheDocument()
+  })
+
+  it('exports the same journey from a header button when the journey isn’t on screen', async () => {
+    const router = createMemoryRouter([{ path: '/assets/:assetId/clinical', element: <JourneyExportButton asset={{ id: 'trep', name: 'Treprostinil' }} label="Export journey" size="default" /> }], {
+      initialEntries: ['/assets/trep/clinical?scope=all&order=newest&ind=PH-COPD'],
+    })
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    )
+    const button = screen.getByRole('button', { name: 'Export journey' })
+    await waitFor(() => expect(button).toBeEnabled())
+    await userEvent.click(button)
+    const menu = await screen.findByRole('menu')
+    expect(menu).toHaveTextContent('Exports the 2 events shown')
+    expect(menu).toHaveTextContent('All events · newest first · filters: Indication: PH-COPD')
+    expect(within(menu).getByRole('menuitem', { name: /PowerPoint deck/ })).toBeInTheDocument()
+    // Only the events and annotations: no branches, no layout.
+    expect(fetchMock.mock.calls.map(([u]) => u)).not.toContain('/api/assets/trep/branches')
+
+    // Starred only: the stars come from the annotations.
+    cleanup()
+    const starred = createMemoryRouter([{ path: '/assets/:assetId/clinical', element: <JourneyExportButton asset={{ id: 'trep', name: 'Treprostinil' }} /> }], { initialEntries: ['/assets/trep/clinical?mine=starred'] })
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <RouterProvider router={starred} />
+      </QueryClientProvider>,
+    )
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled())
+    await userEvent.click(screen.getByRole('button', { name: 'Export' }))
+    expect(await screen.findByRole('menu')).toHaveTextContent('Exports the 1 event shown')
   })
 
   it('says so when an export fails, and lets the user try again', async () => {

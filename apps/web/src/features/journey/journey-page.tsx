@@ -13,6 +13,7 @@ import { useCollapsed } from '@/lib/use-collapsed'
 import { cn } from '@/lib/utils'
 import { useShellStore } from '@/stores/shell-store'
 import { CHIP, FOCUS } from './controls'
+import { JourneyExportButton } from './export/export-menu'
 import { JourneySection } from './journey-section'
 
 const KIND_LABEL = { primary: 'Primary', competitor: 'Competitor' } as const
@@ -205,9 +206,12 @@ function AssetHeading({ asset: a, showList }: { asset: AssetSummary; showList: R
       <KindBadge kind={a.kind} competitorOf={a.competitorOf.map((p) => p.name)} />
       <span className="text-text-secondary">{a.company.name}</span>
       <IndicationBadges items={assetIndications(a)} max={4} />
-      <Link to={`/assets/${encodeURIComponent(a.id)}/overview`} className={cn('ml-auto inline-flex items-center gap-[4px] rounded-sm text-[12.5px] font-medium text-primary hover:underline', FOCUS)}>
-        Open asset <ArrowRight className="size-[12px]" aria-hidden="true" />
-      </Link>
+      <span className="ml-auto flex items-center gap-[14px]">
+        <Link to={`/assets/${encodeURIComponent(a.id)}/overview`} className={cn('inline-flex items-center gap-[4px] rounded-sm text-[12.5px] font-medium text-primary hover:underline', FOCUS)}>
+          Open asset <ArrowRight className="size-[12px]" aria-hidden="true" />
+        </Link>
+        <JourneyExportButton asset={{ id: a.id, name: a.name, company: a.company.name }} />
+      </span>
     </div>
   )
 }
