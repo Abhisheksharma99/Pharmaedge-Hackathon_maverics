@@ -1,5 +1,5 @@
 import { TAB_FOR_COLLECTION, type RecordTab } from '@/features/assets/api'
-import { CATEGORY_META as BASE_CATEGORY_META } from '@/features/assets/components/badges'
+import { CATEGORY_META as BASE_CATEGORY_META } from '@/features/assets/components/category-meta'
 import type { EventCategory, NoteTag } from './types'
 
 export const CATEGORIES: EventCategory[] = ['regulatory', 'clinical', 'company', 'ip']

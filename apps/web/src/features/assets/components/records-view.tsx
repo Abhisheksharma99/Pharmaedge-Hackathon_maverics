@@ -105,10 +105,13 @@ function RecordsPanel({
   const [picked, setPicked] = useState<Record<string, string>>({})
   const [toggled, setToggled] = useState(false)
   const debouncedQ = useDebounced(q.trim())
-  const filterKey = JSON.stringify([picked, toggled])
-
-  // New search or filters → back to page 1.
-  useEffect(() => setPage(1), [debouncedQ, filterKey])
+  // New search or filters → back to page 1 (reset while rendering, so the old page number is never fetched with them).
+  const filterKey = JSON.stringify([debouncedQ, picked, toggled])
+  const [pageFilters, setPageFilters] = useState(filterKey)
+  if (pageFilters !== filterKey) {
+    setPageFilters(filterKey)
+    setPage(1)
+  }
 
   const query = { q: debouncedQ || undefined, facets: picked, ...(toggle && toggled ? { [toggle.param]: true } : {}) }
   const records = useRecords(assetId, tab, { ...query, page, pageSize: PAGE_SIZE })

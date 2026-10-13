@@ -1,28 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createContext, use, useEffect, type ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { ApiError, apiFetch, setUnauthorizedHandler } from '@/lib/api'
+import { AuthContext, ME_KEY, type AuthContextValue, type User } from './use-auth'
 
-export type Role = 'admin' | 'analyst'
-
-export interface User {
-  id: string
-  email: string
-  name: string
-  role: Role
-  active: boolean
-  createdAt: string
-}
-
-interface AuthContextValue {
-  user: User | null
-  isLoading: boolean
-  login: (email: string, password: string) => Promise<User>
-  logout: () => Promise<void>
-}
-
-export const ME_KEY = ['auth', 'me'] as const
-
-const AuthContext = createContext<AuthContextValue | null>(null)
+export type { Role, User } from './use-auth'
 
 /** Loads the signed-in user (via the httpOnly session cookie) and exposes login/logout. */
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -75,10 +56,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   }
   return <AuthContext value={value}>{children}</AuthContext>
-}
-
-export function useAuth(): AuthContextValue {
-  const ctx = use(AuthContext)
-  if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>')
-  return ctx
 }

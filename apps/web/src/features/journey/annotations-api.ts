@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { ME_KEY, type User } from '@/features/auth/auth-context'
+import { ME_KEY, type User } from '@/features/auth/use-auth'
 import { apiFetch } from '@/lib/api'
 import type { Annotations, EventCategory, EventComment, JourneyEventV3, NoteTag, SourceRef } from './types'
 

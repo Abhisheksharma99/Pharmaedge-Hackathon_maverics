@@ -1,4 +1,5 @@
-import { CardFilters, useCardFilter } from '@/components/card-filters'
+import { CardFilters } from '@/components/card-filters'
+import { useCardFilter } from '@/components/use-card-filter'
 import { InlineError } from '@/components/inline-error'
 import { AssetTile } from '@/features/assets/components/asset-tile'
 import { IndicationBadges, SignificanceBadge } from '@/features/assets/components/badges'

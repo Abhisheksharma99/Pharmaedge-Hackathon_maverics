@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import {
   AreaSeries,
   createChart,
@@ -22,7 +22,7 @@ export type MeasuredEvent = MarketEvent & { impact: NonNullable<MarketEvent['imp
 
 const LABELS_UP_TO = 30 // markers on screen; more and the labels overlap
 const sign = (v: number) => `${v > 0 ? '+' : ''}${v.toFixed(1)}%`
-export const moveOf = (e: MeasuredEvent) => e.impact.day5 ?? e.impact.day0
+const moveOf = (e: MeasuredEvent) => e.impact.day5 ?? e.impact.day0
 
 /** Lightweight Charts hands back the time in the form it was given or as a business day: normalise to YYYY-MM-DD. */
 function isoDay(t: Time | undefined): string | null {
@@ -52,9 +52,12 @@ export default function MarketChart({
   const box = useRef<HTMLDivElement>(null)
   const chartRef = useRef<{ chart: IChartApi; series: ISeriesApi<'Area'>; index: Map<string, number>; draw: () => void } | null>(null)
   const selectedDay = useRef<string | null>(null)
-  selectedDay.current = selected?.impact.trading_day ?? null
   const handlers = useRef({ onSelect, onHover })
-  handlers.current = { onSelect, onHover }
+  // Latest selection and callbacks for the chart's own redraws and events; before the effects below run.
+  useLayoutEffect(() => {
+    selectedDay.current = selected?.impact.trading_day ?? null
+    handlers.current = { onSelect, onHover }
+  })
 
   useEffect(() => {
     if (!box.current) return

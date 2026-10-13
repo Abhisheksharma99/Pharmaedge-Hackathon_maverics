@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router'
-import { CardFilters, useCardFilter } from '@/components/card-filters'
+import { CardFilters } from '@/components/card-filters'
+import { useCardFilter } from '@/components/use-card-filter'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { InlineError } from '@/components/inline-error'

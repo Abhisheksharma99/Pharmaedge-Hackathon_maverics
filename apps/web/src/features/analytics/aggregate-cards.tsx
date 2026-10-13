@@ -1,4 +1,4 @@
-import { useCardFilter } from '@/components/card-filters'
+import { useCardFilter } from '@/components/use-card-filter'
 import { Donut } from '@/components/charts/donut'
 import { StackBars } from '@/components/charts/stack-bars'
 import { CATEGORY_META, SIGNIFICANCE_COLORS, collectionMeta } from '@/features/journey/constants'

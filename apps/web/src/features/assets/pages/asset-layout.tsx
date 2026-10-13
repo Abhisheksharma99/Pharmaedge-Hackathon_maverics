@@ -1,6 +1,6 @@
 import { Pill, RefreshCw, Sparkle } from 'lucide-react'
 import { Fragment, useEffect, useRef } from 'react'
-import { Link, NavLink, Outlet, useLocation, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router'
+import { Link, NavLink, Outlet, useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { AssetAiPanel } from '@/features/chat/components/asset-ai-panel'
 import { JourneyExportButton } from '@/features/journey/export/export-menu'
@@ -18,27 +18,7 @@ import { useAsset, type AssetDetail, type RecordTab } from '../api'
 import { RecordSheet } from '../components/record-sheet'
 import { Chip } from '../components/badges'
 import { shortIndication } from '../components/competitors/utils'
-
-export const ASSET_TABS = [
-  { path: 'overview', label: 'Overview' },
-  { path: 'analytics', label: 'Analytics' },
-  { path: 'evidence', label: 'Evidence' },
-  { path: 'clinical', label: 'Clinical' },
-  { path: 'regulatory', label: 'Regulatory' },
-  { path: 'publications', label: 'Publications' },
-  { path: 'conferences', label: 'Conferences' },
-  { path: 'documents', label: 'Documents' },
-  { path: 'company-ir', label: 'Company IR' },
-  { path: 'patents', label: 'Patents' },
-  { path: 'market', label: 'Market' },
-  { path: 'competitors', label: 'Competitors' },
-  { path: 'canvas', label: 'Canvas' },
-] as const
-
-/** Tabs get the loaded asset from the layout instead of refetching. */
-export function useAssetContext(): AssetDetail {
-  return useOutletContext<AssetDetail>()
-}
+import { ASSET_TABS } from './asset-context'
 
 function StatusPill({ asset }: { asset: AssetDetail }) {
   if (asset.status === 'onboarding') {

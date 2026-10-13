@@ -21,7 +21,7 @@ import { recordTitle } from '../components/record-text'
 import { RecordsCard, SearchBox, TD, TH, TR, Verdict } from '../components/records-cells'
 import { RecordsFooter } from '../components/records-footer'
 import { RecordsView } from '../components/records-view'
-import { useAssetContext } from './asset-layout'
+import { useAssetContext } from './asset-context'
 
 const DECISIONS: { value: Decision; label: string; badge: string }[] = [
   { value: 'ingest', label: 'Ingest', badge: 'bg-success-soft text-success' },

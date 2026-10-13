@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { CardFilters, useCardFilter } from './card-filters'
+import { CardFilters } from './card-filters'
+import { useCardFilter } from './use-card-filter'
 
 const ITEMS = [
   { name: 'Tyvaso', ind: ['PAH'] },

@@ -1,47 +1,23 @@
-import { lazy, Suspense, type ComponentType } from 'react'
+import { lazy, type ComponentType } from 'react'
 import { Navigate, type RouteObject } from 'react-router'
 import { AppLayout } from '@/components/layout/app-layout'
 import { ComingSoon } from '@/components/layout/coming-soon'
+import { LazyPage, NotFound } from '@/components/layout/lazy-page'
 import { NOT_READY_ITEMS } from '@/components/layout/nav-config'
-import { Page } from '@/components/layout/page'
 import { LoginPage } from '@/features/auth/login-page'
 import { ProtectedRoute, RoleRoute } from '@/features/auth/route-guards'
-import { Skeleton } from '@/components/ui/skeleton'
 
 /**
  * The shell (login, guards, layout, sidebar) is eager; every page is its own chunk, loaded on first visit.
  * Each lazy element has its own Suspense, so the layout (and an asset's header and tabs) stays on screen while
  * the page behind it loads.
  */
-function PageFallback() {
-  return (
-    <div role="status" aria-label="Loading" className="space-y-[16px] p-[24px]">
-      <Skeleton className="h-[28px] w-[220px]" />
-      <Skeleton className="h-[16px] w-[360px] max-w-full" />
-      <Skeleton className="h-[240px] w-full rounded-[14px]" />
-    </div>
-  )
-}
-
 function page<K extends string>(load: () => Promise<Record<K, ComponentType>>, name: K) {
-  const Lazy = lazy(() => load().then((m) => ({ default: m[name] as ComponentType })))
-  return (
-    <Suspense fallback={<PageFallback />}>
-      <Lazy />
-    </Suspense>
-  )
+  return <LazyPage component={lazy(() => load().then((m) => ({ default: m[name] as ComponentType })))} />
 }
 
 const tabs = () => import('@/features/assets/pages/tabs')
 const jobs = () => import('@/features/jobs/jobs-pages')
-
-function NotFound() {
-  return (
-    <Page title="Page not found">
-      <p className="text-text-secondary">This page doesn't exist. Use the navigation to find what you need.</p>
-    </Page>
-  )
-}
 
 export const routes: RouteObject[] = [
   { path: '/login', element: <LoginPage /> },

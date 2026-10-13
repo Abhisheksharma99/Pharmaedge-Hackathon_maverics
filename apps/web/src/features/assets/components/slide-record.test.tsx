@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react'
 import type { SourceRecord } from '../api'
-import { SlideBody, isSlide, orderFigures, slideHeading } from './slide-record'
+import { SlideBody } from './slide-record'
+import { isSlide, orderFigures, slideHeading } from './slide-text'
 
 const SLIDE = {
   key: 'presentation:pres_a:3',

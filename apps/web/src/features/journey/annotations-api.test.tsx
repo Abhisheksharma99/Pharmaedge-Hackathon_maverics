@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { toast } from 'sonner'
 import type { Mock } from 'vitest'
-import { ME_KEY } from '@/features/auth/auth-context'
+import { ME_KEY } from '@/features/auth/use-auth'
 import { annotationsKey, useAddComment, useAnnotations, useToggleStar } from './annotations-api'
 import type { Annotations } from './types'
 

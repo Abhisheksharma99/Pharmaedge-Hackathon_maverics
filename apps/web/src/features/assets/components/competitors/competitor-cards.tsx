@@ -2,7 +2,8 @@ import type { ReactNode } from 'react'
 import { ArrowRight } from 'lucide-react'
 import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'
-import { CardFilters, useCardFilter } from '@/components/card-filters'
+import { CardFilters } from '@/components/card-filters'
+import { useCardFilter } from '@/components/use-card-filter'
 import { cn } from '@/lib/utils'
 import type { CompetitorsOverview, Coverage, LandscapeRow } from '../../competitors-api'
 import { AssetTile } from '../asset-tile'
@@ -73,7 +74,7 @@ export function AssetCard({
 export const CARD_GRID = 'grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-[14px] px-[20px] pt-[16px] pb-[20px]'
 
 /** Every indication a competitor is in (short): the reference's ones it covers, plus its own other ones. */
-export const competitorIndications = (r: LandscapeRow) => [
+const competitorIndications = (r: LandscapeRow) => [
   ...new Set([...Object.entries(r.coverage).filter(([, c]) => c !== 'none').map(([x]) => shortIndication(x)), ...r.otherIndications.map(shortIndication)]),
 ]
 

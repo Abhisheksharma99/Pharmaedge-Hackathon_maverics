@@ -21,6 +21,15 @@ const FORMATS: { format: TableFormat; label: string; hint: string; icon: LucideI
 
 const ITEM = 'items-start gap-[10px] rounded-[8px] px-[10px] py-[7px] [&_svg]:mt-[2px]'
 
+/** Builds and downloads one export, then says so. The builders (and through them ExcelJS) load on the first export, not with the app. */
+async function exportTable(format: TableFormat, build: () => Promise<TableExportResult>) {
+  const exportedAt = new Date()
+  const [{ buildTable, tableFileName }, { downloadBlob }, result] = await Promise.all([import('@/lib/table-export'), import('@/features/journey/export/build'), build()])
+  const filename = tableFileName(result.stem, exportedAt, format)
+  downloadBlob(await buildTable(result.table, format, exportedAt), filename)
+  toast.success(result.done, { description: result.note ? `${filename} · ${result.note}` : filename })
+}
+
 /**
  * A table's "Export" menu (CSV / Excel) for what a records tab or card shows. `title` and `detail` head the menu
  * ("Exports the 128 records matching" · "Search “tyvaso” · Phase: Phase 3"); `build` gathers the rows on click.
@@ -31,12 +40,7 @@ export function TableExportMenu({ title, detail, disabled = false, build }: { ti
   const run = async (format: TableFormat) => {
     setBusy(true)
     try {
-      const exportedAt = new Date()
-      // The builders (and through them ExcelJS) load on the first export, not with the app.
-      const [{ buildTable, tableFileName }, { downloadBlob }, result] = await Promise.all([import('@/lib/table-export'), import('@/features/journey/export/build'), build()])
-      const filename = tableFileName(result.stem, exportedAt, format)
-      downloadBlob(await buildTable(result.table, format, exportedAt), filename)
-      toast.success(result.done, { description: result.note ? `${filename} · ${result.note}` : filename })
+      await exportTable(format, build)
     } catch (e) {
       toast.error('The export failed', { description: e instanceof Error ? e.message : 'Try again.' })
     } finally {

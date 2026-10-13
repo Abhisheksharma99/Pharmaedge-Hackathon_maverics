@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import type { EventCategory } from '@/features/assets/api'
 import { formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { storyIndications, type Story, type StoryEvent, type StoryNote } from './api'
+import { CATEGORY_COLOR, CATEGORY_LABEL, clusterEvents, eventFlag } from './story-model'
 
 /**
  * The journey story's timeline (team design: design/competitors-redesign/Timeline.dc.html): a shared time axis, the
@@ -10,23 +10,9 @@ import { storyIndications, type Story, type StoryEvent, type StoryNote } from '.
  * and Today. Each layer enters in order (or as it streams in); the plot scrolls sideways on long journeys.
  */
 
-export const CATEGORY_COLOR: Record<EventCategory, string> = {
-  regulatory: '#2347D9',
-  clinical: '#08916F',
-  company: '#E0620F',
-  ip: '#7A5AF8',
-}
-export const CATEGORY_LABEL: Record<EventCategory, string> = {
-  regulatory: 'Regulatory',
-  clinical: 'Clinical',
-  company: 'Company',
-  ip: 'Patents',
-}
-
 const LABEL_W = 112
 const PX_PER_YEAR = 72
 const MIN_W = 480
-const CLUSTER_PX = 16 // marks closer than this become one count bubble
 const ROW = 44
 const STAIR = 66
 const PRICE = 46
@@ -36,15 +22,13 @@ const SIZE = { High: 14, Medium: 11, Low: 8 } as const
 const ms = (d: string) => Date.parse(`${d.slice(0, 10)}T00:00:00Z`)
 const STEP_DELAY = 0.35 // s between layers when the story is replayed
 
-/** What badge an event carries, if any: the check outranks the change. */
-export function eventFlag(e: StoryEvent): { label: string; tone: 'new' | 'moved' | 'updated' | 'check' } | null {
-  if (e.verification?.status === 'unconfirmed') return { label: 'Unconfirmed', tone: 'check' }
-  if (e.verification?.status === 'conflict') return { label: 'Conflict', tone: 'check' }
-  if (!e.change) return null
-  if (e.change.kind === 'added') return { label: 'New', tone: 'new' }
-  if (e.change.field === 'date' || e.change.field === 'expected_date') return { label: 'Date moved', tone: 'moved' }
-  return { label: 'Updated', tone: 'updated' }
+/** A date's x on a `width`-px axis running from `from` to `to`. */
+function timeScale(from: string, to: string, width: number): (d: string) => number {
+  const a = ms(from)
+  const span = Math.max(1, ms(to) - a)
+  return (d: string) => ((ms(d) - a) / span) * width
 }
+
 const FLAG_STYLE = {
   new: 'bg-[#D1FADF] text-[#05603A]',
   moved: 'bg-[#FEF0C7] text-[#93370D]',
@@ -103,18 +87,6 @@ function EventMark({ e, x, top, color, selected, pin, onSelect, delay, faded }: 
       )}
     </button>
   )
-}
-
-/** Events whose marks would overlap (closer than CLUSTER_PX) grouped, in date order. */
-export function clusterEvents(events: StoryEvent[], x: (d: string) => number): { x: number; events: StoryEvent[] }[] {
-  const out: { x: number; events: StoryEvent[] }[] = []
-  for (const e of events) {
-    const ex = x(e.date)
-    const last = out.at(-1)
-    if (last && ex - last.x < CLUSTER_PX) last.events.push(e)
-    else out.push({ x: ex, events: [e] })
-  }
-  return out
 }
 
 function ClusterMark({ events, x, color, selected, pin, onSelect, delay }: {
@@ -181,19 +153,16 @@ export function StoryTimeline({
     return () => ro.disconnect()
   }, [replayKey])
   const width = Math.max(MIN_W, room, Math.round(years * PX_PER_YEAR))
-  const x = useMemo(() => {
-    if (!range) return () => 0
-    const a = ms(range.from)
-    const span = Math.max(1, ms(range.to) - a)
-    return (d: string) => ((ms(d) - a) / span) * width
-  }, [range, width])
+  const from = range?.from
+  const to = range?.to
+  const x = from && to ? timeScale(from, to, width) : () => 0
   const anchor = story.changes?.since ?? story.spec?.since ?? range?.today
   // Open on what the question is about: the focus window, else Today (long journeys scroll sideways).
   useEffect(() => {
     const el = scroller.current
-    if (!el || !range || !anchor) return
-    el.scrollLeft = Math.max(0, x(anchor < range.from ? range.from : anchor) - el.clientWidth * 0.3)
-  }, [range, anchor, x, replayKey])
+    if (!el || !from || !to || !anchor) return
+    el.scrollLeft = Math.max(0, timeScale(from, to, width)(anchor < from ? from : anchor) - el.clientWidth * 0.3)
+  }, [from, to, width, anchor, replayKey])
   const pinOf = useMemo(() => {
     const m = new Map<string, number>()
     notes.forEach((n, i) => n.eventIds.forEach((id) => m.has(id) || m.set(id, i + 1)))

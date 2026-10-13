@@ -11,7 +11,8 @@ import { useRecord, type RecordEventRef, type RecordTab, type SourceRecord } fro
 import { DocumentText, MentionExcerpts } from './document-text'
 import { recordIndications } from './record-indications'
 import { recordTitle, recordUrl } from './record-text'
-import { SlideBody, isSlide, slideHeading } from './slide-record'
+import { SlideBody } from './slide-record'
+import { isSlide, slideHeading } from './slide-text'
 
 const TAB_TITLE: Record<RecordTab, string> = {
   clinical: 'Clinical trials',

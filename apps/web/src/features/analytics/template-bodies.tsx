@@ -1,4 +1,4 @@
-import { useCardFilter } from '@/components/card-filters'
+import { useCardFilter } from '@/components/use-card-filter'
 import { Gantt } from '@/components/charts/gantt'
 import { HBars } from '@/components/charts/h-bars'
 import { Heat } from '@/components/charts/heat'
