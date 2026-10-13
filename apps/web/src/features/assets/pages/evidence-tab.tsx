@@ -8,7 +8,9 @@ import { formatNumber } from '@/lib/format'
 import { cn, safeUrl } from '@/lib/utils'
 import { TAB_FOR_COLLECTION, type RecordTab, type SourceRecord } from '../api'
 import { useEvidenceSummary, useLedger, type Decision, type EvidenceSummary, type LedgerRow } from '../competitors-api'
-import { Chip } from '../components/badges'
+import { Chip, IndicationBadges } from '../components/badges'
+import { shortIndication } from '../components/competitors/utils'
+import { recordIndications } from '../components/record-indications'
 import { DistributionBar } from '../components/distribution-bar'
 import { JourneyLink } from '../components/journey-link'
 import { LoadError } from '../components/competitors/load-error'
@@ -97,6 +99,7 @@ function EvidencePanel({ assetId, triage }: { assetId: string; triage: EvidenceS
               <TableRow className="border-0 bg-background hover:bg-background">
                 <TableHead className={TH}>Date</TableHead>
                 <TableHead className={TH}>Record</TableHead>
+                <TableHead className={TH}>Indication</TableHead>
                 <TableHead className={TH}>Decision</TableHead>
                 <TableHead className={TH}>Reason</TableHead>
                 <TableHead className={cn(TH, 'pr-[20px]')}>Journey</TableHead>
@@ -130,6 +133,9 @@ function EvidencePanel({ assetId, triage }: { assetId: string; triage: EvidenceS
                       <span className="font-medium">{r.title}</span>
                     )}
                     {r.source && <p className="text-[12px] text-muted-foreground">{r.source}</p>}
+                  </TableCell>
+                  <TableCell className={TD}>
+                    {r.indications?.length ? <IndicationBadges items={[...new Set(r.indications.map(shortIndication))]} /> : <span className="text-muted-foreground">—</span>}
                   </TableCell>
                   <TableCell className={TD}>
                     <Verdict value={r.decision} />
@@ -172,12 +178,17 @@ export function EvidenceTab() {
         description="Articles collected for this asset, newest first"
         searchPlaceholder="Search headlines, publishers"
         emptyTitle="No articles yet"
+        facetLabel={{ indication: shortIndication }}
         columns={[
           {
             header: 'Date',
             cell: (r: SourceRecord) => <span className="font-mono whitespace-nowrap text-muted-foreground">{formatDay(r.date)}</span>,
           },
           { header: 'Headline', cell: (r) => <span className="font-medium">{recordTitle(r)}</span> },
+          {
+            header: 'Indication',
+            cell: (r) => (recordIndications(r).length ? <IndicationBadges items={recordIndications(r)} /> : <span className="text-muted-foreground">—</span>),
+          },
           { header: 'Publisher', cell: (r) => str(r.company) },
           { header: 'Found by', cell: (r) => (str(r.keyword) ? <Chip>{str(r.keyword)}</Chip> : '—') },
         ]}

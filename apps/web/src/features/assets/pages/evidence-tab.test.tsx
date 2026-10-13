@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { Mock } from 'vitest'
 import { createMemoryRouter, Outlet, RouterProvider } from 'react-router'
@@ -51,7 +51,7 @@ function ledgerRow(id: string, overrides: Partial<LedgerRow> = {}): LedgerRow {
 }
 
 const LEDGER = {
-  items: [ledgerRow('a', { journey_events: [{ id: 'ev:1', title: 'TETON readout', date: '2025-03-02', category: 'clinical' }] }), ledgerRow('b', { decision: 'skip', category: 'market_report', reason: 'Market-research advert.' })],
+  items: [ledgerRow('a', { journey_events: [{ id: 'ev:1', title: 'TETON readout', date: '2025-03-02', category: 'clinical' }], indications: ['IPF'], indicationSource: 'journey' }), ledgerRow('b', { decision: 'skip', category: 'market_report', reason: 'Market-research advert.' })],
   total: 60,
   page: 1,
   pageSize: 25,
@@ -101,10 +101,18 @@ describe('EvidenceTab', () => {
     // Decision bar sorted by share; legend entries carry the counts.
     expect(screen.getByRole('button', { name: /Ingest\s*120/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Headline\s*60/ })).toBeInTheDocument()
-    expect(screen.getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Date', 'Record', 'Decision', 'Reason', 'Journey'])
+    expect(screen.getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Date', 'Record', 'Indication', 'Decision', 'Reason', 'Journey'])
     expect(screen.getByText('Showing 60 of 300')).toBeInTheDocument()
     // News stays browsable below.
     expect(screen.getByRole('heading', { name: 'News and wire coverage' })).toBeInTheDocument()
+  })
+
+  it('shows each ledger row\'s indication badges, a dash when it has none', async () => {
+    renderTab()
+    const rowA = (await screen.findByText('Item a')).closest('tr')!
+    expect(within(rowA).getByTitle('Indication: IPF')).toHaveTextContent('IPF')
+    const rowB = screen.getByText('Item b').closest('tr')!
+    expect(within(rowB).queryByTitle(/^Indication:/)).not.toBeInTheDocument()
   })
 
   it('shows a journey link for ledger items that feed an event', async () => {

@@ -145,6 +145,7 @@ function RecordBody({ assetId, record, onClose }: { assetId: string; record: Sou
         <div className="flex flex-wrap items-center gap-[8px]">
           <span className="text-[12px] text-muted-foreground">Indication</span>
           <IndicationBadges items={indications} max={indications.length} />
+          {record.indicationSource === 'text' && <span className="text-[12px] text-muted-foreground">matched in the text, no journey event cites it</span>}
         </div>
       )}
       {fields.length > 0 && (

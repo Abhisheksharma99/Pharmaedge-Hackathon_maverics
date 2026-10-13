@@ -4,6 +4,7 @@ import { MONGO_DB } from '../database/database.module.js';
 import { AssetsService } from './assets.service.js';
 import type { LedgerQueryDto } from './dto/asset-queries.dto.js';
 import { SOURCE_TABS } from './source-registry.js';
+import { recordIndications } from './record-indications.js';
 
 const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -73,8 +74,9 @@ export class EvidenceService {
 
   /** Triage decisions for the asset, newest items first. */
   async ledger(id: string, query: LedgerQueryDto) {
-    await this.assets.getAsset(id);
-    return this.assets.cached(id, 'ledger', query, async () => {
+    const asset = await this.assets.getAsset(id);
+    // v2: rows carry `indications`.
+    return this.assets.cached(id, 'ledger:v2', query, async () => {
       const match: Document = { asset: id };
       if (query.decision) match.decision = query.decision;
       if (query.collection) match.collection = query.collection;
@@ -90,12 +92,14 @@ export class EvidenceService {
           .toArray(),
         coll.countDocuments(match),
       ]);
-      const events = await this.assets.withEvents(
+      const matchers = await this.assets.indicationMatchers(asset);
+      const events = await this.assets.eventsByKey(
         id,
-        rows.map((r) => ({ key: r.item_key as string })),
+        rows.map((r) => r.item_key as string).filter(Boolean),
+        matchers,
       );
       return {
-        items: rows.map((r, i) => ({
+        items: rows.map((r) => ({
           id: r._id,
           title: r.title ?? null,
           url: r.url ?? null,
@@ -108,7 +112,9 @@ export class EvidenceService {
           model: r.model,
           decidedAt: r.decided_at ?? null,
           recordKey: r.item_key,
-          journey_events: events[i]!.journey_events,
+          journey_events: events.get(r.item_key)?.events ?? [],
+          // Same rule as the record tabs: the citing journey events, else the headline.
+          ...recordIndications(events.get(r.item_key)?.indications ?? [], [r.title], matchers),
         })),
         total,
         page: query.page,

@@ -26,6 +26,11 @@ export interface SourceTab {
   facets?: FacetDef[];
   /** Trials: the field the "company-sponsored only" toggle matches against the asset's company name. */
   sponsorField?: string;
+  /**
+   * Gives the records an `indications` field and the panel an Indication facet (record-indications.ts): the journey
+   * events citing a record, else these text fields, most specific first (the first naming a known indication wins).
+   */
+  indicationText?: string[];
 }
 
 /** One facet of a tab: `expr` is a Mongo expression yielding one value per record (a field, or a derived value; list fields use their first element, as the column shows it), so segments never exceed the row count. */
@@ -65,6 +70,8 @@ export const SOURCE_TABS: Record<string, SourceTab> = {
       { key: 'record_type', label: 'Record type', expr: '$record_type' },
       { key: 'status', label: 'Status', expr: firstOf('submission_status', 'medicine_status', 'status', 'post_authorisation_opinion_status') },
     ],
+    // EMA: the authorised indication / orphan intended use; FDA: the expedited-programme indication (submissions carry none).
+    indicationText: ['therapeutic_indication', 'intended_use', 'indication', 'title'],
   },
   documents: {
     collections: ['company_records'],
@@ -74,6 +81,7 @@ export const SOURCE_TABS: Record<string, SourceTab> = {
     keyField: 'record_key',
     insightFacets: ['record_type'],
     facets: [{ key: 'record_type', label: 'Type', expr: '$record_type' }],
+    indicationText: ['title'],
   },
   'company-ir': {
     collections: ['company_records'],
@@ -87,6 +95,7 @@ export const SOURCE_TABS: Record<string, SourceTab> = {
       { key: 'record_type', label: 'Type', expr: '$record_type' },
       { key: 'category', label: 'Category', expr: { $arrayElemAt: [{ $ifNull: ['$tags', []] }, 0] } },
     ],
+    indicationText: ['title', 'deck_title', 'slide_text'],
   },
   news: {
     collections: ['articles'],
@@ -94,6 +103,7 @@ export const SOURCE_TABS: Record<string, SourceTab> = {
     omitInList: ['content', 'feed_description'],
     keyField: 'url',
     insightFacets: ['source'],
+    indicationText: ['title', 'feed_description'],
   },
   publications: {
     collections: ['publication_records'],
@@ -105,6 +115,7 @@ export const SOURCE_TABS: Record<string, SourceTab> = {
       { key: 'design', label: 'Design', expr: { $arrayElemAt: [{ $ifNull: ['$publication_types', []] }, 0] } },
       { key: 'journal', label: 'Journal', expr: '$journal' },
     ],
+    indicationText: ['title', 'abstract'],
   },
   // Team conference crawler (ERS, ATS, CHEST abstracts).
   conferences: {
@@ -122,6 +133,7 @@ export const SOURCE_TABS: Record<string, SourceTab> = {
       },
       { key: 'session_type', label: 'Format', expr: '$session_type' },
     ],
+    indicationText: ['title', 'abstract'],
   },
   // Team patent crawler (AdisInsight, PubChem, Google Patents).
   patents: {
@@ -135,6 +147,7 @@ export const SOURCE_TABS: Record<string, SourceTab> = {
       { key: 'assignees', label: 'Assignee', expr: { $arrayElemAt: [{ $ifNull: ['$assignees', []] }, 0] } },
     ],
     statusField: 'legal_status',
+    indicationText: ['title', 'abstract'],
   },
 };
 
