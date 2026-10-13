@@ -42,7 +42,7 @@ describe('TreeCard', () => {
     expect(screen.getByText('Clinical')).toBeInTheDocument()
     expect(screen.getByText('trial start')).toBeInTheDocument()
     expect(screen.getAllByText('IPF')).toHaveLength(2)
-    expect(screen.getByTitle('Indication: IPF')).toBeInTheDocument()
+    expect(screen.getByTitle('Indication: Idiopathic pulmonary fibrosis')).toBeInTheDocument()
     expect(screen.getByText('Jun 1, 2021')).toBeInTheDocument()
     expect(screen.getByText('Tyvaso')).toBeInTheDocument()
     expect(screen.getByText('Change in FVC at week 52')).toBeInTheDocument()

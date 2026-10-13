@@ -6,7 +6,7 @@ import { findScroller, offsetIn, onScroll, scrollToTop, viewportHeight, viewport
 import { useMediaQuery } from '@/lib/use-media-query'
 import { cn } from '@/lib/utils'
 import { BranchChip } from '../chips'
-import { isDated, laneOf, type BranchModel } from '../journey-model'
+import { inBranch, isDated, laneOf, type BranchModel } from '../journey-model'
 import type { JourneyEventV3 } from '../types'
 import type { JourneyViewProps } from '../view-types'
 import { treeActiveAt, treeGutters, treeHoverAt, treeWindow, type TreeGeometry, type TreeHover } from './tree-geometry'
@@ -322,7 +322,7 @@ export function JourneyTree({ assetId, list, newestFirst = false, model, closure
         return (
           <article
             aria-labelledby={`${clipId}-t-${r.i}`}
-            className={cn('flex py-[14px]', geo.narrow || r.side === 'r' ? 'justify-end' : 'justify-start', dim(r.lane) && 'opacity-30 transition-opacity duration-300')}
+            className={cn('flex py-[14px]', geo.narrow || r.side === 'r' ? 'justify-end' : 'justify-start', focusBranch !== null && !inBranch(e, focusBranch, model) && 'opacity-30 transition-opacity duration-300')}
           >
             <TreeCard
               assetId={assetId}

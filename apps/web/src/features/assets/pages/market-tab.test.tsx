@@ -103,8 +103,8 @@ describe('MarketTab', () => {
     })
     const table = await screen.findByRole('table')
     const rows = () => within(table).getAllByRole('row').slice(1)
-    expect(within(rows()[0]!).getByTitle('Indication: PH-ILD')).toBeInTheDocument()
-    expect(within(rows()[0]!).getByTitle('Indication: PAH')).toBeInTheDocument()
+    expect(within(rows()[0]!).getByTitle('Indication: Pulmonary hypertension associated with interstitial lung disease')).toBeInTheDocument()
+    expect(within(rows()[0]!).getByTitle('Indication: Pulmonary arterial hypertension')).toBeInTheDocument()
     expect(rows()).toHaveLength(3)
 
     await userEvent.click(screen.getByRole('combobox', { name: 'Indication' }))

@@ -228,7 +228,7 @@ describe('CompetitorsTab', () => {
     renderTab()
     await screen.findByText('Sotatercept')
     const sotatercept = screen.getByText('Sotatercept').closest('div.rounded-\\[12px\\]') as HTMLElement
-    expect(within(sotatercept).getByTitle('Indication: CTEPH')).toBeInTheDocument()
+    expect(within(sotatercept).getByTitle('Indication: Chronic thromboembolic pulmonary hypertension')).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('combobox', { name: 'Indication' }))
     await userEvent.click(await screen.findByRole('option', { name: 'CTEPH' }))

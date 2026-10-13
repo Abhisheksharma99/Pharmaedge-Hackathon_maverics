@@ -4,14 +4,14 @@ import { CATEGORIES } from './constants'
 import type { JourneyOrder, JourneyView, Mine } from './journey-model'
 import type { EventCategory } from './types'
 
-/** The list filters (categories, Starred / Team notes, indication, title search). */
+/** The list filters (categories, Starred / Team notes, indication, title search, indication branch). */
 function clearListFilters(p: URLSearchParams) {
-  for (const k of ['cat', 'mine', 'ind', 'q']) p.delete(k)
+  for (const k of ['cat', 'mine', 'ind', 'q', 'branch']) p.delete(k)
 }
 
 /**
  * Journey filters live in the URL so links are shareable (README §8): `?view=v&order=newest&scope=all&cat=clinical,ip
- * &mine=starred&ind=PAH&q=<title>&focus=<eventId>`. Horizontal and oldest first are the defaults (no param): the
+ * &mine=starred&ind=PAH&q=<title>&branch=PH-ILD&focus=<eventId>`. Horizontal and oldest first are the defaults (no param): the
  * orientation is never remembered, so every journey opens the same way.
  */
 export function useJourneyFilters() {
@@ -24,6 +24,7 @@ export function useJourneyFilters() {
   const mine: Mine | null = mineParam === 'starred' || mineParam === 'notes' ? mineParam : null
   const ind = params.get('ind') || null
   const q = params.get('q') ?? ''
+  const branch = params.get('branch') || null
   const focus = params.get('focus') || null
 
   const update = (change: (p: URLSearchParams) => void) =>
@@ -44,6 +45,7 @@ export function useJourneyFilters() {
     mine,
     ind,
     q,
+    branch,
     focus,
     setView: (v: JourneyView) => update((p) => (v === 'h' ? p.delete('view') : p.set('view', v))),
     setOrder: (o: JourneyOrder) => update((p) => (o === 'oldest' ? p.delete('order') : p.set('order', o))),
@@ -59,6 +61,7 @@ export function useJourneyFilters() {
     setMine: (m: Mine | null) => update((p) => (m ? p.set('mine', m) : p.delete('mine'))),
     setInd: (i: string | null) => update((p) => (i ? p.set('ind', i) : p.delete('ind'))),
     setQuery: (text: string) => update((p) => (text ? p.set('q', text) : p.delete('q'))),
+    setBranch: (id: string | null) => update((p) => (id ? p.set('branch', id) : p.delete('branch'))),
     clearFilters: () => update(clearListFilters),
     /** Every event, unfiltered: the retry when a focused event is filtered out (README §6.2 "Deep link"). */
     showEverything: () =>

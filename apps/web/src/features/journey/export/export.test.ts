@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import ExcelJS from 'exceljs'
 import JSZip from 'jszip'
 import { filterJourney } from '../journey-model'
@@ -7,8 +9,8 @@ import { csvField, toCsv } from './csv'
 import { toIcs } from './ics'
 import { toJson } from './json'
 import { COLUMNS, exportFileName, filtersLabel, upcomingMilestones, type ExportContext } from './model'
-import { buildPdf, pdfText } from './pdf'
-import { buildPptx, clip, PPTX_TYPE, timelinePages } from './pptx'
+import { buildPdf, pdfText, unicodeText } from './pdf'
+import { buildPptx, clip, PPTX_TYPE, timelinePages, yearCounts } from './pptx'
 import { buildXlsx } from './xlsx'
 
 const ev = (id: string, date: string, extra: Partial<JourneyEventV3> = {}): JourneyEventV3 => ({
@@ -67,6 +69,20 @@ describe('journey export', () => {
     expect(exportFileName(ctx({ scope: 'all' }), 'xlsx')).toBe('treprostinil-journey-all-events-2026-10-10.xlsx')
     expect(filtersLabel({ cats: [], mine: null })).toBe('None')
     expect(filtersLabel({ cats: ['clinical', 'ip'], mine: 'starred', ind: 'PAH', q: ' teton ' })).toBe('Category: Clinical, Patents · Starred only · Indication: PAH · Title contains “teton”')
+  })
+
+  it('names the selected branch in the file name and in every format’s metadata', async () => {
+    const branched = ctx({ filters: { cats: [], mine: null, branch: 'PH-ILD' } })
+    expect(filtersLabel(branched.filters)).toBe('Branch: PH-ILD')
+    expect(exportFileName(branched, 'csv')).toBe('treprostinil-journey-key-events-ph-ild-2026-10-10.csv')
+    expect(JSON.parse(toJson(branched)).filters).toMatchObject({ branch: 'PH-ILD' })
+    expect(toIcs(branched)).toContain('X-WR-CALDESC:Key events · Filters: Branch: PH-ILD\r\n')
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load(await (await buildXlsx(branched)).arrayBuffer())
+    expect(wb.getWorksheet('About')!.getCell('B5').value).toBe('Branch: PH-ILD')
+    const zip = await JSZip.loadAsync(await (await buildPptx(branched)).arrayBuffer())
+    expect(await zip.file('ppt/slides/slide1.xml')!.async('string')).toContain('Filters: Branch: PH-ILD')
+    expect(new TextDecoder('latin1').decode(new Uint8Array(await (await buildPdf(branched)).arrayBuffer()))).toContain('Filters: Branch: PH-ILD')
   })
 
   it('writes RFC 4180 CSV with a BOM, the columns in order, escaped fields and formula-safe text', () => {
@@ -148,6 +164,25 @@ describe('journey export', () => {
     expect((text.match(/\/Type \/Page\b/g) ?? []).length).toBeGreaterThan(1)
   })
 
+  it('embeds Inter in the PDF so non-Latin-1 text prints (smoke)', async () => {
+    expect(unicodeText('≥ 5 β – ’ ® ™ μg （TETON）： 中')).toBe('≥ 5 β – ’ ® ™ μg (TETON): ?')
+    // The fonts are bundled assets: serve them from disk as the dev server would.
+    const fetchMock = vi.fn(async (url: string) => new Response(readFileSync(join(process.cwd(), url.replace(/\?.*$/, '')))))
+    vi.stubGlobal('fetch', fetchMock)
+    try {
+      const blob = await buildPdf(ctx({ events: [ev('u', '2024-03-01', { title: 'FEV1 ≥ 10% with β-agonist – Tyvaso® DPI™ ’25' })] }))
+      expect(fetchMock.mock.calls.map(([u]) => u).join(' ')).toMatch(/Inter-Regular\.ttf.*Inter-Bold\.ttf/)
+      const text = new TextDecoder('latin1').decode(new Uint8Array(await blob.arrayBuffer()))
+      // Regular and Bold, each embedded as a TrueType font file.
+      expect(text.match(/\/FontName \/Inter\b/g)).toHaveLength(2)
+      expect(text.match(/\/FontFile2 /g)).toHaveLength(2)
+      // The characters reach the page: each drawn glyph maps back to its code point in the font's ToUnicode map.
+      for (const code of ['2265', '03b2', '2013', '00ae', '2122', '2019']) expect(text.toLowerCase()).toMatch(new RegExp(`<${code}>`))
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('splits the timeline into slide tables of at most 12 lines, with year rows and "(cont.)" rows', () => {
     const lines = (pages: ReturnType<typeof timelinePages>) => pages.map((p) => p.map((l) => ('year' in l ? `${l.year}${l.cont ? '+' : ''}` : l.event.id)))
     const year = Array.from({ length: 25 }, (_, i) => ev(`y${i}`, '2019-01-01'))
@@ -176,7 +211,25 @@ describe('journey export', () => {
     expect(cover).toContain('United Therapeutics')
     expect(cover).toContain('Key events · Oldest first · Filters: None')
     expect(await xml(2)).toContain('Indications covered')
-    expect(await xml(2)).toMatch(/Events by category.*Regulatory.*Clinical.*Events by significance.*High.*Medium.*Events by year.*2002/s)
+    expect(await xml(2)).toMatch(/Events by category.*Regulatory 1 · Clinical 2.*Events by significance.*High 2 · Medium 1.*Events by year.*2002–2027 · busiest 2002 \(1\)/s)
+    // The overview charts are native (editable) bar charts with the counts as their series values.
+    const chartFiles = Object.keys(zip.files).filter((f) => /^ppt\/charts\/chart\d+\.xml$/.test(f)).sort((a, b) => Number(a.match(/\d+/)![0]) - Number(b.match(/\d+/)![0]))
+    expect(chartFiles).toHaveLength(3)
+    const charts = await Promise.all(chartFiles.map((f) => zip.file(f)!.async('string')))
+    const series = (x: string) => ({
+      labels: [...x.matchAll(/<c:cat>.*?<\/c:cat>/gs)].flatMap((m) => [...m[0].matchAll(/<c:v>([^<]*)<\/c:v>/g)].map((v) => v[1])),
+      values: [...x.matchAll(/<c:val>.*?<\/c:val>/gs)].flatMap((m) => [...m[0].matchAll(/<c:v>([^<]*)<\/c:v>/g)].map((v) => Number(v[1]))),
+    })
+    // Horizontal bars list bottom-up, so the first item reads on top.
+    expect(series(charts[0]!)).toEqual({ labels: ['Clinical', 'Regulatory'], values: [2, 1] })
+    expect(charts[0]).toContain('<c:barDir val="bar"/>')
+    expect(series(charts[1]!)).toEqual({ labels: ['Medium', 'High'], values: [1, 2] })
+    const years = series(charts[2]!)
+    expect(charts[2]).toContain('<c:barDir val="col"/>')
+    expect(years.labels).toHaveLength(26)
+    expect(years.values.reduce((a, b) => a + b, 0)).toBe(3)
+    expect(years.labels.slice(0, 1).concat(years.labels.slice(-1))).toEqual(['2002', '2027'])
+    expect(yearCounts([ev('x', '2001-01-01'), ev('y', '2003-05'), ev('z', '2003')])).toEqual([['2001', 1], ['2002', 0], ['2003', 2]])
     const timeline = await xml(3)
     expect(timeline).toContain('Timeline · 2002–2027')
     expect(timeline).toContain('FDA approves Remodulin, &quot;first&quot; PAH therapy, for Sàrl')

@@ -9,7 +9,7 @@ import { BranchChip, NoteTagChip, Targets } from './chips'
 import { eventDate } from './format'
 import { eventIndications } from './indications'
 import { noteColor } from './constants'
-import { laneOf, spanOf } from './journey-model'
+import { inBranch, laneOf, spanOf } from './journey-model'
 import { HZ, trackActive, trackHoverAt, trackLayout, trackOffsetFor, trackSeen, trackWindow, type TrackHover, type TrackLane } from './track-layout'
 import type { Branch, JourneyEventV3 } from './types'
 import type { JourneyViewProps } from './view-types'
@@ -164,6 +164,8 @@ export function HorizontalTrack({ list, newestFirst, model, closures, stars, com
 
   const lane = (e: JourneyEventV3) => model.byId.get(laneOf(e, model))!
   const dim = (id: string) => focusBranch !== null && focusBranch !== id
+  /** Events spanning the selected branch stay lit on their own lane. */
+  const dimEvent = (e: JourneyEventV3) => focusBranch !== null && !inBranch(e, focusBranch, model)
   const nR = L.rows.length
   const d = L.dir
   // Until the first scroll update, use the flags for p = 0 so labels don't flash faded for a frame.
@@ -247,7 +249,7 @@ export function HorizontalTrack({ list, newestFirst, model, closures, stars, com
               const x = L.xs[i]!
               const note = e.user ? noteColor(e.user.tag) : null
               return (
-                <g key={e.id} data-node={e.id} className={cn('transition-opacity duration-300', dim(b.id) && 'opacity-[0.18]')}>
+                <g key={e.id} data-node={e.id} className={cn('transition-opacity duration-300', dimEvent(e) && 'opacity-[0.18]')}>
                   <line x1={x} x2={x} y1={up ? L.bandTop - 14 : y} y2={up ? y : L.bandBot + 14} stroke={b.color} strokeWidth={1.5} className="transition-opacity delay-200 duration-500" opacity={rv ? (on ? 1 : 0.45) : 0} />
                   {spans.length > 0 && <line x1={x} x2={x} y1={Math.min(y, ...spans)} y2={Math.max(y, ...spans)} stroke={b.color} strokeWidth={2} strokeDasharray="2 3" opacity={rv ? 0.7 : 0} />}
                   {spans.map((sy) => (
@@ -302,7 +304,7 @@ export function HorizontalTrack({ list, newestFirst, model, closures, stars, com
               up={i % 2 === 0}
               active={i === win.active}
               seen={reduced || i <= win.seen}
-              dimmed={dim(lane(e).id)}
+              dimmed={dimEvent(e)}
               flash={flash === e.id}
               starred={starred.has(e.id)}
               nComments={comments[e.id]?.length ?? 0}

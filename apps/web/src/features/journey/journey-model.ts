@@ -26,6 +26,11 @@ export function laneOf(e: Pick<JourneyEventV3, 'branch'>, m: BranchModel): strin
   return e.branch && m.byId.has(e.branch) ? e.branch : m.trunk.id
 }
 
+/** The event belongs to indication branch `id`: drawn on its lane, tagged with it, or spanning it. */
+export function inBranch(e: Pick<JourneyEventV3, 'branch' | 'span'>, id: string, m: BranchModel): boolean {
+  return laneOf(e, m) === id || e.branch === id || !!e.span?.includes(id)
+}
+
 /** Branches a multi-indication event also covers (dotted bridge), without its own lane. */
 export function spanOf(e: Pick<JourneyEventV3, 'span' | 'branch'>, m: BranchModel): string[] {
   if (!m.multi || !e.span?.length) return []
@@ -59,10 +64,15 @@ export interface ListFilters {
   ind?: string | null
   /** Title search. */
   q?: string
+  /** Indication branch id (PAH, PH-ILD…): its events and the events spanning it; null = every branch. */
+  branch?: string | null
 }
 
-/** The events a journey view shows: selected categories (none = all), Starred or Team notes, the indication, the title search. */
-export function filterJourney(events: JourneyEventV3[], f: ListFilters, stars: string[]): JourneyEventV3[] {
+/**
+ * The events a journey view shows: selected categories (none = all), Starred or Team notes, the indication, the title
+ * search, the indication branch (`model` places events on their lanes; without it, by their `branch` and `span`).
+ */
+export function filterJourney(events: JourneyEventV3[], f: ListFilters, stars: string[], model: BranchModel = branchModel(null)): JourneyEventV3[] {
   const starred = new Set(stars)
   const q = f.q?.trim().toLowerCase() ?? ''
   return events.filter(
@@ -71,7 +81,8 @@ export function filterJourney(events: JourneyEventV3[], f: ListFilters, stars: s
       (f.mine !== 'starred' || starred.has(e.id)) &&
       (f.mine !== 'notes' || e.via === 'user') &&
       (!f.ind || eventIndications(e).includes(f.ind)) &&
-      (!q || e.title.toLowerCase().includes(q)),
+      (!q || e.title.toLowerCase().includes(q)) &&
+      (!f.branch || inBranch(e, f.branch, model)),
   )
 }
 

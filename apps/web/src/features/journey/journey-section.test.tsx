@@ -22,8 +22,16 @@ const ALL = [...KEY, ev(DEEP, '2019-03-01', 'PAH', { key: false }), ev('stop', '
 
 let fetchMock: Mock<(url: string, init?: RequestInit) => Promise<Response>>
 
-function renderAt(path: string) {
-  const router = createMemoryRouter([{ path: '/assets/:assetId/overview', element: <JourneySection asset={{ id: 'trep', name: 'Treprostinil' }} /> }], { initialEntries: [path] })
+/** The journey on the Overview; `withExport` adds the page header's Export button (the journey header has none). */
+function renderAt(path: string, { withExport = false } = {}) {
+  const asset = { id: 'trep', name: 'Treprostinil' }
+  const element = (
+    <>
+      {withExport && <JourneyExportButton asset={asset} />}
+      <JourneySection asset={asset} />
+    </>
+  )
+  const router = createMemoryRouter([{ path: '/assets/:assetId/overview', element }], { initialEntries: [path] })
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <RouterProvider router={router} />
@@ -105,6 +113,68 @@ describe('JourneySection', () => {
     cleanup()
     renderAt('/assets/trep/overview?q=nothing')
     expect(await screen.findByText('No events match these filters')).toBeInTheDocument()
+  })
+
+  it('has no Export menu of its own: the page header exports the journey', async () => {
+    renderAt('/assets/trep/overview')
+    await screen.findByTestId('journey-horizontal')
+    expect(screen.queryByRole('button', { name: /Export/ })).not.toBeInTheDocument()
+  })
+
+  it('filters to a selected branch (its events and those spanning it) through the URL, counted as a filter and cleared by Clear', async () => {
+    const SPAN = ev('span', '2019-06-01', 'PAH', { span: ['PH-COPD'] })
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url, init) =>
+      url === '/api/assets/trep/timeline?scope=key&include=notes&limit=5000' ? json(200, { events: [SPAN, ...KEY].reverse(), total: 4 }) : base(url, init),
+    )
+    const router = renderAt('/assets/trep/overview')
+    expect(await screen.findByText(/^4 events, 2002–2019/)).toBeInTheDocument()
+    const copd = screen.getByRole('button', { name: /^PH-COPD/ })
+    // The card counts what selecting it shows: its own event and the one spanning it.
+    expect(copd).toHaveTextContent(/from PAH2/)
+    await userEvent.click(copd)
+    expect(new URLSearchParams(router.state.location.search).get('branch')).toBe('PH-COPD')
+    expect(await screen.findByText(/^2 events, 2018–2019/)).toBeInTheDocument()
+    expect(document.querySelector('[data-card="c"]')).toBeInTheDocument()
+    expect(document.querySelector('[data-card="span"]')).not.toHaveClass('opacity-30')
+    expect(document.querySelector('[data-card="a"]')).not.toBeInTheDocument()
+    expect(document.querySelector('[data-lane="PAH"]')).toHaveClass('opacity-[0.18]')
+    expect(screen.getByRole('button', { name: /^PH-COPD/ })).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.click(screen.getByRole('button', { name: 'Hide filters' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Show filters (1 active)' }))
+
+    // The vertical tree shows the same events.
+    await userEvent.click(screen.getByRole('button', { name: 'Vertical' }))
+    await screen.findByTestId('journey-tree')
+    expect(screen.getByRole('article', { name: 'Event c' })).toBeInTheDocument()
+    expect(screen.queryByRole('article', { name: 'Event a' })).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Clear' }))
+    expect(new URLSearchParams(router.state.location.search).get('branch')).toBeNull()
+    expect(await screen.findByText(/^4 events, 2002–2019/)).toBeInTheDocument()
+  })
+
+  it('exports the selected branch from the page header and names it in the filters line and file name', async () => {
+    let saved: { blob: Blob; name: string } | null = null
+    vi.spyOn(URL, 'createObjectURL').mockImplementation((b) => {
+      saved = { blob: b as Blob, name: '' }
+      return 'blob:export'
+    })
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      saved!.name = this.download
+    })
+    renderAt('/assets/trep/overview?branch=PH-COPD', { withExport: true })
+    expect(await screen.findByText(/^1 event, 2018–2018/)).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled())
+    await userEvent.click(screen.getByRole('button', { name: 'Export' }))
+    const menu = await screen.findByRole('menu')
+    expect(menu).toHaveTextContent('Exports the 1 event shown')
+    expect(menu).toHaveTextContent('Key events · oldest first · filters: Branch: PH-COPD')
+    await userEvent.click(within(menu).getByRole('menuitem', { name: /JSON/ }))
+    await waitFor(() => expect(saved?.name).toMatch(/^trep-journey-key-events-ph-copd-\d{4}-\d{2}-\d{2}\.json$/))
+    const doc = JSON.parse(await saved!.blob.text())
+    expect(doc.filters.branch).toBe('PH-COPD')
+    expect(doc.events.map((e: { id: string }) => e.id)).toEqual(['c'])
   })
 
   it('filters by category through the URL and says when nothing matches', async () => {
@@ -203,8 +273,9 @@ describe('JourneySection', () => {
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
       saved!.name = this.download
     })
-    renderAt('/assets/trep/overview?scope=all&order=newest&ind=PH-COPD')
+    renderAt('/assets/trep/overview?scope=all&order=newest&ind=PH-COPD', { withExport: true })
     await screen.findByTestId('journey-horizontal')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled())
     await userEvent.click(screen.getByRole('button', { name: 'Export' }))
     const menu = await screen.findByRole('menu')
     expect(menu).toHaveTextContent('Exports the 2 events shown')
@@ -232,8 +303,22 @@ describe('JourneySection', () => {
     expect(menu).toHaveTextContent('Exports the 2 events shown')
     expect(menu).toHaveTextContent('All events · newest first · filters: Indication: PH-COPD')
     expect(within(menu).getByRole('menuitem', { name: /PowerPoint deck/ })).toBeInTheDocument()
-    // Only the events and annotations: no branches, no layout.
+    // Only the events and annotations: no branches (without a branch filter), no layout.
     expect(fetchMock.mock.calls.map(([u]) => u)).not.toContain('/api/assets/trep/branches')
+
+    // A branch filter: the branches load to place the events on their lanes.
+    cleanup()
+    const branch = createMemoryRouter([{ path: '/assets/:assetId/clinical', element: <JourneyExportButton asset={{ id: 'trep', name: 'Treprostinil' }} /> }], { initialEntries: ['/assets/trep/clinical?branch=PH-ILD'] })
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <RouterProvider router={branch} />
+      </QueryClientProvider>,
+    )
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled())
+    await userEvent.click(screen.getByRole('button', { name: 'Export' }))
+    expect(await screen.findByRole('menu')).toHaveTextContent('Exports the 1 event shown')
+    expect(screen.getByRole('menu')).toHaveTextContent('filters: Branch: PH-ILD')
+    expect(fetchMock.mock.calls.map(([u]) => u)).toContain('/api/assets/trep/branches')
 
     // Starred only: the stars come from the annotations.
     cleanup()
@@ -252,8 +337,9 @@ describe('JourneySection', () => {
     vi.spyOn(URL, 'createObjectURL').mockImplementation(() => {
       throw new Error('Blocked by the browser')
     })
-    renderAt('/assets/trep/overview')
+    renderAt('/assets/trep/overview', { withExport: true })
     await screen.findByTestId('journey-horizontal')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled())
     await userEvent.click(screen.getByRole('button', { name: 'Export' }))
     await userEvent.click(within(await screen.findByRole('menu')).getByRole('menuitem', { name: /JSON/ }))
     expect(await screen.findByText('The export failed')).toBeInTheDocument()

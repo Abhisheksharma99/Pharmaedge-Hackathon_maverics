@@ -19,7 +19,7 @@ const FORMATS: { format: ExportFormat; label: string; hint: string; icon: Lucide
 const ITEM = 'items-start gap-[10px] rounded-[8px] px-[10px] py-[7px] [&_svg]:mt-[2px]'
 
 /**
- * "Export" in the journey header: what the journey shows right now (scope, filters, order) as CSV, Excel, JSON, a PDF
+ * The journey's "Export" menu: what the journey shows right now (scope, filters, order) as CSV, Excel, JSON, a PDF
  * report, a PowerPoint deck, or the upcoming milestones as a calendar. `ctx` leaves out the export time and origin, set
  * on click; `disabled` while the shown events are still loading (or are the previous scope's, kept on screen).
  * `size="default"` matches page-header buttons.

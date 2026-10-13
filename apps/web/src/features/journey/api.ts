@@ -105,10 +105,11 @@ export function useJourneyEvents(assetId: string, scope: JourneyScope, { enabled
 }
 
 /** Indication branches, trunk first; `[]` means a single trunk (DATA_CONTRACTS §B.1). */
-export function useBranches(assetId: string) {
+export function useBranches(assetId: string, { enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: ['asset', assetId, 'branches'],
     queryFn: () => apiFetch<Branch[]>(`/assets/${encodeURIComponent(assetId)}/branches`),
+    enabled,
     staleTime: 60_000,
   })
 }

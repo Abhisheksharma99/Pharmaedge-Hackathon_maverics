@@ -5,6 +5,7 @@ import {
   filterJourney,
   gapLabel,
   howBuilt,
+  inBranch,
   journeyCounts,
   laneOf,
   lineage,
@@ -80,6 +81,21 @@ describe('chronological / filterJourney / journeyCounts', () => {
       starred: 1,
       notes: 1,
     })
+  })
+
+  it('filters to a branch: its lane (unknown branches ride the trunk) plus the events spanning it', () => {
+    const m = branchModel(BRANCHES)
+    const ild = ev('2017-01-01', { branch: 'PH-ILD' })
+    const spans = ev('2018-01-01', { branch: 'PAH', span: ['PH-ILD'] })
+    const pah = ev('2002-01-01', { branch: 'PAH' })
+    const stray = ev('2003-01-01', { branch: 'XYZ' })
+    const all = [pah, stray, ild, spans]
+    expect(filterJourney(all, { cats: [], mine: null, branch: 'PH-ILD' }, [], m)).toEqual([ild, spans])
+    expect(filterJourney(all, { cats: [], mine: null, branch: 'PAH' }, [], m)).toEqual([pah, stray, spans])
+    expect(filterJourney(all, { cats: [], mine: null, branch: null }, [], m)).toEqual(all)
+    // Without the branch docs: by the events' own branch and span.
+    expect(filterJourney(all, { cats: [], mine: null, branch: 'PH-ILD' }, [])).toEqual([ild, spans])
+    expect(inBranch(stray, 'XYZ', m)).toBe(true)
   })
 })
 

@@ -2,6 +2,7 @@ import { FlaskConical, Landmark, Megaphone, Stamp, type LucideIcon } from 'lucid
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import type { EventCategory, Significance } from '../api'
+import { indicationName, shortIndication } from './competitors/utils'
 
 const SIGNIFICANCE_STYLE: Record<Significance, string> = {
   High: 'bg-danger-soft text-destructive',
@@ -76,20 +77,30 @@ export function KindBadge({ kind, competitorOf }: { kind: 'primary' | 'competito
   )
 }
 
-/** Which indication(s) a row belongs to (PAH, PH-ILD): small primary chips, the rest folded into "+N". */
+/**
+ * Which indication(s) a row belongs to (PAH, PH-ILD): small primary chips in the short form, the full name on hover,
+ * the rest folded into "+N". A label with no short form ellipsizes at the chip's max width.
+ */
 export function IndicationBadges({ items, max = 2, className }: { items: string[]; max?: number; className?: string }) {
-  if (!items.length) return null
-  const shown = items.slice(0, max)
-  const rest = items.slice(max)
+  // One chip per short label, named by the first full spelling given (else the known name of the abbreviation).
+  const full = new Map<string, string>()
+  for (const i of items) {
+    const label = shortIndication(i)
+    if (!full.has(label) || (full.get(label) === label && i !== label)) full.set(label, i)
+  }
+  const chips = [...full].map(([label, name]) => ({ label, full: name !== label ? name : (indicationName(label) ?? label) }))
+  if (!chips.length) return null
+  const shown = chips.slice(0, max)
+  const rest = chips.slice(max)
   return (
     <span className={cn('inline-flex min-w-0 flex-wrap items-center gap-[4px]', className)}>
-      {shown.map((i) => (
-        <span key={i} title={`Indication: ${i}`} className="inline-flex h-[20px] max-w-[160px] min-w-0 items-center rounded-[6px] bg-primary-soft px-[6px] text-[11.5px] font-semibold text-primary">
-          <span className="truncate">{i}</span>
+      {shown.map((c) => (
+        <span key={c.label} title={`Indication: ${c.full}`} className="inline-flex h-[20px] max-w-[160px] min-w-0 items-center rounded-[6px] bg-primary-soft px-[6px] text-[11.5px] font-semibold text-primary">
+          <span className="truncate">{c.label}</span>
         </span>
       ))}
       {rest.length > 0 && (
-        <span title={rest.join(', ')} className="inline-flex h-[20px] items-center rounded-[6px] bg-muted px-[6px] text-[11.5px] font-semibold text-secondary-foreground">
+        <span title={rest.map((c) => c.full).join(', ')} className="inline-flex h-[20px] items-center rounded-[6px] bg-muted px-[6px] text-[11.5px] font-semibold text-secondary-foreground">
           +{rest.length}
         </span>
       )}

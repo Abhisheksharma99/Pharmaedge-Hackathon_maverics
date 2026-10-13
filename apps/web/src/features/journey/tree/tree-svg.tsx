@@ -50,6 +50,8 @@ export const TreeSvg = memo(function TreeSvg({
   }
   const nodes = geo.nodes.slice(bound(yFrom, false), bound(yTo, true))
   const dim = (id: string) => focusBranch !== null && focusBranch !== id && 'opacity-[0.18]'
+  /** x of the selected branch: a node spanning it stays lit on its own lane. */
+  const focusX = geo.lanes.find((l) => l.id === focusBranch)?.x
   // Newest first (d = −1) time runs up: forks curve in from below, "beyond today" and tails are above.
   const d = geo.dir
   return (
@@ -107,7 +109,7 @@ export const TreeSvg = memo(function TreeSvg({
         const on = activeId === n.k
         const rv = isRevealed(n.k)
         return (
-          <g key={n.k} data-node={n.k} className={cn('transition-opacity duration-300', dim(n.lane))}>
+          <g key={n.k} data-node={n.k} className={cn('transition-opacity duration-300', !n.span.includes(focusX ?? NaN) && dim(n.lane))}>
             <path d={`M${n.x},${n.y} L${n.x2},${n.y}`} pathLength={1} stroke={c} strokeWidth={on ? 2.25 : 1.75} strokeLinecap="round" fill="none" opacity={on ? 1 : 0.5} className={cn(DRAW, 'delay-100', rv ? '[stroke-dashoffset:0]' : '[stroke-dashoffset:1]')} />
             {n.span.length > 0 && <line x1={Math.min(n.x, ...n.span)} x2={Math.max(n.x, ...n.span)} y1={n.y} y2={n.y} stroke={c} strokeWidth={2} strokeDasharray="2 3" opacity={rv ? 0.75 : 0} className="transition-opacity delay-400 duration-500" />}
             {n.span.filter((x) => x !== n.x).map((x) => (

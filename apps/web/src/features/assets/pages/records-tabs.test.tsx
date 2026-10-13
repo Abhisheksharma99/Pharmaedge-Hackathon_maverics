@@ -113,7 +113,7 @@ describe('clinical records panel', () => {
     expect(screen.getAllByText('Recruiting').length).toBeGreaterThan(0)
     expect(screen.getAllByText('IPF').length).toBeGreaterThan(0)
     // Every condition is an indication badge in the row.
-    expect(screen.getAllByTitle('Indication: PH-ILD').length).toBeGreaterThan(0)
+    expect(screen.getAllByTitle('Indication: Pulmonary hypertension associated with interstitial lung disease').length).toBeGreaterThan(0)
     expect(screen.getAllByText('576').length).toBeGreaterThan(0)
     expect(screen.getAllByText('2021-03 → 2026-06').length).toBeGreaterThan(0)
     expect(screen.getByText('74 records collected')).toBeInTheDocument()
@@ -245,9 +245,9 @@ describe('records presentation and paging', () => {
     const record = { ...TRIAL, conditions: ['Pulmonary arterial hypertension (PAH)', 'Interstitial lung disease', 'PH-ILD'] }
     respond({ '/api/assets/trep/records/clinical': page([record]) })
     renderTab(<ClinicalTab />, 'clinical')
-    expect(await screen.findByTitle('Indication: PAH')).toHaveTextContent('PAH')
+    expect(await screen.findByTitle('Indication: Pulmonary arterial hypertension')).toHaveTextContent('PAH')
     expect(screen.getByTitle('Indication: Interstitial lung disease')).toBeInTheDocument()
-    expect(screen.getByTitle('PH-ILD')).toHaveTextContent('+1')
+    expect(screen.getByTitle('Pulmonary hypertension associated with interstitial lung disease')).toHaveTextContent('+1')
     expect(screen.queryByText(/Pulmonary arterial/)).not.toBeInTheDocument()
   })
 
@@ -261,8 +261,8 @@ describe('records presentation and paging', () => {
       ]),
     })
     renderTab(<RegulatoryTab />, 'regulatory')
-    expect(await screen.findByTitle('Indication: Hypertension, Pulmonary')).toBeInTheDocument()
-    expect(screen.getByTitle('Indication: idiopathic pulmonary fibrosis')).toBeInTheDocument()
+    expect(await screen.findByTitle('Indication: Pulmonary hypertension')).toBeInTheDocument()
+    expect(screen.getByTitle('Indication: Idiopathic pulmonary fibrosis')).toBeInTheDocument()
     expect(screen.getAllByTitle(/^Indication:/)).toHaveLength(2)
   })
 

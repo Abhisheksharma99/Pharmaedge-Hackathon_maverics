@@ -3,12 +3,12 @@ import { eventLink, eventSources, isoDate, sourceUrl, type ExportContext } from 
 
 /** The shown events with every field useful outside the app, pretty-printed. */
 export function toJson(ctx: ExportContext): string {
-  const { cats, mine, ind, q } = ctx.filters
+  const { cats, mine, ind, q, branch } = ctx.filters
   const doc = {
     asset: { id: ctx.asset.id, name: ctx.asset.name },
     exportedAt: ctx.exportedAt.toISOString(),
     scope: ctx.scope,
-    filters: { categories: cats, mine: mine ?? null, indication: ind ?? null, title: q?.trim() || null },
+    filters: { branch: branch ?? null, categories: cats, mine: mine ?? null, indication: ind ?? null, title: q?.trim() || null },
     order: ctx.order,
     events: ctx.events.map((e) => ({
       id: e.id,

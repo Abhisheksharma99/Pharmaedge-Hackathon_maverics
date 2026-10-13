@@ -62,6 +62,18 @@ function dateSpan(events: JourneyEventV3[]): string {
   return !first ? '' : first === last ? first : `${first}–${last}`
 }
 
+/** Events per year from the first year to the last, empty years included: `[["2002", 1], ["2003", 0], …]`. */
+export function yearCounts(events: JourneyEventV3[]): [string, number][] {
+  const byYear = new Map<number, number>()
+  for (const e of events) {
+    const y = Number(isoDate(e.date).slice(0, 4))
+    if (Number.isFinite(y)) byYear.set(y, (byYear.get(y) ?? 0) + 1)
+  }
+  if (!byYear.size) return []
+  const first = Math.min(...byYear.keys())
+  return Array.from({ length: Math.max(...byYear.keys()) - first + 1 }, (_, i) => [String(first + i), byYear.get(first + i) ?? 0])
+}
+
 /** Shown indications, most events first. */
 function indicationCounts(events: JourneyEventV3[]): [string, number][] {
   const counts = new Map<string, number>()
@@ -71,7 +83,7 @@ function indicationCounts(events: JourneyEventV3[]): [string, number][] {
 
 /**
  * The shown events as a 16:9 deck: a title slide, an overview (key numbers, events by category, significance and
- * year as bar charts), the timeline as year-grouped tables, the upcoming expected milestones, and a footer with
+ * year as native, editable bar charts), the timeline as year-grouped tables, the upcoming expected milestones, and a footer with
  * the page number on every slide. pptxgenjs is loaded on demand.
  */
 export async function buildPptx(ctx: ExportContext): Promise<Blob> {
@@ -144,74 +156,87 @@ export async function buildPptx(ctx: ExportContext): Promise<Blob> {
     )
   })
 
-  // The charts are drawn with shapes, not native charts: they look the same in PowerPoint, Keynote, Google Slides
-  // and previews (Quick Look draws native charts blank).
-  const NONE = { type: 'none' as const }
-  const label = (text: string, x: number, y: number, w: number) =>
-    overview.addText(text, { x, y, w, h: 0.3, fontFace: FONT, fontSize: 12, bold: true, color: C.text, margin: 0 })
-  /** Labelled horizontal bars, the count after each bar. */
-  const hbars = (title: string, x: number, y: number, w: number, items: { label: string; value: number; color: string }[]) => {
-    label(title, x, y, w)
-    const max = Math.max(1, ...items.map((i) => i.value))
-    const labelW = 1.2
-    const barW = w - labelW - 0.6
-    items.forEach((item, i) => {
-      const top = y + 0.42 + i * 0.36
-      const len = Math.max(0.03, (barW * item.value) / max)
-      overview.addText(item.label, { x, y: top, w: labelW - 0.1, h: 0.28, fontFace: FONT, fontSize: 10.5, color: C.body, margin: 0, valign: 'middle' })
-      overview.addShape(pptx.ShapeType.rect, { x: x + labelW, y: top + 0.03, w: len, h: 0.22, fill: { color: item.color }, line: NONE })
-      overview.addText(String(item.value), { x: x + labelW + len + 0.08, y: top, w: 0.6, h: 0.28, fontFace: FONT, fontSize: 10.5, bold: true, color: C.text, margin: 0, valign: 'middle' })
+  // Native charts, editable in PowerPoint, Keynote and Google Slides (previews such as Quick Look may draw them blank),
+  // each with a one-line text summary under its title that any viewer shows.
+  const chartHead = (title: string, summary: string, x: number, y: number, w: number) => {
+    overview.addText(title, { x, y, w, h: 0.28, fontFace: FONT, fontSize: 12, bold: true, color: C.text, margin: 0 })
+    overview.addText(summary, { x, y: y + 0.28, w, h: 0.24, fontFace: FONT, fontSize: 9.5, color: C.muted, margin: 0, fit: 'shrink' })
+  }
+  const axes = {
+    fontFace: FONT,
+    catAxisLabelFontFace: FONT,
+    catAxisLabelFontSize: 10,
+    catAxisLabelColor: C.body,
+    catAxisLineShow: true,
+    catGridLine: { style: 'none' as const },
+    valAxisLabelFontFace: FONT,
+    valAxisLabelFontSize: 9,
+    valAxisLabelColor: C.muted,
+    valAxisLabelFormatCode: '0',
+    valAxisMinVal: 0,
+    valGridLine: { color: C.border, size: 0.5 },
+    showLegend: false,
+    dataLabelFontFace: FONT,
+    dataLabelFontSize: 9,
+    dataLabelColor: C.text,
+    dataLabelFormatCode: '0',
+    dataLabelPosition: 'outEnd' as const,
+  }
+  /** Labelled horizontal bars, the count after each bar, first item on top. */
+  const hbars = (title: string, y: number, items: { label: string; value: number; color: string }[]) => {
+    chartHead(title, items.map((i) => `${i.label} ${i.value}`).join(' · ') || 'No events', M, y, 4.6)
+    if (!items.length) return
+    // A bar chart draws its first category at the bottom: reversed, the list reads top-down.
+    const rev = [...items].reverse()
+    overview.addChart(pptx.ChartType.bar, [{ name: title, labels: rev.map((i) => i.label), values: rev.map((i) => i.value) }], {
+      ...axes,
+      x: M,
+      y: y + 0.5,
+      w: 4.6,
+      h: 1.4,
+      barDir: 'bar',
+      barGapWidthPct: 45,
+      chartColors: rev.map((i) => i.color),
+      valAxisHidden: true,
+      valGridLine: { style: 'none' },
+      showValue: true,
     })
   }
 
   hbars(
     'Events by category',
-    M,
     3.0,
-    4.6,
     CATEGORIES.map((c) => ({ label: CATEGORY_META[c].label, value: ctx.events.filter((e) => e.category === c).length, color: hex(CATEGORY_META[c].color) })).filter((i) => i.value > 0),
   )
   const unrated = ctx.events.filter((e) => !(SIGNIFICANCE as readonly string[]).includes(e.significance)).length
   hbars(
     'Events by significance',
-    M,
     4.95,
-    4.6,
     [...SIGNIFICANCE.map((s, i) => ({ label: s as string, value: ctx.events.filter((e) => e.significance === s).length, color: SIGNIFICANCE_COLORS[i]! })), { label: 'Unrated', value: unrated, color: SIGNIFICANCE_COLORS[3]! }].filter((i) => i.value > 0),
   )
 
   // Columns for every year from the first to the last, gaps included, so the axis reads as time.
-  const byYear = new Map<number, number>()
-  for (const e of ctx.events) {
-    const y = Number(isoDate(e.date).slice(0, 4))
-    if (Number.isFinite(y)) byYear.set(y, (byYear.get(y) ?? 0) + 1)
-  }
-  const ys = [...byYear.keys()]
-  const years = ys.length ? Array.from({ length: Math.max(...ys) - Math.min(...ys) + 1 }, (_, i) => Math.min(...ys) + i) : []
+  const byYear = yearCounts(ctx.events)
   const cx = M + 5.1
   const cw = W - M - cx
-  label('Events by year', cx, 3.0, cw)
-  if (years.length) {
-    const max = Math.max(...byYear.values())
-    const slot = cw / years.length
-    const barW = Math.min(0.5, slot * 0.72)
-    const base = 6.45
-    const plotH = base - 3.75
-    const every = Math.ceil(years.length / 12)
-    const showValues = years.length <= 24
-    overview.addShape(pptx.ShapeType.line, { x: cx, y: base, w: cw, h: 0, line: { color: C.border, width: 1 } })
-    // Without per-column counts, the scale: a faint line at the busiest year's count.
-    if (!showValues) {
-      overview.addShape(pptx.ShapeType.line, { x: cx, y: base - plotH, w: cw, h: 0, line: { color: C.border, width: 0.75, dashType: 'dash' } })
-      overview.addText(`${max}`, { x: cx + cw - 0.8, y: base - plotH - 0.26, w: 0.8, h: 0.22, fontFace: FONT, fontSize: 9, color: C.muted, align: 'right', margin: 0 })
-    }
-    years.forEach((year, i) => {
-      const v = byYear.get(year) ?? 0
-      const h = (plotH * v) / max
-      const left = cx + i * slot
-      if (v) overview.addShape(pptx.ShapeType.rect, { x: left + (slot - barW) / 2, y: base - h, w: barW, h, fill: { color: C.primary }, line: NONE })
-      if (v && showValues) overview.addText(String(v), { x: left - 0.2, y: base - h - 0.24, w: slot + 0.4, h: 0.22, fontFace: FONT, fontSize: 9, color: C.body, align: 'center', margin: 0 })
-      if (i % every === 0) overview.addText(String(year), { x: left + slot / 2 - 0.35, y: base + 0.06, w: 0.7, h: 0.22, fontFace: FONT, fontSize: 9, color: C.muted, align: 'center', margin: 0 })
+  const busiest = byYear.reduce<[string, number] | null>((b, y) => (!b || y[1] > b[1] ? y : b), null)
+  chartHead('Events by year', busiest ? `${byYear[0]![0]}–${byYear[byYear.length - 1]![0]} · busiest ${busiest[0]} (${busiest[1]})` : 'No events', cx, 3.0, cw)
+  if (byYear.length) {
+    const max = busiest![1]
+    overview.addChart(pptx.ChartType.bar, [{ name: 'Events by year', labels: byYear.map(([y]) => y), values: byYear.map(([, v]) => v) }], {
+      ...axes,
+      x: cx,
+      y: 3.5,
+      w: cw,
+      h: 3.35,
+      barDir: 'col',
+      barGapWidthPct: 40,
+      chartColors: [C.primary],
+      catAxisLabelFontSize: 9,
+      catAxisLabelColor: C.muted,
+      catAxisLabelFrequency: String(Math.ceil(byYear.length / 12)),
+      valAxisMajorUnit: Math.max(1, Math.ceil(max / 5)),
+      showValue: byYear.length <= 24,
     })
   }
 

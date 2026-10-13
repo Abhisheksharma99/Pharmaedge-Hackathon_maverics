@@ -6,13 +6,11 @@ import { EmptyState } from '@/features/assets/components/panel'
 import { useEventSheet } from '@/stores/event-sheet-store'
 import { useAnnotations, useToggleStar } from './annotations-api'
 import { useBranches, useEndedBranchEvents, useJourneyEvents } from './api'
-import { ExportMenu } from './export/export-menu'
-import { journeyExportDraft } from './export/use-journey-export'
 import { HorizontalTrack } from './horizontal-track'
 import { eventIndications, indicationOptions } from './indications'
 import { JourneyHeader } from './journey-header'
 import { JourneySkeleton } from './journey-skeleton'
-import { branchClosures, branchModel, chronological, filterJourney, journeyCounts } from './journey-model'
+import { branchClosures, branchModel, chronological, filterJourney, inBranch, journeyCounts } from './journey-model'
 import { NoteComposer, type NoteDraft } from './note-composer'
 import { JourneyTree } from './tree/journey-tree'
 import { useJourneyFilters } from './use-journey-filters'
@@ -23,8 +21,9 @@ const NO_COMMENTS = {}
 
 /**
  * The asset journey (README §6.2–6.3), on the Overview and the Asset Journey page: header + horizontal track (default,
- * with its HUD) or tree, oldest or newest first, filters in the URL, `?focus=<eventId>` deep links and in-place
- * "Locate on timeline" from the event sheet.
+ * with its HUD) or tree, oldest or newest first, filters in the URL (a selected indication branch too), `?focus=<eventId>`
+ * deep links and in-place "Locate on timeline" from the event sheet. Both pages export the journey from their own
+ * header (`JourneyExportButton`), so the journey header has no Export menu.
  */
 export function JourneySection({ asset }: { asset: Pick<AssetDetail, 'id' | 'name'> & { company?: { name: string } } }) {
   const assetId = asset.id
@@ -45,16 +44,18 @@ export function JourneySection({ asset }: { asset: Pick<AssetDetail, 'id' | 'nam
   const filterStars = f.mine === 'starred' ? stars : NO_STARS
   const comments = annotations.data?.comments ?? NO_COMMENTS
   const catsKey = f.cats.join(',')
-  const list = useMemo(
+  /** The filtered events before the branch filter: the branch cards count from it. */
+  const unbranched = useMemo(
     () => filterJourney(dated, { cats: catsKey ? (catsKey.split(',') as typeof f.cats) : [], mine: f.mine, ind: f.ind, q: f.q }, filterStars),
     [dated, catsKey, f.mine, f.ind, f.q, filterStars],
   )
+  const focusBranch = f.branch
+  const list = useMemo(() => (focusBranch ? unbranched.filter((e) => inBranch(e, focusBranch, model)) : unbranched), [unbranched, focusBranch, model])
   const newestFirst = f.order === 'newest'
   /** The views' order; the header keeps the chronological list (its "2002–2025" span). */
   const ordered = useMemo(() => (newestFirst ? [...list].reverse() : list), [list, newestFirst])
   const counts = useMemo(() => journeyCounts(dated, stars), [dated, stars])
   const indications = useMemo(() => indicationOptions(dated, eventIndications), [dated])
-  const [focusBranch, setFocusBranch] = useState<string | null>(null)
   const [draft, setDraft] = useState<NoteDraft | null>(null)
   const viewRef = useRef<JourneyViewHandle>(null)
   /** Whether the event a focus resolves to opens in the sheet (deep links do; "Locate on timeline" doesn't). */
@@ -85,7 +86,7 @@ export function JourneySection({ asset }: { asset: Pick<AssetDetail, 'id' | 'nam
   // Primitive deps (and refs for the callbacks), so the retry fires exactly when the data arrives, not on every render.
   const focusId = f.focus
   const fScope = f.scope
-  const unfiltered = !f.cats.length && !f.mine && !f.ind && !f.q
+  const unfiltered = !f.cats.length && !f.mine && !f.ind && !f.q && !f.branch
   const filterApi = useRef(f)
   useEffect(() => {
     filterApi.current = f
@@ -117,7 +118,7 @@ export function JourneySection({ asset }: { asset: Pick<AssetDetail, 'id' | 'nam
       if (!viewRef.current?.jump(savedId)) return
       openEvent(assetId, savedId)
       setSavedId(null)
-    } else if (events.isSuccess && !savedShown.current && (f.scope !== 'all' || f.cats.length > 0 || f.mine || f.ind || f.q)) {
+    } else if (events.isSuccess && !savedShown.current && (f.scope !== 'all' || f.cats.length > 0 || f.mine || f.ind || f.q || f.branch)) {
       savedShown.current = true
       f.showEverything()
     }
@@ -132,7 +133,7 @@ export function JourneySection({ asset }: { asset: Pick<AssetDetail, 'id' | 'nam
   }
 
   const n = list.length
-  const filtered = f.cats.length > 0 || f.mine !== null || f.ind !== null || f.q !== ''
+  const filtered = f.cats.length > 0 || f.mine !== null || f.ind !== null || f.q !== '' || f.branch !== null
   const viewProps = {
     assetId,
     list: ordered,
@@ -152,6 +153,7 @@ export function JourneySection({ asset }: { asset: Pick<AssetDetail, 'id' | 'nam
         assetId={assetId}
         model={model}
         list={list}
+        unbranched={unbranched}
         undated={(all?.length ?? 0) - dated.length}
         counts={counts}
         view={f.view}
@@ -170,15 +172,9 @@ export function JourneySection({ asset }: { asset: Pick<AssetDetail, 'id' | 'nam
         onMine={f.setMine}
         onInd={f.setInd}
         onQuery={f.setQuery}
-        onFocusBranch={setFocusBranch}
-        onClear={() => {
-          f.clearFilters()
-          setFocusBranch(null)
-        }}
+        onFocusBranch={f.setBranch}
+        onClear={f.clearFilters}
         onAdd={() => setDraft({ date: '', branch: model.trunk.id })}
-        exportMenu={
-          <ExportMenu ctx={journeyExportDraft({ id: assetId, name: asset.name, company: asset.company?.name }, f, ordered)} disabled={!ready} />
-        }
       />
       {(events.isPending || branches.isPending) && !events.isError && <JourneySkeleton view={f.view} />}
       {(branches.isError || annotations.isError) && !events.isError && (
