@@ -1,7 +1,12 @@
 import { Logger } from '@nestjs/common';
-import { ThrottlerStorageService, type ThrottlerStorage } from '@nestjs/throttler';
+import {
+  ThrottlerStorageService,
+  type ThrottlerStorage,
+} from '@nestjs/throttler';
 
-type ThrottlerStorageRecord = Awaited<ReturnType<ThrottlerStorage['increment']>>;
+type ThrottlerStorageRecord = Awaited<
+  ReturnType<ThrottlerStorage['increment']>
+>;
 import type { ValkeyService } from '../../valkey/valkey.service.js';
 
 /**
@@ -14,23 +19,47 @@ export class ValkeyThrottlerStorage implements ThrottlerStorage {
   private readonly memory = new ThrottlerStorageService();
   private warned = false;
 
-  constructor(private readonly valkey: Pick<ValkeyService, 'client' | 'isAvailable' | 'key'>) {}
+  constructor(
+    private readonly valkey: Pick<
+      ValkeyService,
+      'client' | 'isAvailable' | 'key'
+    >,
+  ) {}
 
-  async increment(key: string, ttl: number, limit: number, blockDuration: number, throttlerName: string): Promise<ThrottlerStorageRecord> {
+  async increment(
+    key: string,
+    ttl: number,
+    limit: number,
+    blockDuration: number,
+    throttlerName: string,
+  ): Promise<ThrottlerStorageRecord> {
     if (this.valkey.isAvailable()) {
       try {
-        const record = await this.incrementInValkey(key, ttl, limit, throttlerName);
+        const record = await this.incrementInValkey(
+          key,
+          ttl,
+          limit,
+          throttlerName,
+        );
         this.warned = false;
         return record;
       } catch (err) {
-        if (!this.warned) this.logger.warn(`Valkey throttle failed, using in-memory counters: ${(err as Error).message}`);
+        if (!this.warned)
+          this.logger.warn(
+            `Valkey throttle failed, using in-memory counters: ${(err as Error).message}`,
+          );
         this.warned = true;
       }
     }
     return this.memory.increment(key, ttl, limit, blockDuration, throttlerName);
   }
 
-  private async incrementInValkey(key: string, ttl: number, limit: number, throttlerName: string): Promise<ThrottlerStorageRecord> {
+  private async incrementInValkey(
+    key: string,
+    ttl: number,
+    limit: number,
+    throttlerName: string,
+  ): Promise<ThrottlerStorageRecord> {
     const { client } = this.valkey;
     const hits = this.valkey.key('throttle', throttlerName, key);
     const totalHits = await client.incr(hits);
@@ -41,7 +70,12 @@ export class ValkeyThrottlerStorage implements ThrottlerStorage {
     }
     const timeToExpire = Math.ceil(pttl / 1000);
     const isBlocked = totalHits > limit;
-    return { totalHits, timeToExpire, isBlocked, timeToBlockExpire: isBlocked ? timeToExpire : 0 };
+    return {
+      totalHits,
+      timeToExpire,
+      isBlocked,
+      timeToBlockExpire: isBlocked ? timeToExpire : 0,
+    };
   }
 
   onApplicationShutdown() {

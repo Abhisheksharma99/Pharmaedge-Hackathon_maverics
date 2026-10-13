@@ -18,7 +18,10 @@ export class AiThrottlerGuard extends ThrottlerGuard {
   imports: [
     ThrottlerModule.forRootAsync({
       inject: [ConfigService, ValkeyService],
-      useFactory: (config: ConfigService<Env, true>, valkey: ValkeyService) => ({
+      useFactory: (
+        config: ConfigService<Env, true>,
+        valkey: ValkeyService,
+      ) => ({
         storage: new ValkeyThrottlerStorage(valkey),
         throttlers: [
           {
