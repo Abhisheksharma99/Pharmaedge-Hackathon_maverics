@@ -110,7 +110,7 @@ describe('EvidenceTab', () => {
   it('shows each ledger row\'s indication badges, a dash when it has none', async () => {
     renderTab()
     const rowA = (await screen.findByText('Item a')).closest('tr')!
-    expect(within(rowA).getByTitle('Indication: IPF')).toHaveTextContent('IPF')
+    expect(within(rowA).getByTitle('Indication: Idiopathic pulmonary fibrosis')).toHaveTextContent('IPF')
     const rowB = screen.getByText('Item b').closest('tr')!
     expect(within(rowB).queryByTitle(/^Indication:/)).not.toBeInTheDocument()
   })

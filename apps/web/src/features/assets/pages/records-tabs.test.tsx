@@ -275,7 +275,7 @@ describe('records presentation and paging', () => {
       ]),
     })
     renderTab(<RegulatoryTab />, 'regulatory')
-    expect(await screen.findByTitle('Indication: CTEPH')).toBeInTheDocument()
+    expect(await screen.findByTitle('Indication: Chronic thromboembolic pulmonary hypertension')).toBeInTheDocument()
     expect(screen.queryByTitle('Indication: Hypertension, Pulmonary')).not.toBeInTheDocument()
     expect(screen.getAllByTitle(/^Indication:/)).toHaveLength(1)
   })
@@ -298,8 +298,8 @@ describe('records presentation and paging', () => {
     })
     renderTab(element, path)
     const row = (await screen.findByText('A record')).closest('tr')!
-    expect(within(row).getByTitle('Indication: PAH')).toBeInTheDocument()
-    expect(within(row).getByTitle('Indication: PH-ILD')).toBeInTheDocument()
+    expect(within(row).getByTitle('Indication: Pulmonary arterial hypertension')).toBeInTheDocument()
+    expect(within(row).getByTitle('Indication: Pulmonary hypertension associated with interstitial lung disease')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('combobox', { name: 'Indication' }))
     // Facet values display in short form.
     expect(await screen.findByRole('option', { name: 'IPF' })).toBeInTheDocument()
@@ -315,7 +315,7 @@ describe('records presentation and paging', () => {
     renderTab(<PublicationsTab />, 'publications')
     await userEvent.click(await screen.findByText('A paper'))
     const dialog = await screen.findByRole('dialog')
-    expect(await within(dialog).findByTitle('Indication: IPF')).toBeInTheDocument()
+    expect(await within(dialog).findByTitle('Indication: Idiopathic pulmonary fibrosis')).toBeInTheDocument()
     expect(within(dialog).getByText(/matched in the text/)).toBeInTheDocument()
   })
 
