@@ -52,4 +52,23 @@ describe('journey canvas', () => {
     expect(find(tree, eventNodeId('a'))).toMatchObject({ label: 'My name for it' });
     expect(labels(tree)).not.toContain('Event a');
   });
+
+  it('carries the short indication labels of an event into its node, and keeps them through a save', () => {
+    const events = [
+      { ...ev('a', '2024-05-01'), branch: 'PAH', span: ['PH-ILD', 'PAH'] },
+      { ...ev('b', '2024-06-01'), indications: ['Pulmonary arterial hypertension (PAH)', 'Idiopathic pulmonary fibrosis'] },
+      ev('c', '2024-07-01'),
+    ];
+    const tree = buildJourneyTree(ASSET, events, 'category');
+    expect(find(tree, eventNodeId('a'))?.indications).toEqual(['PAH', 'PH-ILD']);
+    expect(find(tree, eventNodeId('b'))?.indications).toEqual(['PAH', 'Idiopathic pulmonary fibrosis']);
+    expect(find(tree, eventNodeId('c'))).not.toHaveProperty('indications');
+    expect(cleanTree(tree)).toEqual(tree);
+  });
+
+  it('adds indications to events of an older canvas on refresh', () => {
+    const saved = buildJourneyTree(ASSET, [ev('a', '2024-05-01')], 'category');
+    const fresh = buildJourneyTree(ASSET, [{ ...ev('a', '2024-05-01'), branch: 'CTEPH' }], 'category');
+    expect(find(mergeTree(fresh, saved, new Set()).tree, eventNodeId('a'))?.indications).toEqual(['CTEPH']);
+  });
 });

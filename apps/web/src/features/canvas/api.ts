@@ -16,6 +16,8 @@ export interface CanvasNode {
   /** An event no longer in the stored data: kept for the user to review. */
   stale?: boolean
   eventId?: string
+  /** Short labels of the indications an event belongs to (absent on canvases saved before this field). */
+  indications?: string[]
   source?: { collection: string; record_key: string }
   children: CanvasNode[]
 }

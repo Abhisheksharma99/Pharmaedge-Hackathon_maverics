@@ -40,6 +40,8 @@ export interface CanvasNode {
   /** The journey event and its first source record (opens the record in the app). */
   eventId?: string;
   source?: { collection: string; record_key: string };
+  /** Short labels of the indications an event belongs to (its branch and span, else its shortened enrichment indications). */
+  indications?: string[];
   children: CanvasNode[];
 }
 
@@ -90,6 +92,13 @@ const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…`
 
 /** Node id of a journey event: stable across builds, within the id charset `cleanTree` accepts. */
 export const eventNodeId = (eventId: string) => `e-${createHash('sha1').update(eventId).digest('hex').slice(0, 16)}`;
+
+const MAX_INDICATIONS = 6;
+/** The short indication labels of a journey event: branch (+ span), else enrichment names shortened ("… (PAH)" -> "PAH"). */
+export function eventIndicationLabels(e: Document): string[] {
+  const raw: unknown[] = e.branch ? [e.branch, ...(Array.isArray(e.span) ? e.span : [])] : (Array.isArray(e.indications) ? e.indications : []).map((i: unknown) => (typeof i === 'string' ? (i.match(/\(([^()]{1,10})\)\s*$/)?.[1] ?? i) : ''));
+  return [...new Set(raw.map((x) => (typeof x === 'string' ? x.trim().slice(0, 40) : '')).filter(Boolean))].slice(0, MAX_INDICATIONS);
+}
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40) || 'other';
 
 /**
@@ -104,13 +113,17 @@ export function buildJourneyTree(asset: { _id: string; name: string }, events: D
 
 /** The asset's top-level branches (one per category, or per year), in display order. */
 export function journeyBranches(events: Document[], groupBy: GroupBy): CanvasNode[] {
-  const leaf = (e: Document): CanvasNode => ({
+  const leaf = (e: Document): CanvasNode => {
+    const indications = eventIndicationLabels(e);
+    return {
     id: eventNodeId(String(e._id)), kind: 'event', label: clip(String(e.title ?? 'Untitled event'), 200),
     ...(e.date ? { date: e.date } : {}), ...(e.category ? { category: e.category } : {}), ...(e.significance ? { significance: e.significance } : {}),
     ...(e.is_milestone ? { upcoming: true } : {}),
+    ...(indications.length ? { indications } : {}),
     eventId: String(e._id), ...(e.sources?.[0] ? { source: { collection: e.sources[0].collection, record_key: e.sources[0].record_key } } : {}),
     children: [],
-  });
+    };
+  };
   const byYear = (prefix: string, list: Document[]): CanvasNode[] => {
     const years = new Map<string, Document[]>();
     for (const e of list) {
@@ -219,6 +232,7 @@ export function cleanTree(input: unknown): CanvasNode {
     const src = r.source as { collection?: unknown; record_key?: unknown } | undefined;
     const source = src && /^[a-z_]{1,40}$/.test(String(src.collection)) && text(src.record_key, 700)
       ? { collection: String(src.collection), record_key: String(src.record_key) } : undefined;
+    const indications = (Array.isArray(r.indications) ? r.indications : []).filter((i): i is string => typeof i === 'string' && i.length > 0 && i.length <= 40).slice(0, MAX_INDICATIONS);
     return {
       id: r.id as string, kind: r.kind as CanvasNode['kind'], label,
       ...(text(r.note, 2000) ? { note: r.note as string } : {}),
@@ -228,6 +242,7 @@ export function cleanTree(input: unknown): CanvasNode {
       ...(r.upcoming === true ? { upcoming: true } : {}),
       ...(r.collapsed === true ? { collapsed: true } : {}),
       ...(r.stale === true ? { stale: true } : {}),
+      ...(indications.length ? { indications } : {}),
       ...(text(r.eventId, 700) ? { eventId: r.eventId as string } : {}),
       ...(source ? { source } : {}),
       children: ((r.children as unknown[] | undefined) ?? []).map((c) => walk(c, depth + 1)),
@@ -264,7 +279,7 @@ export class CanvasService implements OnModuleInit {
   private async events(assetId: string, spec: CanvasSpec, keep: string[] = []) {
     const coll = this.db.collection('journey_events');
     const match = { ...specMatch(spec), asset: assetId };
-    const projection = { title: 1, date: 1, category: 1, significance: 1, is_milestone: 1, sources: { $slice: 1 } };
+    const projection = { title: 1, date: 1, category: 1, significance: 1, is_milestone: 1, branch: 1, span: 1, indications: 1, sources: { $slice: 1 } };
     const [newest, kept, total] = await Promise.all([
       coll.find(match, { projection }).sort({ date: -1 }).limit(MAX_EVENTS).toArray(),
       keep.length ? coll.find({ ...match, _id: { $in: keep as never[] } }, { projection }).toArray() : Promise.resolve([]),
