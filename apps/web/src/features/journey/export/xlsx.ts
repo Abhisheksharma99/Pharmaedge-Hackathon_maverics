@@ -1,4 +1,6 @@
+import type { Branch } from '../types'
 import { COLUMNS, exportRows, filtersLabel, ORDER_LABEL, SCOPE_LABEL, type ExportContext } from './model'
+import { addTimelineSheet, sizeNotes } from './xlsx-timeline'
 
 export const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
@@ -15,9 +17,10 @@ function dateCell(iso: string): { value: Date; numFmt: string } | null {
 
 /**
  * The shown events as an Excel workbook: a "Journey" sheet (bold, frozen header row, autofilter, real date cells,
- * clickable event links) and an "About" sheet saying what was exported. ExcelJS is loaded on demand.
+ * clickable event links), a "Timeline" sheet (the horizontal track as a scrollable lane × month grid; `branches` give
+ * its lanes the app's labels and colours) and an "About" sheet saying what was exported. ExcelJS is loaded on demand.
  */
-export async function buildXlsx(ctx: ExportContext): Promise<Blob> {
+export async function buildXlsx(ctx: ExportContext, { branches }: { branches?: Branch[] | null } = {}): Promise<Blob> {
   const mod = await import('exceljs')
   const ExcelJS = (mod as unknown as { default?: typeof mod }).default ?? mod
   const wb = new ExcelJS.Workbook()
@@ -39,6 +42,9 @@ export async function buildXlsx(ctx: ExportContext): Promise<Blob> {
   }
   ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: rows.length + 1, column: COLUMNS.length } }
 
+  const timeline = addTimelineSheet(wb, ctx, branches)
+  const g = timeline.grid
+
   const about = wb.addWorksheet('About')
   about.columns = [{ width: 16 }, { width: 70 }]
   about.addRows([
@@ -50,11 +56,19 @@ export async function buildXlsx(ctx: ExportContext): Promise<Blob> {
     ['Filters', filtersLabel(ctx.filters)],
     ['Order', ORDER_LABEL[ctx.order]],
     ['Events', rows.length],
+    [
+      'Timeline',
+      `The Timeline sheet: one row per lane (trunk, indication branches${g.lanes.some((l) => l.id === 'notes') ? ', team notes' : ''}), one column per ${g.bucket}, ${g.y0}–${g.y1}. ` +
+        `Time runs left to right${ctx.order === 'newest' ? ' there, while the Journey sheet lists newest first' : ''}. ` +
+        'Fill = category (Regulatory, Clinical, Company, Patents); lighter with a dashed outline = expected; ink outline = High significance; ×N = N events in one cell; dark column = today. ' +
+        'Hover a cell for its events, click it to open the (first) event.',
+    ],
   ])
   about.getColumn(1).font = { bold: true }
   about.getCell('B3').numFmt = 'yyyy-mm-dd hh:mm'
   about.getCell('B7').alignment = { horizontal: 'left' }
+  about.getCell('B8').alignment = { wrapText: true, vertical: 'top' }
 
-  const buf = await wb.xlsx.writeBuffer()
+  const buf = await sizeNotes(await wb.xlsx.writeBuffer(), timeline.notes)
   return new Blob([buf], { type: XLSX_TYPE })
 }

@@ -1,3 +1,5 @@
+import { apiFetch } from '@/lib/api'
+import type { Branch } from '../types'
 import { toCsv } from './csv'
 import { toIcs } from './ics'
 import { toJson } from './json'
@@ -17,13 +19,16 @@ export async function buildExport(format: ExportFormat, ctx: ExportContext): Pro
     case 'ics':
       return { blob: new Blob([toIcs(ctx)], { type: 'text/calendar;charset=utf-8' }), filename }
     case 'xlsx':
-      return { blob: await buildXlsx(ctx), filename }
+      return { blob: await buildXlsx(ctx, { branches: await assetBranches(ctx.asset.id) }), filename }
     case 'pdf':
       return { blob: await buildPdf(ctx), filename }
     case 'pptx':
       return { blob: await buildPptx(ctx), filename }
   }
 }
+
+/** The asset's branch docs (the Timeline sheet's lane labels and colours); null when they can't load, so lanes come from the events. */
+const assetBranches = (assetId: string): Promise<Branch[] | null> => apiFetch<Branch[]>(`/assets/${encodeURIComponent(assetId)}/branches`).catch(() => null)
 
 /** Stamps a context with the export time and this page's origin (for the event links). */
 export const stampNow = (ctx: Omit<ExportContext, 'exportedAt' | 'origin'>): ExportContext => ({ ...ctx, exportedAt: new Date(), origin: window.location.origin })
