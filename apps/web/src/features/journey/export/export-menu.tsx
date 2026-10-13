@@ -1,19 +1,22 @@
 import { CalendarPlus, ChevronDown, Download, FileBraces, FileSpreadsheet, FileText, LoaderCircle, Presentation, Sheet, type LucideIcon } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { todayIso } from '@/lib/dates'
+import { analyticsQuery } from '@/features/analytics/api'
+import { branchesQuery } from '../api'
 import { BTN_SM } from '../controls'
 import { filtersLabel, ORDER_LABEL, SCOPE_LABEL, upcomingMilestones, type ExportContext, type ExportFormat } from './model'
 import { useJourneyExport, type ExportDraft } from './use-journey-export'
 
 const FORMATS: { format: ExportFormat; label: string; hint: string; icon: LucideIcon }[] = [
   { format: 'csv', label: 'CSV', hint: '.csv · any spreadsheet or script', icon: Sheet },
-  { format: 'xlsx', label: 'Excel workbook', hint: '.xlsx · filterable, with an About sheet', icon: FileSpreadsheet },
+  { format: 'xlsx', label: 'Excel workbook', hint: '.xlsx · journey table, scrollable timeline sheet, About', icon: FileSpreadsheet },
   { format: 'json', label: 'JSON', hint: '.json · every event field and source', icon: FileBraces },
   { format: 'pdf', label: 'PDF report', hint: '.pdf · printable, grouped by year', icon: FileText },
-  { format: 'pptx', label: 'PowerPoint deck', hint: '.pptx · overview charts and timeline slides', icon: Presentation },
+  { format: 'pptx', label: 'PowerPoint deck', hint: '.pptx · journey map, analytics and timeline slides', icon: Presentation },
 ]
 
 const ITEM = 'items-start gap-[10px] rounded-[8px] px-[10px] py-[7px] [&_svg]:mt-[2px]'
@@ -26,6 +29,7 @@ const ITEM = 'items-start gap-[10px] rounded-[8px] px-[10px] py-[7px] [&_svg]:mt
  */
 export function ExportMenu({ ctx, disabled = false, label = 'Export', size = 'sm' }: { ctx: ExportDraft; disabled?: boolean; label?: string; size?: 'sm' | 'default' }) {
   const [busy, setBusy] = useState<ExportFormat | null>(null)
+  const queryClient = useQueryClient()
   const n = ctx.events.length
   const upcoming = upcomingMilestones(ctx.events, todayIso()).length
 
@@ -34,7 +38,16 @@ export function ExportMenu({ ctx, disabled = false, label = 'Export', size = 'sm
     try {
       // The builders (and through them ExcelJS / jsPDF) load on the first export, not with the app.
       const { buildExport, downloadBlob, stampNow } = await import('./build')
-      const { blob, filename } = await buildExport(format, stampNow(ctx))
+      // The deck draws the branch lanes and the journey map (fetching the branches when the view didn't need them;
+      // without them it draws one trunk) and the analytics slides (left out when the analytics fail to load).
+      const [branches, analytics] =
+        format === 'pptx'
+          ? await Promise.all([
+              ctx.branches ?? queryClient.ensureQueryData(branchesQuery(ctx.asset.id)).catch(() => undefined),
+              queryClient.ensureQueryData(analyticsQuery(ctx.asset.id)).catch(() => null),
+            ])
+          : [ctx.branches, undefined]
+      const { blob, filename } = await buildExport(format, stampNow({ ...ctx, branches, analytics }))
       downloadBlob(blob, filename)
       const what = format === 'ics' ? `${upcoming} upcoming milestone${upcoming === 1 ? '' : 's'}` : `${n} event${n === 1 ? '' : 's'}`
       toast.success(`Exported ${what}`, { description: filename })

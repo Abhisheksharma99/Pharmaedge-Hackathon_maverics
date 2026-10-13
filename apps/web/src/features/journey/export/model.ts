@@ -1,8 +1,9 @@
+import type { AssetAnalytics } from '@/features/analytics/api'
 import type { JourneyScope } from '../api'
 import { CATEGORY_META } from '../constants'
 import { eventIndications } from '../indications'
 import type { JourneyOrder, ListFilters } from '../journey-model'
-import type { JourneyEventV3, SourceRef } from '../types'
+import type { Branch, JourneyEventV3, SourceRef } from '../types'
 
 /** Everything an export needs: exactly what the journey shows (scope, filters, order) at the moment of export. */
 export interface ExportContext {
@@ -12,6 +13,12 @@ export interface ExportContext {
   filters: ListFilters
   /** The events the journey shows, filtered and in the view's order. */
   events: JourneyEventV3[]
+  /** `events` before the branch filter (the PowerPoint journey map counts every branch); `events` when absent. */
+  unbranched?: JourneyEventV3[]
+  /** The asset's indication branches (the PowerPoint lanes and journey map); absent or empty = one trunk. */
+  branches?: Branch[]
+  /** The asset's analytics blocks (the PowerPoint pipeline, approvals, trials and landscape slides); null when they failed to load. */
+  analytics?: AssetAnalytics | null
   exportedAt: Date
   /** `window.location.origin`, for the event links. */
   origin: string
