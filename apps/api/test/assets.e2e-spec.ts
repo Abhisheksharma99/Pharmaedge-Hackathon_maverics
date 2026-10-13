@@ -163,6 +163,98 @@ describe('records panel data', () => {
   });
 });
 
+describe('record indications (Indication column and facet)', () => {
+  const B = 'idx';
+  const facet = (res: { facets: { key: string; label: string; values: unknown }[] }) => res.facets.find((f) => f.key === 'indication');
+  beforeAll(async () => {
+    await db.collection('assets').insertOne({
+      _id: B as any, name: 'Idx', aliases: [], company: { name: 'X' }, kind: 'primary', status: 'ready', competitors: [],
+      tags: { indications: ['Pulmonary arterial hypertension (PAH)'], investigational_indications: ['Idiopathic pulmonary fibrosis'] },
+    });
+    await db.collection('asset_branches').insertMany([
+      { _id: 'idx:PAH' as any, asset: B, id: 'PAH', full: 'Pulmonary arterial hypertension', aliases: ['pah', 'pulmonary arterial hypertension'], off: 0 },
+      { _id: 'idx:PH-ILD' as any, asset: B, id: 'PH-ILD', full: 'PH associated with ILD (PH-ILD)', aliases: ['ph-ild'], off: 1 },
+    ]);
+    await db.collection('journey_events').insertMany([
+      { _id: 'idx-e1' as any, asset: B, date: '2020-01-01', title: 'Cited', category: 'clinical', branch: 'PH-ILD', span: ['PAH'], sources: [{ collection: 'publication_records', record_key: 'pub:cited' }] },
+      { _id: 'idx-e2' as any, asset: B, date: '2021-01-01', title: 'Merged', category: 'regulatory', branch: 'PAH', merged_sources: [{ collection: 'ema_records', record_key: 'ema:merged' }] },
+    ]);
+    await db.collection('publication_records').insertMany([
+      { record_key: 'pub:cited', date: '2024-01-04', title: 'Cohort study', abstract: 'Nothing named', assets: [B] },
+      // The title names an indication, so the abstract's is not added.
+      { record_key: 'pub:title', date: '2024-01-03', title: 'Inhaled therapy in idiopathic pulmonary fibrosis', abstract: 'Patients with PAH', assets: [B] },
+      { record_key: 'pub:abstract', date: '2024-01-02', title: 'A trial', abstract: 'Adults with PAH were enrolled.', assets: [B] },
+      { record_key: 'pub:none', date: '2024-01-01', title: 'Pharmacokinetics', abstract: 'in a clinical pharmacology unit', assets: [B] },
+    ]);
+    await db.collection('ema_records').insertMany([
+      { record_key: 'ema:merged', record_type: 'ema_epar', date: '2021-01-01', name_of_medicine: 'Idxa', therapeutic_indication: 'Treatment of PH-ILD', assets: [B] },
+      { record_key: 'ema:text', record_type: 'ema_orphan_designation', date: '2022-01-01', intended_use: 'Treatment of pulmonary arterial hypertension', assets: [B] },
+    ]);
+    await db.collection('fda_records').insertOne({ record_key: 'fda:idx', record_type: 'fda_submission', date: '2019-01-01', brand_names: ['IDXA'], assets: [B] });
+    await db.collection('crawl_ledger').insertMany([
+      { _id: 'idx-l1' as any, asset: B, item_key: 'pub:cited', title: 'Cohort study', collection: 'publication_records', decision: 'ingest', category: 'x', reason: 'r', date: '2024-01-04' },
+      { _id: 'idx-l2' as any, asset: B, item_key: 'https://n.example/1', title: 'New PAH data', collection: 'articles', decision: 'headline', category: 'x', reason: 'r', date: '2024-01-03' },
+      { _id: 'idx-l3' as any, asset: B, item_key: 'https://n.example/2', title: 'Quarterly results', collection: 'articles', decision: 'skip', category: 'x', reason: 'r', date: '2024-01-02' },
+    ]);
+  });
+
+  // Other suites list every asset.
+  afterAll(() => db.collection('assets').deleteOne({ _id: B as any }));
+
+  it('derives each record\'s indications from the citing journey events, else its text, else none', async () => {
+    const res = (await get(`/api/assets/${B}/records/publications`)).json();
+    const byKey = Object.fromEntries(res.items.map((r: { key: string; indications: string[]; indicationSource?: string }) => [r.key, [r.indications, r.indicationSource]]));
+    expect(byKey).toEqual({
+      'pub:cited': [['PH-ILD', 'PAH'], 'journey'],
+      'pub:title': [['Idiopathic pulmonary fibrosis'], 'text'],
+      'pub:abstract': [['PAH'], 'text'],
+      'pub:none': [[], undefined],
+    });
+    expect(facet(res)).toEqual({
+      key: 'indication',
+      label: 'Indication',
+      values: [{ value: 'PAH', count: 2 }, { value: 'Idiopathic pulmonary fibrosis', count: 1 }, { value: 'PH-ILD', count: 1 }],
+    });
+  });
+
+  it('filters by the Indication facet, still counting the whole tab', async () => {
+    const res = (await get(`/api/assets/${B}/records/publications?facets=${encodeURIComponent('{"indication":"PAH"}')}`)).json();
+    expect(res.items.map((r: { key: string }) => r.key)).toEqual(['pub:cited', 'pub:abstract']);
+    expect(res.total).toBe(2);
+    expect(facet(res)!.values).toHaveLength(3);
+    const searched = (await get(`/api/assets/${B}/records/publications?q=trial&facets=${encodeURIComponent('{"indication":"PAH"}')}`)).json();
+    expect(searched.items.map((r: { key: string }) => r.key)).toEqual(['pub:abstract']);
+  });
+
+  it('gives regulatory records an Indication facet: EMA from the journey or its indication text, FDA submissions none', async () => {
+    const res = (await get(`/api/assets/${B}/records/regulatory`)).json();
+    expect(res.facets.map((f: { label: string }) => f.label)).toEqual(['Region', 'Record type', 'Status', 'Indication']);
+    expect(facet(res)!.values).toEqual([{ value: 'PAH', count: 2 }]);
+    const byKey = Object.fromEntries(res.items.map((r: { key: string; indications: string[] }) => [r.key, r.indications]));
+    expect(byKey).toEqual({ 'ema:text': ['PAH'], 'ema:merged': ['PAH'], 'fda:idx': [] });
+    const eu = (await get(`/api/assets/${B}/records/regulatory?facets=${encodeURIComponent('{"indication":"PAH"}')}`)).json();
+    expect(eu.items.map((r: { key: string }) => r.key)).toEqual(['ema:text', 'ema:merged']);
+    // The trial tab keeps its own Indication facet (conditions) and adds none.
+    expect((await get(`/api/assets/${A}/records/clinical`)).json().facets.map((f: { key: string }) => f.key)).toEqual(['phases', 'overall_status', 'conditions']);
+  });
+
+  it('adds the indications to one record and to ledger rows', async () => {
+    const one = (await get(`/api/assets/${B}/record/regulatory?key=ema:text`)).json();
+    expect(one).toMatchObject({ indications: ['PAH'], indicationSource: 'text' });
+    const { items } = (await get(`/api/assets/${B}/ledger`)).json();
+    expect(items.map((i: { id: string; indications: string[]; indicationSource?: string }) => [i.id, i.indications, i.indicationSource])).toEqual([
+      ['idx-l1', ['PH-ILD', 'PAH'], 'journey'],
+      ['idx-l2', ['PAH'], 'text'],
+      ['idx-l3', [], undefined],
+    ]);
+  });
+
+  it('indexes journey events by cited record', async () => {
+    const keys = (await db.collection('journey_events').indexes()).map((i) => Object.keys(i.key).join(','));
+    expect(keys).toEqual(expect.arrayContaining(['asset,sources.record_key', 'asset,merged_sources.record_key']));
+  });
+});
+
 describe('timeline', () => {
   it('is newest first by default', async () => {
     const { events, total } = (await get(`/api/assets/${A}/timeline`)).json();

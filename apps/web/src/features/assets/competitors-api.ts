@@ -120,6 +120,9 @@ export interface LedgerRow {
   decidedAt: string
   recordKey: string
   journey_events?: RecordEventRef[]
+  /** Short indication labels: from the journey events citing the record, else matched in the headline. */
+  indications?: string[]
+  indicationSource?: 'journey' | 'text'
 }
 
 export interface LedgerQuery {

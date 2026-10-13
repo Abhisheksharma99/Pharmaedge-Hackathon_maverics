@@ -92,6 +92,9 @@ export type SourceRecord = Record<string, unknown> & {
   content?: string
   /** Journey events built from this record (records endpoints; DC §B). */
   journey_events?: RecordEventRef[]
+  /** Short indication labels (every records tab but clinical): from the journey events citing the record, else matched in its text. */
+  indications?: string[]
+  indicationSource?: 'journey' | 'text'
 }
 
 /** A journey event a record feeds, as the records API lists it. */

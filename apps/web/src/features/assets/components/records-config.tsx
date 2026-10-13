@@ -59,8 +59,11 @@ const dateText = (v: string | undefined) => (v ? formatDay(v) : '—')
 /** The trial window reads "2023-08 → 2027-06" in the prototype: year-month keeps the column narrow. */
 const monthText = (v: string | undefined) => (v ? v.slice(0, 7) : '—')
 const dateCell = (r: SourceRecord) => <Mono muted>{dateText(r.date)}</Mono>
-/** Which indication(s) a record names (none for records without such a field). */
+/** Which indication(s) a record belongs to (the API's derived ones, else the record's own indication fields). */
 const indicationCell = (r: SourceRecord) => (recordIndications(r).length ? <IndicationBadges items={recordIndications(r)} /> : DASH)
+const indicationColumn: Column = { header: 'Indication', cell: indicationCell }
+/** The API's derived Indication facet (tabs other than clinical): branch ids or bracket-shortened names, shown in the web's short form. */
+const INDICATION_FACET = { indication: shortIndication }
 const titleCell = (r: SourceRecord) => <span className="block max-w-[520px] min-w-[240px] text-pretty">{recordTitle(r)}</span>
 
 /** "Late-breaking" abstracts get the danger tag. */
@@ -136,14 +139,14 @@ export const RECORDS_CONFIG: Record<'clinical' | 'regulatory' | 'publications' |
     description: 'FDA and EMA submissions, decisions, recalls and calendar dates',
     step: 'regulatory',
     searchPlaceholder: 'Search regulatory',
-    facetLabel: { record_type: (v) => RECORD_TYPE_LABEL[v] ?? v, status: fdaStatus },
+    facetLabel: { record_type: (v) => RECORD_TYPE_LABEL[v] ?? v, status: fdaStatus, ...INDICATION_FACET },
     columns: () => [
       { header: 'Date', cell: dateCell },
       { header: 'Region', cell: (r) => <Tag className="font-mono">{str(r.record_type).startsWith('fda') ? 'US' : 'EU'}</Tag> },
       { header: 'Record', cell: (r) => <span>{RECORD_TYPE_LABEL[str(r.record_type)] ?? str(r.record_type)}</span> },
       { header: 'Application', cell: (r) => monoText(r.application_number) },
       { header: 'Product', cell: (r) => <b className="font-medium">{recordTitle(r)}</b> },
-      { header: 'Indication', cell: indicationCell },
+      indicationColumn,
       { header: 'Class', cell: (r) => (str(r.submission_class) ? <span className="text-muted-foreground">{str(r.submission_class)}</span> : DASH) },
       { header: 'Status', cell: (r) => <StatusBadge value={statusOf(r)} /> },
     ],
@@ -156,9 +159,11 @@ export const RECORDS_CONFIG: Record<'clinical' | 'regulatory' | 'publications' |
     description: 'PubMed articles that mention the asset in the title or abstract',
     step: 'publications',
     searchPlaceholder: 'Search publications',
+    facetLabel: INDICATION_FACET,
     columns: () => [
       { header: 'PMID', cell: (r) => monoText(r.pmid) },
       { header: 'Title', cell: titleCell },
+      indicationColumn,
       { header: 'Journal', cell: (r) => (str(r.journal) ? <i className="text-muted-foreground">{str(r.journal)}</i> : DASH) },
       { header: 'Year', cell: (r) => monoText(r.date?.slice(0, 4)) },
       { header: 'Design', cell: (r) => (strs(r.publication_types)[0] ? <Tag>{strs(r.publication_types)[0]}</Tag> : DASH) },
@@ -171,10 +176,12 @@ export const RECORDS_CONFIG: Record<'clinical' | 'regulatory' | 'publications' |
     description: 'ERS, ATS and CHEST abstracts for the asset',
     step: 'conferences',
     searchPlaceholder: 'Search conference abstracts',
+    facetLabel: INDICATION_FACET,
     columns: () => [
       { header: 'Congress', cell: (r) => <b className="font-medium whitespace-nowrap">{congress(r) || '—'}</b> },
       { header: 'Date', cell: dateCell },
       { header: 'Abstract', cell: titleCell },
+      indicationColumn,
       {
         header: 'Format',
         cell: (r) => {
@@ -191,7 +198,7 @@ export const RECORDS_CONFIG: Record<'clinical' | 'regulatory' | 'publications' |
     description: 'Prescribing information, annual reports and company documents',
     step: 'company_site',
     searchPlaceholder: 'Search documents',
-    facetLabel: { record_type: (v) => RECORD_TYPE_LABEL[v] ?? v },
+    facetLabel: { record_type: (v) => RECORD_TYPE_LABEL[v] ?? v, ...INDICATION_FACET },
     columns: () => [
       {
         header: 'Document',
@@ -204,6 +211,7 @@ export const RECORDS_CONFIG: Record<'clinical' | 'regulatory' | 'publications' |
           </div>
         ),
       },
+      indicationColumn,
       { header: 'Type', cell: (r) => <Tag>{RECORD_TYPE_LABEL[str(r.record_type)] ?? str(r.record_type)}</Tag> },
       { header: 'Date', cell: dateCell },
       { header: 'Pages', cell: (r) => monoText(r.pages) },
@@ -217,7 +225,7 @@ export const RECORDS_CONFIG: Record<'clinical' | 'regulatory' | 'publications' |
     description: 'Press releases and investor-presentation slides from the company IR site, newest first',
     step: 'company_news',
     searchPlaceholder: 'Search releases and slides',
-    facetLabel: { record_type: (v) => RECORD_TYPE_LABEL[v] ?? v },
+    facetLabel: { record_type: (v) => RECORD_TYPE_LABEL[v] ?? v, ...INDICATION_FACET },
     columns: (asset) => [
       { header: 'Date', cell: dateCell },
       {
@@ -229,6 +237,7 @@ export const RECORDS_CONFIG: Record<'clinical' | 'regulatory' | 'publications' |
           </span>
         ),
       },
+      indicationColumn,
       {
         // Curated releases carry tags; the rest show the category AI triage gave them for this asset.
         header: 'Category',
@@ -247,9 +256,11 @@ export const RECORDS_CONFIG: Record<'clinical' | 'regulatory' | 'publications' |
     description: 'From AdisInsight, PubChem and Google Patents, with computed expiries',
     step: 'patents',
     searchPlaceholder: 'Search patents',
+    facetLabel: INDICATION_FACET,
     columns: () => [
       { header: 'Patent', cell: (r) => monoText(r.publication_number) },
       { header: 'Title', cell: titleCell },
+      indicationColumn,
       { header: 'Covers', cell: (r) => (str(r.covers) ? <span className="text-muted-foreground">{str(r.covers)}</span> : DASH) },
       { header: 'Assignee', cell: (r) => (strs(r.assignees).length ? strs(r.assignees).join(', ') : DASH) },
       { header: 'Granted', cell: (r) => <Mono muted>{dateText(str(r.grant_date))}</Mono> },

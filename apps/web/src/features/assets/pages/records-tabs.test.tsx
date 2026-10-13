@@ -89,11 +89,11 @@ describe('records tabs: columns per tab (README §5.5)', () => {
   it.each([
     ['clinical', <ClinicalTab key="ClinicalTab" />, ['NCT ID', 'Study', 'Phase', 'Status', 'Indication', 'Sponsor', 'Enrolment', 'Start → primary completion', 'Journey'], { ...TRIAL }],
     ['regulatory', <RegulatoryTab key="RegulatoryTab" />, ['Date', 'Region', 'Record', 'Application', 'Product', 'Indication', 'Class', 'Status', 'Journey'], { key: 'fda:1', record_type: 'fda_submission', date: '2009-07-30', title: 'TYVASO' }],
-    ['publications', <PublicationsTab key="PublicationsTab" />, ['PMID', 'Title', 'Journal', 'Year', 'Design', 'Journey'], { key: 'pubmed:1', title: 'A paper' }],
-    ['conferences', <ConferencesTab key="ConferencesTab" />, ['Congress', 'Date', 'Abstract', 'Format', 'Journey'], { key: 'c:1', title: 'An abstract', conference: 'ATS' }],
-    ['documents', <DocumentsTab key="DocumentsTab" />, ['Document', 'Type', 'Date', 'Pages', 'Journey'], { key: 'd:1', title: 'PI.pdf', record_type: 'prescribing_info' }],
-    ['company-ir', <CompanyIrTab key="CompanyIrTab" />, ['Date', 'Title', 'Category', 'Journey'], { key: 'p:1', title: 'A release' }],
-    ['patents', <PatentsTab key="PatentsTab" />, ['Patent', 'Title', 'Covers', 'Assignee', 'Granted', 'Expiry', 'Status', 'Journey'], { key: 'pat:1', title: 'A patent', publication_number: 'US1B2' }],
+    ['publications', <PublicationsTab key="PublicationsTab" />, ['PMID', 'Title', 'Indication', 'Journal', 'Year', 'Design', 'Journey'], { key: 'pubmed:1', title: 'A paper' }],
+    ['conferences', <ConferencesTab key="ConferencesTab" />, ['Congress', 'Date', 'Abstract', 'Indication', 'Format', 'Journey'], { key: 'c:1', title: 'An abstract', conference: 'ATS' }],
+    ['documents', <DocumentsTab key="DocumentsTab" />, ['Document', 'Indication', 'Type', 'Date', 'Pages', 'Journey'], { key: 'd:1', title: 'PI.pdf', record_type: 'prescribing_info' }],
+    ['company-ir', <CompanyIrTab key="CompanyIrTab" />, ['Date', 'Title', 'Indication', 'Category', 'Journey'], { key: 'p:1', title: 'A release' }],
+    ['patents', <PatentsTab key="PatentsTab" />, ['Patent', 'Title', 'Indication', 'Covers', 'Assignee', 'Granted', 'Expiry', 'Status', 'Journey'], { key: 'pat:1', title: 'A patent', publication_number: 'US1B2' }],
   ] as const)('%s', async (path, element, expected, record) => {
     respond({ '/api/assets/trep/series': [], [`/api/assets/trep/records/${path}`]: page([record as SourceRecord]) })
     renderTab(element, path)
@@ -264,6 +264,59 @@ describe('records presentation and paging', () => {
     expect(await screen.findByTitle('Indication: Hypertension, Pulmonary')).toBeInTheDocument()
     expect(screen.getByTitle('Indication: idiopathic pulmonary fibrosis')).toBeInTheDocument()
     expect(screen.getAllByTitle(/^Indication:/)).toHaveLength(2)
+  })
+
+  it('shows the API\'s derived indications on regulatory rows in place of the record\'s own fields, a dash when it found none', async () => {
+    respond({
+      '/api/assets/trep/series': [],
+      '/api/assets/trep/records/regulatory': page([
+        { key: 'ema:1', record_type: 'ema_epar', date: '2020-01-01', name_of_medicine: 'Trepulmix', therapeutic_area_mesh: 'Hypertension, Pulmonary', indications: ['CTEPH'], indicationSource: 'journey' },
+        { key: 'fda:1', record_type: 'fda_submission', date: '2009-07-30', title: 'TYVASO', indications: [] },
+      ]),
+    })
+    renderTab(<RegulatoryTab />, 'regulatory')
+    expect(await screen.findByTitle('Indication: CTEPH')).toBeInTheDocument()
+    expect(screen.queryByTitle('Indication: Hypertension, Pulmonary')).not.toBeInTheDocument()
+    expect(screen.getAllByTitle(/^Indication:/)).toHaveLength(1)
+  })
+
+  it.each([
+    ['publications', <PublicationsTab key="PublicationsTab" />],
+    ['conferences', <ConferencesTab key="ConferencesTab" />],
+    ['documents', <DocumentsTab key="DocumentsTab" />],
+    ['company-ir', <CompanyIrTab key="CompanyIrTab" />],
+    ['patents', <PatentsTab key="PatentsTab" />],
+    ['regulatory', <RegulatoryTab key="RegulatoryTab" />],
+  ] as const)('%s: indication badges in the rows and the Indication facet select, filtering by it', async (path, element) => {
+    const facets = [
+      { key: 'record_type', label: 'Type', values: [{ value: 'x', count: 2 }] },
+      { key: 'indication', label: 'Indication', values: [{ value: 'PAH', count: 2 }, { value: 'Idiopathic pulmonary fibrosis (IPF)', count: 1 }] },
+    ]
+    respond({
+      '/api/assets/trep/series': [],
+      [`/api/assets/trep/records/${path}`]: page([{ key: 'r:1', title: 'A record', indications: ['PAH', 'PH-ILD'], indicationSource: 'text' }], { facets }),
+    })
+    renderTab(element, path)
+    const row = (await screen.findByText('A record')).closest('tr')!
+    expect(within(row).getByTitle('Indication: PAH')).toBeInTheDocument()
+    expect(within(row).getByTitle('Indication: PH-ILD')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('combobox', { name: 'Indication' }))
+    // Facet values display in short form.
+    expect(await screen.findByRole('option', { name: 'IPF' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('option', { name: 'PAH' }))
+    await waitFor(() => expect(decodeURIComponent(recordUrls().at(-1)!)).toContain('facets={"indication":"PAH"}'))
+  })
+
+  it('shows the indications in the record sheet, saying when they were matched in the text', async () => {
+    respond({
+      '/api/assets/trep/records/publications': page([{ key: 'pubmed:1', title: 'A paper', indications: ['IPF'], indicationSource: 'text' }]),
+      '/api/assets/trep/record/publications': { key: 'pubmed:1', title: 'A paper', indications: ['IPF'], indicationSource: 'text' },
+    })
+    renderTab(<PublicationsTab />, 'publications')
+    await userEvent.click(await screen.findByText('A paper'))
+    const dialog = await screen.findByRole('dialog')
+    expect(await within(dialog).findByTitle('Indication: IPF')).toBeInTheDocument()
+    expect(within(dialog).getByText(/matched in the text/)).toBeInTheDocument()
   })
 
   it('writes dates the US way (Mon D, YYYY)', async () => {
