@@ -1,7 +1,7 @@
 import { formatDay } from '@/lib/dates'
 import { CATEGORY_META } from '../constants'
 import { eventIndications } from '../indications'
-import { eventLink, exportDay, isoDate, summaryText, upcomingMilestones, type ExportContext } from './model'
+import { eventLink, exportDay, filtersLabel, isoDate, SCOPE_LABEL, summaryText, upcomingMilestones, type ExportContext } from './model'
 
 /** RFC 5545 TEXT: backslash, semicolon, comma and newlines escaped. */
 const text = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n')
@@ -38,7 +38,7 @@ function nextDay(d: string): string {
 
 /** The upcoming expected milestones as an iCalendar file of all-day events (partial dates sit on the period's first day). */
 export function toIcs(ctx: ExportContext): string {
-  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//PharmaEdge//Asset journey//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', `X-WR-CALNAME:${text(`${ctx.asset.name} milestones`)}`]
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//PharmaEdge//Asset journey//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', `X-WR-CALNAME:${text(`${ctx.asset.name} milestones`)}`, `X-WR-CALDESC:${text(`${SCOPE_LABEL[ctx.scope]} · Filters: ${filtersLabel(ctx.filters)}`)}`]
   for (const e of upcomingMilestones(ctx.events, exportDay(ctx.exportedAt))) {
     const raw = isoDate(e.date)
     const day = raw.length === 4 ? `${raw}-01-01` : raw.length === 7 ? `${raw}-01` : raw

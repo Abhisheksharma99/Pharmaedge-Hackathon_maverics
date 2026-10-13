@@ -96,9 +96,9 @@ describe('WhatChanged', () => {
   it('badges every row with its indication', async () => {
     renderWith(<WhatChanged />)
     const week = await screen.findByRole('region', { name: 'Last 7 days' })
-    expect(within(week).getByTitle('Indication: PAH')).toBeInTheDocument()
-    expect(within(screen.getByRole('region', { name: 'Last 30 days' })).getByTitle('Indication: PH-ILD')).toBeInTheDocument()
-    expect(within(screen.getByRole('region', { name: 'Last 90 days' })).getByTitle('Indication: IPF')).toBeInTheDocument()
+    expect(within(week).getByTitle('Indication: Pulmonary arterial hypertension')).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: 'Last 30 days' })).getByTitle('Indication: Pulmonary hypertension associated with interstitial lung disease')).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: 'Last 90 days' })).getByTitle('Indication: Idiopathic pulmonary fibrosis')).toBeInTheDocument()
   })
 
   it('narrows the list by search and by indication, and clears', async () => {
@@ -148,8 +148,8 @@ describe('NextMilestones filters', () => {
   it('shows each milestone\'s indications, including spanned ones', async () => {
     renderWith(<NextMilestones />)
     const eu = await screen.findByRole('button', { name: /EU decision expected/ })
-    expect(within(eu).getByTitle('Indication: PAH')).toBeInTheDocument()
-    expect(within(eu).getByTitle('Indication: CTEPH')).toBeInTheDocument()
+    expect(within(eu).getByTitle('Indication: Pulmonary arterial hypertension')).toBeInTheDocument()
+    expect(within(eu).getByTitle('Indication: Chronic thromboembolic pulmonary hypertension')).toBeInTheDocument()
   })
 
   it('filters by asset and says when nothing matches', async () => {
@@ -180,7 +180,7 @@ describe('CompetitiveSignals', () => {
   it('badges rows with their indication and filters by it', async () => {
     renderWith(<CompetitiveSignals />)
     const rows = await screen.findAllByRole('button', { name: /Ofev/ })
-    expect(within(rows[0]).getByTitle('Indication: IPF')).toBeInTheDocument()
+    expect(within(rows[0]).getByTitle('Indication: Idiopathic pulmonary fibrosis')).toBeInTheDocument()
     await userEvent.type(screen.getByRole('searchbox', { name: 'Search title or competitor' }), 'label')
     expect(screen.getAllByRole('button', { name: /Ofev/ })).toHaveLength(1)
     expect(screen.queryByText('Ofev included in Medicare negotiation')).not.toBeInTheDocument()

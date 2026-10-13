@@ -22,9 +22,10 @@ export type ExportFormat = 'csv' | 'xlsx' | 'json' | 'pdf' | 'pptx' | 'ics'
 export const SCOPE_LABEL: Record<JourneyScope, string> = { key: 'Key events', all: 'All events' }
 export const ORDER_LABEL: Record<JourneyOrder, string> = { oldest: 'Oldest first', newest: 'Newest first' }
 
-/** "Category: Clinical, Patents · Starred only · Indication: PAH · Title contains “ralinepag”", or "None". */
+/** "Branch: PH-ILD · Category: Clinical, Patents · Starred only · Indication: PAH · Title contains “ralinepag”", or "None". */
 export function filtersLabel(f: ListFilters): string {
   const parts = [
+    f.branch && `Branch: ${f.branch}`,
     f.cats.length > 0 && `Category: ${f.cats.map((c) => CATEGORY_META[c].label).join(', ')}`,
     f.mine === 'starred' && 'Starred only',
     f.mine === 'notes' && 'Team notes only',
@@ -39,10 +40,14 @@ export function exportDay(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-/** `<asset-id>-journey-<scope>-<YYYY-MM-DD>.<ext>`, e.g. `treprostinil-journey-key-events-2026-10-10.csv`. */
-export function exportFileName(ctx: Pick<ExportContext, 'asset' | 'scope' | 'exportedAt'>, ext: ExportFormat): string {
-  const id = ctx.asset.id.replace(/[^\w.-]+/g, '-')
-  return `${id}-journey-${ctx.scope === 'key' ? 'key-events' : 'all-events'}-${exportDay(ctx.exportedAt)}.${ext}`
+/**
+ * `<asset-id>-journey-<scope>[-<branch>]-<YYYY-MM-DD>.<ext>`, e.g. `treprostinil-journey-key-events-2026-10-10.csv`,
+ * `treprostinil-journey-key-events-ph-ild-2026-10-10.csv` for a branch.
+ */
+export function exportFileName(ctx: Pick<ExportContext, 'asset' | 'scope' | 'exportedAt'> & { filters?: Pick<ListFilters, 'branch'> }, ext: ExportFormat): string {
+  const slug = (s: string) => s.replace(/[^\w.-]+/g, '-')
+  const branch = ctx.filters?.branch ? `-${slug(ctx.filters.branch).toLowerCase()}` : ''
+  return `${slug(ctx.asset.id)}-journey-${ctx.scope === 'key' ? 'key-events' : 'all-events'}${branch}-${exportDay(ctx.exportedAt)}.${ext}`
 }
 
 /** The event's date part as stored: `YYYY-MM-DD`, `YYYY-MM` or `YYYY`. */

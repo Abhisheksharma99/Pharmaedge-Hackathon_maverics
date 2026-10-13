@@ -14,7 +14,7 @@ const LIST = [ev('a', '2002-05-21', 'PAH'), ev('b', '2017-02-01', 'PH-ILD', { ca
 
 function setup(over: Partial<JourneyHeaderProps> = {}) {
   const props: JourneyHeaderProps = {
-    assetId: 'trep', model: MODEL, list: LIST, undated: 0, counts: journeyCounts(LIST, ['a']), view: 'h', order: 'oldest', scope: 'key', cats: [], mine: null,
+    assetId: 'trep', model: MODEL, list: LIST, unbranched: LIST, undated: 0, counts: journeyCounts(LIST, ['a']), view: 'h', order: 'oldest', scope: 'key', cats: [], mine: null,
     indications: ['PAH', 'PH-COPD', 'PH-ILD'], ind: null, q: '', focusBranch: null,
     onView: vi.fn(), onOrder: vi.fn(), onScope: vi.fn(), onToggleCat: vi.fn(), onMine: vi.fn(), onInd: vi.fn(), onQuery: vi.fn(), onFocusBranch: vi.fn(), onClear: vi.fn(), onAdd: vi.fn(), ...over,
   }

@@ -1,5 +1,5 @@
 import { Activity, Columns2, Flag, Plus, Rows2, Search, Star } from 'lucide-react'
-import { useId, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import { useId, useMemo, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router'
 import { FiltersToggle } from '@/components/filters-toggle'
 import { Button } from '@/components/ui/button'
@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils'
 import type { JourneyScope } from './api'
 import { BTN_SM, CHIP, CHIP_ON, FOCUS } from './controls'
 import { CATEGORIES, CATEGORY_META } from './constants'
-import { laneOf, type BranchModel, type JourneyOrder, type JourneyView, type Mine } from './journey-model'
+import { inBranch, laneOf, type BranchModel, type JourneyOrder, type JourneyView, type Mine } from './journey-model'
 import type { EventCategory, JourneyEventV3 } from './types'
 
 const ALL_INDICATIONS = '__all__'
@@ -20,6 +20,8 @@ export interface JourneyHeaderProps {
   model: BranchModel
   /** The events the view shows (after filters), oldest first. */
   list: JourneyEventV3[]
+  /** `list` before the branch filter: what each branch card counts (and would show when selected). */
+  unbranched: JourneyEventV3[]
   undated: number
   counts: { cats: Record<EventCategory, number>; starred: number; notes: number }
   view: JourneyView
@@ -31,6 +33,7 @@ export interface JourneyHeaderProps {
   indications: string[]
   ind: string | null
   q: string
+  /** The selected indication branch (`?branch=`): the views show its events (and those spanning it) and highlight its lane. */
   focusBranch: string | null
   onView: (v: JourneyView) => void
   onOrder: (o: JourneyOrder) => void
@@ -42,8 +45,6 @@ export interface JourneyHeaderProps {
   onFocusBranch: (id: string | null) => void
   onClear: () => void
   onAdd: () => void
-  /** The Export menu, beside "Add to timeline" (stays with the actions when the filters are hidden). */
-  exportMenu?: ReactNode
 }
 
 /**
@@ -52,19 +53,13 @@ export interface JourneyHeaderProps {
  * branch cards and filters away (remembered) so the timeline sits right under the actions; the filters keep applying.
  */
 export function JourneyHeader(p: JourneyHeaderProps) {
-  const { model, list } = p
+  const { model, list, unbranched } = p
   const span = list.length ? `${list[0]!.date.slice(0, 4)}–${list[list.length - 1]!.date.slice(0, 4)}` : ''
-  const perLane = useMemo(() => {
-    const m = new Map<string, JourneyEventV3[]>()
-    for (const e of list) {
-      const id = laneOf(e, model)
-      const mine = m.get(id)
-      if (mine) mine.push(e)
-      else m.set(id, [e])
-    }
-    return m
+  const perBranch = useMemo(() => new Map(model.list.map((b) => [b.id, unbranched.filter((e) => inBranch(e, b.id, model))])), [unbranched, model])
+  const laneCount = useMemo(() => {
+    const lanes = new Set(list.map((e) => laneOf(e, model)))
+    return model.list.filter((b) => lanes.has(b.id)).length
   }, [list, model])
-  const laneCount = model.list.filter((b) => perLane.has(b.id)).length
   const [collapsed, setCollapsed] = useCollapsed('journey.filters')
   const filtersId = useId()
   const nActive = p.cats.length + (p.focusBranch ? 1 : 0) + (p.mine ? 1 : 0) + (p.ind ? 1 : 0) + (p.q ? 1 : 0)
@@ -76,7 +71,7 @@ export function JourneyHeader(p: JourneyHeaderProps) {
           {list.length} event{list.length === 1 ? '' : 's'}
           {span && `, ${span}`}
           {model.multi && ` · ${laneCount} indication branch${laneCount === 1 ? '' : 'es'}`}.
-          {!collapsed && (model.multi ? ' Each new indication forks off the programme that led to it; select a branch to focus it.' : ' Open a card’s subtree for its evidence and linked events.')}
+          {!collapsed && (model.multi ? ' Each new indication forks off the programme that led to it; select a branch to show only its events.' : ' Open a card’s subtree for its evidence and linked events.')}
           {p.undated > 0 && ` ${p.undated} undated event${p.undated === 1 ? ' is' : 's are'} not placed on the timeline.`}
         </p>
       </div>
@@ -110,14 +105,13 @@ export function JourneyHeader(p: JourneyHeaderProps) {
         <Button size="sm" className={BTN_SM} onClick={p.onAdd}>
           <Plus /> Add to timeline
         </Button>
-        {p.exportMenu}
         <FiltersToggle collapsed={collapsed} onCollapsed={setCollapsed} controls={filtersId} active={nActive} onClear={p.onClear} />
       </div>
       <div id={filtersId} hidden={collapsed} className="flex basis-full flex-col gap-[12px]">
         {model.multi && (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-[8px]">
             {model.list.map((b) => {
-              const mine = perLane.get(b.id) ?? []
+              const mine = perBranch.get(b.id) ?? []
               const on = p.focusBranch === b.id
               const parent = b.from ? model.byId.get(b.from)?.label : undefined
               return (
@@ -125,7 +119,7 @@ export function JourneyHeader(p: JourneyHeaderProps) {
                   key={b.id}
                   type="button"
                   aria-pressed={on}
-                  disabled={!mine.length}
+                  disabled={!mine.length && !on}
                   onClick={() => p.onFocusBranch(on ? null : b.id)}
                   className={cn(
                     'flex flex-col gap-[2px] rounded-xl border bg-card px-[12px] py-[10px] text-left transition-[border-color,box-shadow,opacity] hover:border-[var(--lc)]',

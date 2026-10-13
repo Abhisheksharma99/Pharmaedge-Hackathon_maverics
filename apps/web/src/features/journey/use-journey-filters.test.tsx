@@ -36,7 +36,7 @@ afterEach(() => vi.unstubAllGlobals())
 describe('useJourneyFilters', () => {
   it('defaults to horizontal, oldest first, key events and no filters', () => {
     const { result } = setup('/assets/trep/overview')
-    expect(result.current).toMatchObject({ view: 'h', order: 'oldest', scope: 'key', cats: [], mine: null, ind: null, q: '', focus: null })
+    expect(result.current).toMatchObject({ view: 'h', order: 'oldest', scope: 'key', cats: [], mine: null, ind: null, q: '', branch: null, focus: null })
   })
 
   it('is horizontal by default whatever was saved before (prefs, localStorage): only the URL opens the vertical view', async () => {
@@ -74,6 +74,21 @@ describe('useJourneyFilters', () => {
     act(() => result.current.setOrder('newest'))
     act(() => result.current.showEverything())
     await waitFor(() => expect(search().toString()).toBe('order=newest&scope=all'))
+  })
+
+  it('keeps the selected indication branch in the URL; Clear and "show everything" drop it', async () => {
+    const { result, search } = setup('/journey/trep?branch=PH-ILD')
+    expect(result.current.branch).toBe('PH-ILD')
+    act(() => result.current.setBranch('PAH'))
+    await waitFor(() => expect(search().toString()).toBe('branch=PAH'))
+    act(() => result.current.setBranch(null))
+    await waitFor(() => expect(search().toString()).toBe(''))
+    act(() => result.current.setBranch('PAH'))
+    act(() => result.current.clearFilters())
+    await waitFor(() => expect(search().toString()).toBe(''))
+    act(() => result.current.setBranch('PAH'))
+    act(() => result.current.showEverything())
+    await waitFor(() => expect(search().toString()).toBe('scope=all'))
   })
 
   it('keeps scope, categories and Starred / Team notes in the URL and ignores unknown values', async () => {

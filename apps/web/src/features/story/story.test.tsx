@@ -141,11 +141,11 @@ describe('journey story', () => {
     renderPanel(tagged)
     const timeline = await screen.findByTestId('story-timeline')
     const changed = screen.getByRole('region', { name: 'What changed' })
-    expect(within(changed).getByTitle('Indication: PH-ILD')).toBeInTheDocument()
+    expect(within(changed).getByTitle('Indication: Pulmonary hypertension associated with interstitial lung disease')).toBeInTheDocument()
 
     await userEvent.click(within(timeline).getByRole('button', { name: /FDA approves efficacy supplement for Tyvaso \(PAH\)/ }))
     const inspector = screen.getByRole('complementary', { name: 'Selected event' })
-    expect(within(inspector).getByTitle('Indication: PAH')).toBeInTheDocument()
+    expect(within(inspector).getByTitle('Indication: Pulmonary arterial hypertension')).toBeInTheDocument()
 
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Indication' }), 'PH-ILD')
     expect(within(timeline).getByRole('button', { name: /inhaled treprostinil for PH-ILD/ })).toBeInTheDocument()
