@@ -16,7 +16,7 @@ export interface WebResult {
   fetched_at: string;
 }
 
-/** Public, citable sources only (ANALYTICS_PIPELINE §2); the asset's company IR domain is added per search. */
+/** Public, citable sources only (ANALYTICS_PIPELINE §2); the asset's company IR domain is added per search. Mirrored by the crawler's WEB_ALLOW_LIST (allow-list.spec.ts). */
 export const ALLOWED_DOMAINS = ['fda.gov', 'open.fda.gov', 'ema.europa.eu', 'clinicaltrials.gov', 'pubmed.ncbi.nlm.nih.gov', 'sec.gov'];
 
 // Same chunking as the crawler's index step (crawler/ai/index.py).

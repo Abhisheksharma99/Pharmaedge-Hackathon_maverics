@@ -8,6 +8,8 @@ import type { AssetDetail, RecordsPage, SourceRecord } from '../api'
 import { ClinicalTab, CompanyIrTab, ConferencesTab, DocumentsTab, PatentsTab, PublicationsTab, RegulatoryTab } from './tabs'
 
 vi.mock('@/features/analytics/tab-insights', () => ({ TabInsights: () => null }))
+const downloadBlob = vi.hoisted(() => vi.fn<(blob: Blob, filename: string) => void>())
+vi.mock('@/features/journey/export/build', () => ({ downloadBlob }))
 
 const json = (status: number, body?: unknown) =>
   new Response(body === undefined ? null : JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
@@ -166,6 +168,30 @@ describe('clinical records panel', () => {
     await waitFor(() => expect(decodeURIComponent(recordUrls().at(-1)!)).not.toContain('"phases"'))
     await userEvent.click(screen.getByRole('button', { name: 'Show filters' }))
     expect(screen.getByRole('button', { name: /Phase 3\s*9/ })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('exports every record matching the filters as CSV, not just the page', async () => {
+    respond({ '/api/assets/trep/records/clinical': CLINICAL })
+    renderTab(<ClinicalTab />, 'clinical')
+    await screen.findByText('TETON')
+    await userEvent.click(screen.getByRole('button', { name: /Phase 3\s*9/ }))
+    await waitFor(() => expect(decodeURIComponent(recordUrls().at(-1)!)).toContain('"phases"'))
+
+    await userEvent.click(screen.getByRole('button', { name: 'Export' }))
+    expect(await screen.findByText('Exports the 2 records matching')).toBeInTheDocument()
+    expect(screen.getByText(/Filters: Phase: Phase 3/)).toBeInTheDocument()
+    downloadBlob.mockClear()
+    await userEvent.click(screen.getByRole('menuitem', { name: /CSV/ }))
+    await waitFor(() => expect(downloadBlob).toHaveBeenCalledTimes(1))
+
+    const exportUrl = decodeURIComponent(recordUrls().find((u) => u.includes('pageSize=100'))!)
+    expect(exportUrl).toContain('facets={"phases":"PHASE3"}')
+    const [blob, filename] = downloadBlob.mock.calls[0]!
+    expect(filename).toMatch(/^trep-clinical-\d{4}-\d{2}-\d{2}\.csv$/)
+    const lines = (await blob.text()).replace(/^\uFEFF/, '').trim().split('\r\n')
+    expect(lines[0]).toBe('NCT ID,Study,Phase,Status,Indication,Sponsor,Enrolment,Start → primary completion,Journey events,Source link')
+    expect(lines[1]).toBe('NCT1,TETON: Inhaled treprostinil in IPF,Phase 3,Recruiting,IPF; PH-ILD,United Therapeutics Corp,576,2021-03 → 2026-06,TETON readout,')
+    expect(lines).toHaveLength(3)
   })
 
   it('mutes the sponsor when it is not the asset company', async () => {

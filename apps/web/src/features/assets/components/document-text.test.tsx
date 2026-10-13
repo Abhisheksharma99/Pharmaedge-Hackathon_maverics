@@ -1,5 +1,6 @@
 import { render, screen, within } from '@testing-library/react'
-import { DocumentText, MentionExcerpts, excerpts, segments } from './document-text'
+import { excerpts, segments } from './document-segments'
+import { DocumentText, MentionExcerpts } from './document-text'
 
 // Shape of a crawled earnings release (BMS Q3 2023): headline lines, a flattened table, the asset paragraphs, boilerplate.
 const RELEASE = [

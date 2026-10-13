@@ -177,15 +177,18 @@ export function useTimeline(id: string, filters: TimelineFilters) {
   })
 }
 
+/** The records endpoint for a query; the picked facets travel as JSON, empty picks left out. */
+export function recordsPath(id: string, tab: RecordTab, query: RecordsQuery): string {
+  const { facets, ...rest } = query
+  const picked = Object.fromEntries(Object.entries(facets ?? {}).filter(([, v]) => v))
+  const params = Object.keys(picked).length ? { ...rest, facets: JSON.stringify(picked) } : rest
+  return `/assets/${encodeURIComponent(id)}/records/${tab}${toQueryString(params)}`
+}
+
 export function useRecords(id: string, tab: RecordTab, query: RecordsQuery) {
   return useQuery({
     queryKey: ['asset', id, 'records', tab, query],
-    queryFn: () => {
-      const { facets, ...rest } = query
-      const picked = Object.fromEntries(Object.entries(facets ?? {}).filter(([, v]) => v))
-      const params = Object.keys(picked).length ? { ...rest, facets: JSON.stringify(picked) } : rest
-      return apiFetch<RecordsPage>(`/assets/${encodeURIComponent(id)}/records/${tab}${toQueryString(params)}`)
-    },
+    queryFn: () => apiFetch<RecordsPage>(recordsPath(id, tab, query)),
     placeholderData: keepPreviousData,
   })
 }

@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { useAuth, type Role } from '@/features/auth/auth-context'
+import { useAuth, type Role } from '@/features/auth/use-auth'
 import { ApiError } from '@/lib/api'
 import { useCreateUser, useUpdateUser, useUsers } from './users-api'
 

@@ -1,6 +1,7 @@
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router";
-import { CardFilters, useCardFilter } from "@/components/card-filters";
+import { CardFilters } from "@/components/card-filters";
+import { useCardFilter } from "@/components/use-card-filter";
 import { InlineError } from "@/components/inline-error";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";

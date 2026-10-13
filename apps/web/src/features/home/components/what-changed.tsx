@@ -1,9 +1,12 @@
 import { Sparkle } from 'lucide-react'
 import { Link } from 'react-router'
-import { CardFilters, useCardFilter } from '@/components/card-filters'
+import { CardFilters } from '@/components/card-filters'
+import { useCardFilter } from '@/components/use-card-filter'
+import { TableExportMenu } from '@/components/table-export-menu'
 import { InlineError } from '@/components/inline-error'
 import { AssetTile } from '@/features/assets/components/asset-tile'
-import { CATEGORY_META, CategoryIcon, IndicationBadges, SignificanceBadge } from '@/features/assets/components/badges'
+import { CategoryIcon, IndicationBadges, SignificanceBadge } from '@/features/assets/components/badges'
+import { CATEGORY_META } from '@/features/assets/components/category-meta'
 import { EmptyState, Panel } from '@/features/assets/components/panel'
 import { eventIndications } from '@/features/journey/indications'
 import type { JourneyEventV3 } from '@/features/journey/types'
@@ -11,6 +14,7 @@ import { formatDay, todayIso } from '@/lib/dates'
 import { useEventSheet } from '@/stores/event-sheet-store'
 import { usePortfolioTimeline, type PortfolioAsset } from '../api'
 import { whatChanged } from '../home-data'
+import { cardFiltersText, portfolioEventsExport } from '../home-export'
 import { ListSkeleton } from './list-skeleton'
 import { NoMatches } from './no-matches'
 
@@ -29,9 +33,25 @@ export function WhatChanged() {
   ])
   const keep = new Set(filtered)
   const shownGroups = groups.map((g) => ({ ...g, events: g.events.filter((e) => keep.has(e)) })).filter((g) => g.events.length > 0)
+  const filtersText = cardFiltersText(filters)
+  const exportMenu = all.length > 0 && (
+    <TableExportMenu
+      title={`Exports the ${filtered.length} event${filtered.length === 1 ? '' : 's'} shown`}
+      detail={`Last 90 days · ${filtersText === 'None' ? 'no filters' : `filters: ${filtersText}`}`}
+      disabled={filtered.length === 0}
+      build={async () =>
+        portfolioEventsExport({ card: 'What changed', stem: 'portfolio-what-changed', events: filtered, assets, filters: filtersText, origin: window.location.origin })
+      }
+    />
+  )
 
   return (
-    <Panel title="What changed" description="High- and medium-significance events across your assets and their competitors" bodyClassName="pt-[4px] pb-[8px]">
+    <Panel
+      title="What changed"
+      description="High- and medium-significance events across your assets and their competitors"
+      actions={exportMenu}
+      bodyClassName="pt-[4px] pb-[8px]"
+    >
       {portfolio.isPending && <ListSkeleton />}
       {portfolio.isError && <InlineError message="Recent events couldn't be loaded." onRetry={() => void portfolio.refetch()} />}
       {portfolio.data && groups.length === 0 && <EmptyState title="Quiet quarter">No new key events in the last 90 days.</EmptyState>}

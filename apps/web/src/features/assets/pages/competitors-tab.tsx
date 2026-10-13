@@ -8,7 +8,7 @@ import { AssetCard, CARD_GRID, CompetitorCards } from '../components/competitors
 import { IdentifyCompetitors } from '../components/competitors/identify-competitors'
 import { LoadError } from '../components/competitors/load-error'
 import { EmptyState, Panel } from '../components/panel'
-import { useAssetContext } from './asset-layout'
+import { useAssetContext } from './asset-context'
 
 /** Card-grid placeholder matching the competitor cards (same grid, ~170px cards). */
 function Loading() {

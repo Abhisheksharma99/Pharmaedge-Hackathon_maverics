@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { toast } from 'sonner'
 import { useNavigate } from 'react-router'
-import { ASSET_TABS } from '@/features/assets/pages/asset-layout'
+import { ASSET_TABS } from '@/features/assets/pages/asset-context'
 import type { NavTarget } from './api'
 import { useTurnStore } from './turn-store'
 

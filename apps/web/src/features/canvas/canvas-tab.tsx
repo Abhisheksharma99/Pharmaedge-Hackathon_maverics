@@ -1,5 +1,5 @@
 import { Loader2, RefreshCw, Save, Sparkles, Trash2 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { NavLink, useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -10,7 +10,7 @@ import { CHIP, CHIP_ON } from '@/features/journey/controls'
 import { EmptyState } from '@/features/assets/components/panel'
 import { RecordSheet } from '@/features/assets/components/record-sheet'
 import { TAB_FOR_COLLECTION } from '@/features/assets/api'
-import { useAssetContext } from '@/features/assets/pages/asset-layout'
+import { useAssetContext } from '@/features/assets/pages/asset-context'
 import type { RecordTab } from '@/features/assets/api'
 import { ApiError } from '@/lib/api'
 import { formatDate } from '@/lib/format'
@@ -58,8 +58,7 @@ function CanvasEditor({ canvas, highlight, onAdded }: { canvas: Canvas; highligh
         onError: (err) => !quiet && toast.error(err instanceof ApiError ? err.message : 'The canvas couldn’t be updated. Try again.'),
       },
     )
-  const updateRef = useRef(update)
-  updateRef.current = update
+  const liveUpdate = useEffectEvent(() => update(true))
 
   // Live while data is collected: merge new events as the pipeline writes them, and once more when it ends.
   const running = !!job
@@ -68,9 +67,9 @@ function CanvasEditor({ canvas, highlight, onAdded }: { canvas: Canvas; highligh
     const ended = wasRunning.current && !running
     wasRunning.current = running
     if (dirty || (!running && !ended)) return
-    if (ended) updateRef.current(true)
+    if (ended) liveUpdate()
     if (!running) return
-    const timer = setInterval(() => updateRef.current(true), LIVE_CHECK_MS)
+    const timer = setInterval(liveUpdate, LIVE_CHECK_MS)
     return () => clearInterval(timer)
   }, [running, dirty])
 

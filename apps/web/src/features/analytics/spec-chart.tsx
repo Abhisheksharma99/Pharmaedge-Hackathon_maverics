@@ -1,5 +1,5 @@
 import { TriangleAlert } from 'lucide-react'
-import { useCardFilter, type FilterFacet } from '@/components/card-filters'
+import { useCardFilter, type FilterFacet } from '@/components/use-card-filter'
 import { Donut } from '@/components/charts/donut'
 import { HBars } from '@/components/charts/h-bars'
 import { StackBars } from '@/components/charts/stack-bars'

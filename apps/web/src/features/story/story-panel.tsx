@@ -14,7 +14,7 @@ import { RecordSheet } from '@/features/assets/components/record-sheet'
 import { Segmented } from '@/features/assets/components/segmented'
 import { TD, TH } from '@/features/assets/components/records-cells'
 import { Pct } from '@/features/assets/pages/market-tab'
-import { useAssetContext } from '@/features/assets/pages/asset-layout'
+import { useAssetContext } from '@/features/assets/pages/asset-context'
 import { useAskStore } from '@/features/chat/ask-store'
 import { formatDate } from '@/lib/format'
 import { useCollapsed } from '@/lib/use-collapsed'
@@ -22,7 +22,8 @@ import { cn, safeUrl } from '@/lib/utils'
 import { useShellStore } from '@/stores/shell-store'
 import { storyIndications, useDeleteStory, useStory, type Chapter, type Story, type StoryEvent, type StoryFilters, type StoryNote } from './api'
 import { useLiveStories } from './live-store'
-import { CATEGORY_COLOR, CATEGORY_LABEL, StoryTimeline, eventFlag } from './story-timeline'
+import { CATEGORY_COLOR, CATEGORY_LABEL, eventFlag } from './story-model'
+import { StoryTimeline } from './story-timeline'
 
 /**
  * A journey story Asset AI built (or is building): the question, the timeline drawn layer by layer, its filters,
@@ -33,6 +34,7 @@ import { CATEGORY_COLOR, CATEGORY_LABEL, StoryTimeline, eventFlag } from './stor
 type Range = 'all' | 'focus' | 'recent' | 'ahead' | 'chapter'
 const CATEGORIES: EventCategory[] = ['regulatory', 'clinical', 'company', 'ip']
 const ROWS = 6 // per tab of "what changed" before "Show all"
+const utcToday = () => new Date().toISOString().slice(0, 10)
 const shift = (d: string, days: number) => new Date(Date.parse(`${d}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10)
 
 function Chip({ active, onClick, color, children }: { active: boolean; onClick: () => void; color?: string; children: ReactNode }) {
@@ -174,23 +176,21 @@ export function StoryPanel({ storyId }: { storyId: string }) {
 
   // A story about a focus window opens zoomed to it, so the changes have room; "All" is one click away.
   const autoFocused = useRef(false)
-  const today0 = new Date().toISOString().slice(0, 10)
   useEffect(() => {
     if (autoFocused.current || !since || building) return
     autoFocused.current = true
     setRange('focus')
-    setFilters((f) => ({ ...f, from: shift(since, -365), to: shift(today0, 730) }))
-  }, [since, building, today0])
+    setFilters((f) => ({ ...f, from: shift(since, -365), to: shift(utcToday(), 730) }))
+  }, [since, building])
 
   // Highlights first; when that leaves too little to read (or hides what the notes point at), Key events instead.
-  const autoKey = useRef(false)
+  // Judged once, during render (no extra effect pass), on the view the story opens on: after the zoom to its focus window.
+  const [autoKeyed, setAutoKeyed] = useState(false)
   const shown = saved.data?.story.counts.shown
-  useEffect(() => {
-    if (autoKey.current || building || shown === undefined || saved.isPlaceholderData || filters.significance?.join() !== 'High') return
-    if (since && !filters.from) return // judge the view the story opens on: after the zoom to its focus window
-    autoKey.current = true
+  if (!autoKeyed && !building && shown !== undefined && !saved.isPlaceholderData && filters.significance?.join() === 'High' && !(since && !filters.from)) {
+    setAutoKeyed(true)
     if (shown < 12) setFilters((f) => ({ ...f, significance: undefined }))
-  }, [shown, building, filters.significance, filters.from, since, saved.isPlaceholderData])
+  }
 
   const byId = useMemo(() => {
     const m = new Map<string, StoryEvent>()
@@ -223,7 +223,6 @@ export function StoryPanel({ storyId }: { storyId: string }) {
     setRange(r)
     setFilters(({ from: _f, to: _t, ...rest }) => ({ ...rest, ...(from ? { from } : {}), ...(to ? { to } : {}) }))
   }
-  const today = story?.range?.today ?? new Date().toISOString().slice(0, 10)
   const toggleCategory = (c: EventCategory) =>
     setFilters((f) => {
       const cur = f.category?.length ? f.category : CATEGORIES
@@ -331,6 +330,7 @@ export function StoryPanel({ storyId }: { storyId: string }) {
             label="Range"
             value={range === 'chapter' ? 'all' : range}
             onChange={(r) => {
+              const today = story?.range?.today ?? utcToday()
               if (r === 'all') setSpan('all')
               else if (r === 'focus' && since) setSpan('focus', shift(since, -365), shift(today, 730))
               else if (r === 'recent') setSpan('recent', shift(today, -3 * 365), shift(today, 365))

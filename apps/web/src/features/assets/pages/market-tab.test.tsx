@@ -5,7 +5,8 @@ import type { Mock } from 'vitest'
 import { createMemoryRouter, Outlet, RouterProvider } from 'react-router'
 import type { AssetDetail, AssetMarket, MarketEvent } from '../api'
 import type { MeasuredEvent } from './market-chart'
-import { MarketTab, rangeStart } from './market-tab'
+import { rangeStart } from './market-model'
+import { MarketTab } from './market-tab'
 
 // jsdom has no canvas: a stand-in that exposes the chart's hover and click callbacks as buttons.
 vi.mock('./market-chart', () => ({

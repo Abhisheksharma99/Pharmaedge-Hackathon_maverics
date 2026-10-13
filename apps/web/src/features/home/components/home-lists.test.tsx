@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import ExcelJS from 'exceljs'
 import type { ReactElement } from 'react'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import type { JourneyEventV3 } from '@/features/journey/types'
@@ -9,6 +10,9 @@ import type { PortfolioTimeline } from '../api'
 import { CompetitiveSignals } from './competitive-signals'
 import { NextMilestones } from './next-milestones'
 import { WhatChanged } from './what-changed'
+
+const downloadBlob = vi.hoisted(() => vi.fn<(blob: Blob, filename: string) => void>())
+vi.mock('@/features/journey/export/build', () => ({ downloadBlob }))
 
 const json = (status: number, body?: unknown) =>
   new Response(body === undefined ? null : JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
@@ -70,6 +74,7 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date('2026-10-09T09:00:00'))
   useEventSheet.setState({ current: null })
+  downloadBlob.mockClear()
 })
 afterEach(() => {
   vi.useRealTimers()
@@ -121,6 +126,25 @@ describe('WhatChanged', () => {
     expect(screen.getByText('HYPERION results presented')).toBeInTheDocument()
   })
 
+  it('exports the events shown after the card filters as CSV', async () => {
+    renderWith(<WhatChanged />)
+    await screen.findByRole('region', { name: 'Last 7 days' })
+    await userEvent.click(screen.getByRole('combobox', { name: 'Indication' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'IPF' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Export' }))
+    expect(await screen.findByText('Exports the 1 event shown')).toBeInTheDocument()
+    expect(screen.getByText('Last 90 days · filters: Indication: IPF')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('menuitem', { name: /CSV/ }))
+    await waitFor(() => expect(downloadBlob).toHaveBeenCalledTimes(1))
+    const [blob, filename] = downloadBlob.mock.calls[0]!
+    expect(filename).toBe('portfolio-what-changed-2026-10-09.csv')
+    const lines = (await blob.text()).replace(/^\uFEFF/, '').trim().split('\r\n')
+    expect(lines).toEqual([
+      'Date,Title,Asset,Tracked as,Category,Significance,Indications,Event link',
+      `2026-08-01,Ofev included in Medicare negotiation,Nintedanib,Competitor,Company,Medium,IPF,${window.location.origin}/journey/nint?focus=d3`,
+    ])
+  })
+
   it('reads "Quiet quarter" when nothing changed', async () => {
     renderWith(<WhatChanged />, { ...PORTFOLIO, events: [] })
     expect(await screen.findByText('Quiet quarter')).toBeInTheDocument()
@@ -161,6 +185,31 @@ describe('NextMilestones filters', () => {
     expect(screen.queryByRole('button', { name: /TETON-2 readout/ })).not.toBeInTheDocument()
     await userEvent.type(screen.getByRole('searchbox', { name: 'Search title or asset' }), 'zzz')
     expect(screen.getByText('No milestones match these filters')).toBeInTheDocument()
+  })
+})
+
+describe('NextMilestones export', () => {
+  it('exports every upcoming milestone the filters keep, soonest first, as Excel', async () => {
+    renderWith(<NextMilestones />)
+    await screen.findByRole('button', { name: /TETON-2 readout/ })
+    await userEvent.click(screen.getByRole('combobox', { name: 'Asset' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'Nintedanib' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Export' }))
+    expect(await screen.findByText('Exports the 2 upcoming milestones matching')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('menuitem', { name: /Excel/ }))
+    await waitFor(() => expect(downloadBlob).toHaveBeenCalledTimes(1))
+    const [blob, filename] = downloadBlob.mock.calls[0]!
+    expect(filename).toBe('portfolio-next-milestones-2026-10-09.xlsx')
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load(await blob.arrayBuffer())
+    const ws = wb.getWorksheet('Next milestones')!
+    expect(ws.rowCount).toBe(3)
+    expect(ws.getCell('B2').value).toBe('Ofev label update expected')
+    expect(ws.getCell('A2').value).toEqual(new Date(Date.UTC(2027, 1, 1)))
+    expect(ws.getCell('B3').value).toBe('Ofev patent expiry')
+    const about = wb.getWorksheet('About')!
+    const facts = Object.fromEntries(about.getSheetValues().filter(Boolean).map((r) => [(r as unknown[])[1], (r as unknown[])[2]]))
+    expect(facts).toMatchObject({ Card: 'Home · Next milestones', Filters: 'Asset: Nintedanib', Events: 2 })
   })
 })
 

@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { routes } from '@/routes'
 import { AuthProvider, type User } from './auth-context'
-import { safeReturnTo } from './route-guards'
+import { safeReturnTo } from './return-to'
 
 const ADMIN: User = { id: '1', email: 'admin@x.com', name: 'Ada Admin', role: 'admin', active: true, createdAt: '' }
 const ANALYST: User = { ...ADMIN, id: '2', email: 'ana@x.com', name: 'Ana Analyst', role: 'analyst' }

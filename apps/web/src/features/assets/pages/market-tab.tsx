@@ -1,5 +1,6 @@
 import { lazy, Suspense, useId, useMemo, useRef, useState, type ReactNode } from 'react'
-import { CardFilters, useCardFilter } from '@/components/card-filters'
+import { CardFilters } from '@/components/card-filters'
+import { useCardFilter } from '@/components/use-card-filter'
 import { FiltersToggle } from '@/components/filters-toggle'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -8,8 +9,9 @@ import { eventIndications } from '@/features/journey/indications'
 import { formatDate } from '@/lib/format'
 import { useCollapsed } from '@/lib/use-collapsed'
 import { cn } from '@/lib/utils'
-import { useMarket, type EventCategory, type MarketImpact, type Significance } from '../api'
-import { CATEGORY_META, CategoryIcon, IndicationBadges, SignificanceBadge } from '../components/badges'
+import { useMarket, type EventCategory, type Significance } from '../api'
+import { CategoryIcon, IndicationBadges, SignificanceBadge } from '../components/badges'
+import { CATEGORY_META } from '../components/category-meta'
 import { TAB_FOR_COLLECTION } from '../api'
 import { LoadError } from '../components/competitors/load-error'
 import { EmptyState, Panel } from '../components/panel'
@@ -17,7 +19,8 @@ import { TD, TH } from '../components/records-cells'
 import { RecordSheet } from '../components/record-sheet'
 import { Segmented } from '../components/segmented'
 import type { MeasuredEvent } from './market-chart'
-import { useAssetContext } from './asset-layout'
+import { useAssetContext } from './asset-context'
+import { headline, rangeStart, type Range } from './market-model'
 
 /**
  * The asset company's share price with the move after each journey event (API /assets/:id/market, data from the
@@ -27,24 +30,11 @@ import { useAssetContext } from './asset-layout'
 
 const MarketChart = lazy(() => import('./market-chart'))
 
-type Range = '1y' | '5y' | 'all'
 type Scope = 'key' | 'high'
 type Order = 'newest' | 'largest'
-const YEARS: Record<Range, number | null> = { '1y': 1, '5y': 5, all: null }
 const SIGNIFICANCE: Record<Scope, Significance[]> = { key: ['High', 'Medium'], high: ['High'] }
 const CATEGORIES = Object.keys(CATEGORY_META) as EventCategory[]
 const ROWS_SHOWN = 25
-
-export function rangeStart(range: Range, today = new Date()): string | null {
-  const years = YEARS[range]
-  if (years === null) return null
-  const d = new Date(today)
-  d.setFullYear(d.getFullYear() - years)
-  return d.toISOString().slice(0, 10)
-}
-
-/** The move that sums up the reaction: +5 trading days when measured, else day 0. */
-export const headline = (i: MarketImpact) => i.day5 ?? i.day0
 
 export function Pct({ value, className }: { value: number | null | undefined; className?: string }) {
   if (value === null || value === undefined) return <span className={cn('text-muted-foreground', className)}>—</span>

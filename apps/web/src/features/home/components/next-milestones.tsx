@@ -1,7 +1,10 @@
-import { CardFilters, useCardFilter } from '@/components/card-filters'
+import { CardFilters } from '@/components/card-filters'
+import { useCardFilter } from '@/components/use-card-filter'
+import { TableExportMenu } from '@/components/table-export-menu'
 import { InlineError } from '@/components/inline-error'
 import { AssetTile } from '@/features/assets/components/asset-tile'
-import { CATEGORY_META as CATEGORY_LABELS, IndicationBadges } from '@/features/assets/components/badges'
+import { IndicationBadges } from '@/features/assets/components/badges'
+import { CATEGORY_META as CATEGORY_LABELS } from '@/features/assets/components/category-meta'
 import { EmptyState, Panel } from '@/features/assets/components/panel'
 import { CATEGORY_META } from '@/features/journey/constants'
 import { eventIndications } from '@/features/journey/indications'
@@ -10,6 +13,7 @@ import { daysBetween, relativeFuture, todayIso } from '@/lib/dates'
 import { useEventSheet } from '@/stores/event-sheet-store'
 import { usePortfolioTimeline } from '../api'
 import { proximity, upcomingMilestones } from '../home-data'
+import { cardFiltersText, portfolioEventsExport } from '../home-export'
 import { ListSkeleton } from './list-skeleton'
 import { NoMatches } from './no-matches'
 
@@ -30,9 +34,21 @@ export function NextMilestones() {
     { label: 'Category', of: (e) => [CATEGORY_LABELS[e.category]?.label ?? e.category] },
   ])
   const items = filtered.slice(0, 6)
+  const filtersText = cardFiltersText(filters)
+  // The card lists the soonest six; the export holds every upcoming milestone the filters keep.
+  const exportMenu = upcoming.length > 0 && (
+    <TableExportMenu
+      title={`Exports ${filtersText === 'None' ? 'all' : 'the'} ${filtered.length} upcoming milestone${filtered.length === 1 ? '' : 's'}${filtersText === 'None' ? '' : ' matching'}`}
+      detail={`Soonest first; the card shows the next ${Math.min(6, filtered.length)} · ${filtersText === 'None' ? 'no filters' : `filters: ${filtersText}`}`}
+      disabled={filtered.length === 0}
+      build={async () =>
+        portfolioEventsExport({ card: 'Next milestones', stem: 'portfolio-next-milestones', events: filtered, assets, filters: filtersText, origin: window.location.origin })
+      }
+    />
+  )
 
   return (
-    <Panel title="Next milestones" description="Readouts, regulatory decisions and patent expiries" bodyClassName="pt-[4px] pb-[6px]">
+    <Panel title="Next milestones" description="Readouts, regulatory decisions and patent expiries" actions={exportMenu} bodyClassName="pt-[4px] pb-[6px]">
       {portfolio.isPending && <ListSkeleton rows={3} />}
       {portfolio.isError && <InlineError message="Milestones couldn't be loaded." onRetry={() => void portfolio.refetch()} />}
       {portfolio.data && items.length === 0 && (

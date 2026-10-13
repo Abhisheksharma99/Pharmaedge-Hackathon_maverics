@@ -9,18 +9,11 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { useAuth } from '@/features/auth/auth-context'
+import { useAuth } from '@/features/auth/use-auth'
+import { initials } from '@/lib/initials'
 import { useShellStore } from '@/stores/shell-store'
 import { CrawlChip } from './crawl-chip'
 import { NotificationsPopover } from './notifications-popover'
-
-export const initials = (name: string) =>
-  name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]!.toUpperCase())
-    .join('')
 
 const MENU_ITEM = 'gap-[8px] rounded-none px-[14px] py-[9px] text-secondary-foreground focus:bg-background focus:text-secondary-foreground'
 

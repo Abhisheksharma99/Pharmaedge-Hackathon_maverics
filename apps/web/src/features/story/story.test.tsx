@@ -7,7 +7,7 @@ import type { AssetDetail } from '@/features/assets/api'
 import type { SavedStory, StoryEvent } from './api'
 import { useLiveStories } from './live-store'
 import { StoryPanel } from './story-panel'
-import { clusterEvents } from './story-timeline'
+import { clusterEvents } from './story-model'
 
 const json = (status: number, body?: unknown) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 

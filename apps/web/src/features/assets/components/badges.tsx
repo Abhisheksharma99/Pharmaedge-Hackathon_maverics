@@ -1,7 +1,7 @@
-import { FlaskConical, Landmark, Megaphone, Stamp, type LucideIcon } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import type { EventCategory, Significance } from '../api'
+import { CATEGORY_META } from './category-meta'
 import { indicationName, shortIndication } from './competitors/utils'
 
 const SIGNIFICANCE_STYLE: Record<Significance, string> = {
@@ -16,13 +16,6 @@ export function SignificanceBadge({ value }: { value: Significance }) {
       {value}
     </span>
   )
-}
-
-export const CATEGORY_META: Record<EventCategory, { label: string; icon: LucideIcon; tone: string }> = {
-  regulatory: { label: 'Regulatory', icon: Landmark, tone: 'bg-primary-soft text-primary' },
-  clinical: { label: 'Clinical', icon: FlaskConical, tone: 'bg-success-soft text-success' },
-  company: { label: 'Company', icon: Megaphone, tone: 'bg-orange-soft text-orange' },
-  ip: { label: 'Patents', icon: Stamp, tone: 'bg-violet-soft text-violet' },
 }
 
 export function CategoryIcon({ category, className }: { category: EventCategory; className?: string }) {

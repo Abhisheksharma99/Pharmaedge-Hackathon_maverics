@@ -1,7 +1,7 @@
 import { CalendarDays, Pill, Route } from 'lucide-react'
 import { useAssets } from '@/features/assets/api'
 import { KpiStrip, type Kpi } from '@/features/assets/components/panel'
-import { useAuth } from '@/features/auth/auth-context'
+import { useAuth } from '@/features/auth/use-auth'
 import { useJobs, type Job } from '@/features/jobs/api'
 import { jobProgress } from '@/features/jobs/steps'
 import { todayIso } from '@/lib/dates'

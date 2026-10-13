@@ -16,11 +16,12 @@ import { JourneyLink } from '../components/journey-link'
 import { LoadError } from '../components/competitors/load-error'
 import { EmptyState } from '../components/panel'
 import { Pager } from '../components/pager'
-import { RecordSheet, recordTitle } from '../components/record-sheet'
+import { RecordSheet } from '../components/record-sheet'
+import { recordTitle } from '../components/record-text'
 import { RecordsCard, SearchBox, TD, TH, TR, Verdict } from '../components/records-cells'
 import { RecordsFooter } from '../components/records-footer'
 import { RecordsView } from '../components/records-view'
-import { useAssetContext } from './asset-layout'
+import { useAssetContext } from './asset-context'
 
 const DECISIONS: { value: Decision; label: string; badge: string }[] = [
   { value: 'ingest', label: 'Ingest', badge: 'bg-success-soft text-success' },
@@ -183,14 +184,17 @@ export function EvidenceTab() {
           {
             header: 'Date',
             cell: (r: SourceRecord) => <span className="font-mono whitespace-nowrap text-muted-foreground">{formatDay(r.date)}</span>,
+            text: (r) => str(r.date).slice(0, 10),
+            date: true,
           },
-          { header: 'Headline', cell: (r) => <span className="font-medium">{recordTitle(r)}</span> },
+          { header: 'Headline', cell: (r) => <span className="font-medium">{recordTitle(r)}</span>, text: recordTitle },
           {
             header: 'Indication',
             cell: (r) => (recordIndications(r).length ? <IndicationBadges items={recordIndications(r)} /> : <span className="text-muted-foreground">—</span>),
+            text: (r) => recordIndications(r).join('; '),
           },
-          { header: 'Publisher', cell: (r) => str(r.company) },
-          { header: 'Found by', cell: (r) => (str(r.keyword) ? <Chip>{str(r.keyword)}</Chip> : '—') },
+          { header: 'Publisher', cell: (r) => str(r.company), text: (r) => str(r.company) },
+          { header: 'Found by', cell: (r) => (str(r.keyword) ? <Chip>{str(r.keyword)}</Chip> : '—'), text: (r) => str(r.keyword) },
         ]}
       />
     </div>

@@ -9,7 +9,7 @@ import { AdverseEventsChart } from '../components/adverse-events-chart'
 import { EmptyState, KpiStrip, Panel } from '../components/panel'
 import { RECORDS_CONFIG, type RecordsTabConfig } from '../components/records-config'
 import { RecordsView } from '../components/records-view'
-import { useAssetContext } from './asset-layout'
+import { useAssetContext } from './asset-context'
 
 /** One records tab from its config: columns, facets, distribution bar, Journey column, onboarding state. */
 function ConfiguredRecords({ config }: { config: RecordsTabConfig }) {

@@ -10,7 +10,9 @@ import { CategoryIcon, IndicationBadges, SignificanceBadge } from './badges'
 import { useRecord, type RecordEventRef, type RecordTab, type SourceRecord } from '../api'
 import { DocumentText, MentionExcerpts } from './document-text'
 import { recordIndications } from './record-indications'
-import { SlideBody, isSlide, slideHeading } from './slide-record'
+import { recordTitle, recordUrl } from './record-text'
+import { SlideBody } from './slide-record'
+import { isSlide, slideHeading } from './slide-text'
 
 const TAB_TITLE: Record<RecordTab, string> = {
   clinical: 'Clinical trials',
@@ -71,25 +73,10 @@ const FIELDS: [key: string, label: string, format?: Formatter][] = [
   ['mentions', 'Mentions', list],
 ]
 
-export function recordTitle(r: SourceRecord): string {
-  const brands = Array.isArray(r.brand_names) ? (r.brand_names as string[]).join(' / ') : ''
-  return (
-    (r.title as string) ||
-    (r.name_of_medicine as string) ||
-    (brands && `${brands} · ${r.submission_type ?? ''}${r.submission_number ?? ''}`) ||
-    (r.application_number as string) ||
-    r.key
-  )
-}
-
 /** "Bristol-Myers Squibb", not the crawler's id "bristol_myers_squibb". */
 function publisher(r: SourceRecord): string {
   const name = typeof r.company === 'string' && r.company ? r.company : String(r.source ?? r.record_type ?? '')
   return name.includes('_') ? name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : name
-}
-
-function sourceUrl(r: SourceRecord): string | undefined {
-  return safeUrl(r.url) ?? safeUrl(r.medicine_url) ?? safeUrl(r.dhpc_url)
 }
 
 /** The journey events built from this record; each opens the event sheet. */
@@ -130,7 +117,7 @@ function RecordBody({ assetId, record, onClose }: { assetId: string; record: Sou
   })
   const docs = (Array.isArray(record.documents) ? (record.documents as { url: string; type: string; date?: string }[]) : []).filter((d) => safeUrl(d.url))
   const text = (record.content as string) || (record.abstract as string) || (record.therapeutic_indication as string) || ''
-  const url = sourceUrl(record)
+  const url = recordUrl(record)
   const names = Array.isArray(record.mentions) ? (record.mentions as string[]) : []
   const indications = recordIndications(record)
 
