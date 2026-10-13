@@ -6,7 +6,7 @@ export const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsh
 const WIDTHS = [12, 10, 60, 13, 18, 13, 22, 12, 70, 40, 46]
 
 /** `YYYY-MM-DD` / `YYYY-MM` / `YYYY` → a UTC-midnight date and the number format that shows its precision. */
-function dateCell(iso: string): { value: Date; numFmt: string } | null {
+export function dateCell(iso: string): { value: Date; numFmt: string } | null {
   const m = /^(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?$/.exec(iso)
   if (!m) return null
   const value = new Date(Date.UTC(Number(m[1]), Number(m[2] ?? 1) - 1, Number(m[3] ?? 1)))

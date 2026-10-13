@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { RefreshCw } from 'lucide-react'
 import { useEffect, useId, useState, type ComponentProps, type ReactNode } from 'react'
 import { FiltersToggle } from '@/components/filters-toggle'
+import { TableExportMenu, type TableExportResult } from '@/components/table-export-menu'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -15,7 +16,7 @@ import { apiFetch } from '@/lib/api'
 import { formatNumber } from '@/lib/format'
 import { useCollapsed } from '@/lib/use-collapsed'
 import { cn } from '@/lib/utils'
-import { toQueryString, useRecords, type RecordsPage, type RecordTab, type SourceRecord } from '../api'
+import { toQueryString, useAsset, useRecords, type RecordsPage, type RecordTab, type SourceRecord } from '../api'
 import { JourneyLink } from './journey-link'
 import { DistributionBar } from './distribution-bar'
 import { EmptyState } from './panel'
@@ -23,10 +24,15 @@ import { RecordsCard, SearchBox, TD, TH, TR } from './records-cells'
 import { RecordsFooter } from './records-footer'
 import { Pager } from './pager'
 import { RecordSheet } from './record-sheet'
+import { EXPORT_CAP, exportedCount, fetchAllRecords, recordsTable } from './records-export'
 
 export interface Column {
   header: string
   cell: (r: SourceRecord) => ReactNode
+  /** The cell as plain text for the CSV / Excel export (dates as stored: `YYYY-MM-DD`, `YYYY-MM` or `YYYY`). */
+  text: (r: SourceRecord) => string
+  /** Exported as an Excel date. */
+  date?: boolean
   className?: string
 }
 
@@ -104,14 +110,10 @@ function RecordsPanel({
   // New search or filters → back to page 1.
   useEffect(() => setPage(1), [debouncedQ, filterKey])
 
-  const records = useRecords(assetId, tab, {
-    q: debouncedQ || undefined,
-    facets: picked,
-    ...(toggle && toggled ? { [toggle.param]: true } : {}),
-    page,
-    pageSize: PAGE_SIZE,
-  })
+  const query = { q: debouncedQ || undefined, facets: picked, ...(toggle && toggled ? { [toggle.param]: true } : {}) }
+  const records = useRecords(assetId, tab, { ...query, page, pageSize: PAGE_SIZE })
   const data: RecordsPage | undefined = records.data
+  const asset = useAsset(assetId)
   const jobStep = useOnboardingStep(assetId, step, onboarding)
   const queued = jobStep?.status === 'pending'
 
@@ -143,10 +145,52 @@ function RecordsPanel({
   ) : showTotal && data && data.all > 0 ? (
     <span className="text-muted-foreground">{`${formatNumber(data.all)} records collected`}</span>
   ) : null
+  // What the export holds: the applied search, facet picks and toggle (the debounced search, as the table shows).
+  const appliedFilters = [
+    debouncedQ && `Search “${debouncedQ}”`,
+    ...Object.entries(picked)
+      .filter(([, v]) => v)
+      .map(([k, v]) => `${data?.facets.find((f) => f.key === k)?.label ?? k}: ${label(k, v)}`),
+    toggle && toggled && toggle.label,
+  ].filter(Boolean) as string[]
+  const filtersText = appliedFilters.join(' · ') || 'None'
+  const matching = data?.total ?? 0
+  const exportRecords = async (): Promise<TableExportResult> => {
+    const { items, total } = await fetchAllRecords(assetId, tab, query)
+    const count = exportedCount(items.length, total)
+    return {
+      table: recordsTable({
+        sheet: title,
+        columns,
+        records: items,
+        total,
+        journey: journeyColumn,
+        about: [
+          ['Asset', asset.data ? (asset.data.company?.name ? `${asset.data.name} (${asset.data.company.name})` : asset.data.name) : assetId],
+          ['Asset id', assetId],
+          ['Tab', title],
+          ['Filters', filtersText],
+        ],
+      }),
+      stem: `${assetId}-${tab}`,
+      done: `Exported ${count}`,
+      note: items.length < total ? `capped at ${formatNumber(EXPORT_CAP)} rows` : undefined,
+    }
+  }
   const actions = (
     <span className="flex flex-wrap items-center gap-[12px]">
       {status}
       <FiltersToggle collapsed={filtersHidden} onCollapsed={setFiltersHidden} controls={filtersId} active={nActive} onClear={clearFilters} />
+      <TableExportMenu
+        title={
+          matching > EXPORT_CAP
+            ? `Exports the first ${formatNumber(EXPORT_CAP)} of ${formatNumber(matching)} records`
+            : `Exports ${appliedFilters.length ? 'the' : 'all'} ${formatNumber(matching)} record${matching === 1 ? '' : 's'}${appliedFilters.length ? ' matching' : ''}`
+        }
+        detail={`${appliedFilters.length ? `Filters: ${filtersText}` : 'No filters'} · every page, not only this one${matching > EXPORT_CAP ? ` · capped at ${formatNumber(EXPORT_CAP)} rows` : ''}`}
+        disabled={!data || records.isPlaceholderData || matching === 0}
+        build={exportRecords}
+      />
     </span>
   )
 
