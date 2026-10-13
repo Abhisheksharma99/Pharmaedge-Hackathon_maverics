@@ -111,13 +111,16 @@ export function runEndedEmpty(run: BuildRun | undefined): boolean {
   )
 }
 
+/** The analytics blocks query, shared by `useAssetAnalytics` and on-demand fetches (the PowerPoint export). */
+export const analyticsQuery = (assetId: string) => ({
+  queryKey: analyticsKey(assetId),
+  queryFn: () => apiFetch<AssetAnalytics>(`/assets/${enc(assetId)}/analytics`),
+  staleTime: 60_000,
+})
+
 /** Precomputed analytics blocks of an asset (Analytics tab + Overview cards). */
 export function useAssetAnalytics(assetId: string) {
-  return useQuery({
-    queryKey: analyticsKey(assetId),
-    queryFn: () => apiFetch<AssetAnalytics>(`/assets/${enc(assetId)}/analytics`),
-    staleTime: 60_000,
-  })
+  return useQuery(analyticsQuery(assetId))
 }
 
 /** Your pinned cards; `items` is null until you first change them (then the defaults apply). */

@@ -104,14 +104,16 @@ export function useJourneyEvents(assetId: string, scope: JourneyScope, { enabled
   })
 }
 
+/** The branches query, shared by `useBranches` and on-demand fetches (the PowerPoint export). */
+export const branchesQuery = (assetId: string) => ({
+  queryKey: ['asset', assetId, 'branches'] as const,
+  queryFn: () => apiFetch<Branch[]>(`/assets/${encodeURIComponent(assetId)}/branches`),
+  staleTime: 60_000,
+})
+
 /** Indication branches, trunk first; `[]` means a single trunk (DATA_CONTRACTS §B.1). */
 export function useBranches(assetId: string, { enabled = true }: { enabled?: boolean } = {}) {
-  return useQuery({
-    queryKey: ['asset', assetId, 'branches'],
-    queryFn: () => apiFetch<Branch[]>(`/assets/${encodeURIComponent(assetId)}/branches`),
-    enabled,
-    staleTime: 60_000,
-  })
+  return useQuery({ ...branchesQuery(assetId), enabled })
 }
 
 /**

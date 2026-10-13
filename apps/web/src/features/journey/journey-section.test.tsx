@@ -303,6 +303,27 @@ describe('JourneySection', () => {
     expect(await screen.findByText('Exported 2 events')).toBeInTheDocument()
   })
 
+  it('fetches the branches and analytics for a PowerPoint deck, and still exports when the analytics fail', async () => {
+    let saved = ''
+    vi.spyOn(URL, 'createObjectURL').mockImplementation(() => 'blob:export')
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      saved = this.download
+    })
+    const router = createMemoryRouter([{ path: '/assets/:assetId/clinical', element: <JourneyExportButton asset={{ id: 'trep', name: 'Treprostinil' }} /> }], { initialEntries: ['/assets/trep/clinical'] })
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    )
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled())
+    expect(fetchMock.mock.calls.map(([u]) => u)).not.toContain('/api/assets/trep/branches')
+    await userEvent.click(screen.getByRole('button', { name: 'Export' }))
+    await userEvent.click(within(await screen.findByRole('menu')).getByRole('menuitem', { name: /PowerPoint deck/ }))
+    await waitFor(() => expect(saved).toMatch(/^trep-journey-key-events-\d{4}-\d{2}-\d{2}\.pptx$/), { timeout: 5000 })
+    // The analytics answer 404 here: the deck leaves those slides out.
+    expect(fetchMock.mock.calls.map(([u]) => u)).toEqual(expect.arrayContaining(['/api/assets/trep/branches', '/api/assets/trep/analytics']))
+  })
+
   it('exports the same journey from a header button when the journey isn’t on screen', async () => {
     const router = createMemoryRouter([{ path: '/assets/:assetId/clinical', element: <JourneyExportButton asset={{ id: 'trep', name: 'Treprostinil' }} label="Export journey" size="default" /> }], {
       initialEntries: ['/assets/trep/clinical?scope=all&order=newest&ind=PH-COPD'],
