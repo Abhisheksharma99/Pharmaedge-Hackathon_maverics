@@ -195,6 +195,22 @@ describe('JourneySection', () => {
     await waitFor(() => expect(document.querySelector(`[data-card="${DEEP}"]`)).toHaveClass('animate-journey-flash'))
   })
 
+  it('opens a ?focus= event even when the branches arrive after the events', async () => {
+    let releaseBranches!: () => void
+    const branchesIn = new Promise<void>((resolve) => (releaseBranches = resolve))
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === '/api/assets/trep/branches') await branchesIn
+      return base(url)
+    })
+    const router = renderAt(`/assets/trep/overview?focus=${encodeURIComponent(KEY[0]!.id)}`)
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/assets/trep/timeline?scope=key&include=notes&limit=5000', expect.anything()))
+    await new Promise((r) => setTimeout(r, 50))
+    releaseBranches()
+    await waitFor(() => expect(useEventSheet.getState().current).toEqual({ assetId: 'trep', eventId: KEY[0]!.id }))
+    expect(new URLSearchParams(router.state.location.search).get('focus')).toBeNull()
+  })
+
   it('locates an event in place for the sheet without reopening it', async () => {
     renderAt('/assets/trep/overview')
     await screen.findByTestId('journey-horizontal')

@@ -92,6 +92,8 @@ export function JourneySection({ asset }: { asset: Pick<AssetDetail, 'id' | 'nam
     filterApi.current = f
   })
   const ready = events.isSuccess && !events.isPlaceholderData
+  /** The views mount once the branches are in too; a focus that arrived first retries then. */
+  const viewMounted = list.length > 0 && !branches.isPending
   useEffect(() => {
     const id = focusId
     if (!id || !ready) return
@@ -107,7 +109,7 @@ export function JourneySection({ asset }: { asset: Pick<AssetDetail, 'id' | 'nam
     }
     if (fScope === 'all' && unfiltered) finish()
     else api.showEverything()
-  }, [focusId, fScope, unfiltered, ready, list, assetId, openEvent])
+  }, [focusId, fScope, unfiltered, ready, viewMounted, list, assetId, openEvent])
 
   // A saved note: once it is in the (possibly refiltered) list, scroll the active view to it and open its detail (README §6.5).
   const [savedId, setSavedId] = useState<string | null>(null)
@@ -122,7 +124,7 @@ export function JourneySection({ asset }: { asset: Pick<AssetDetail, 'id' | 'nam
       savedShown.current = true
       f.showEverything()
     }
-  }, [savedId, list, events.isSuccess, f, assetId, openEvent])
+  }, [savedId, list, viewMounted, events.isSuccess, f, assetId, openEvent])
 
   const jumpTo = (id: string) => {
     if (viewRef.current?.jump(id)) openEvent(assetId, id)
@@ -195,7 +197,7 @@ export function JourneySection({ asset }: { asset: Pick<AssetDetail, 'id' | 'nam
           {filtered ? 'Clear the filters to see the whole journey.' : 'Events appear here as the crawl builds the journey.'}
         </EmptyState>
       )}
-      {n > 0 && !branches.isPending &&
+      {viewMounted &&
         (f.view === 'h' ? (
           <HorizontalTrack key={f.order} ref={viewRef} {...viewProps} />
         ) : (
