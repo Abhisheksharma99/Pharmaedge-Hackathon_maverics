@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronRight, ExternalLink, Minus, Pencil, Plus, StickyNote, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { CATEGORY_META } from '@/features/assets/components/badges'
+import { CATEGORY_META, IndicationBadges } from '@/features/assets/components/badges'
 import type { EventCategory } from '@/features/assets/api'
 import { formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -188,6 +188,12 @@ export function CanvasView({
                 )}
                 {highlight?.has(node.id) && (
                   <span className="absolute -top-[8px] left-[8px] rounded-full bg-success px-[6px] text-[10px] leading-[16px] font-semibold text-white">New</span>
+                )}
+                {node.kind === 'event' && !!node.indications?.length && editingId !== node.id && (
+                  // Straddles the bottom border, right of the date, so the node keeps its size; clicks pass through to the node.
+                  <span className="pointer-events-none absolute -bottom-[10px] right-[8px] max-w-[96px] rounded-[6px] bg-card">
+                    <IndicationBadges items={node.indications} max={1} className="flex-nowrap" />
+                  </span>
                 )}
                 {node.children.length > 0 && editingId !== node.id && (
                   <button

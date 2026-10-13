@@ -32,4 +32,14 @@ describe('live canvas', () => {
     expect(screen.getByRole('button', { name: 'Rename' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Add note' })).toBeDisabled()
   })
+  it('shows the indications of event nodes, and nothing for nodes saved without them', () => {
+    const tree = node('asset', 'asset', 'Treprostinil', [
+      node('e-1', 'event', 'PH-ILD label update', [], { date: '2026-01-05', indications: ['PH-ILD', 'PAH', 'CTEPH'] }),
+      node('e-2', 'event', 'Older saved event', [], { date: '2025-09-02' }),
+    ])
+    render(<CanvasView tree={tree} onChange={() => {}} onOpenSource={() => {}} />)
+    expect(screen.getByText('PH-ILD')).toBeInTheDocument()
+    expect(screen.getByText('+2')).toBeInTheDocument() // compact: one badge, the rest folded
+    expect(screen.getAllByTitle(/^Indication: /)).toHaveLength(1)
+  })
 })

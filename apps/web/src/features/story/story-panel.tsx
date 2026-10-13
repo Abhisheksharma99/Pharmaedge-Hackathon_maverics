@@ -313,7 +313,8 @@ export function StoryPanel({ storyId }: { storyId: string }) {
       <div ref={card} className="scroll-mt-[16px] overflow-hidden rounded-[14px] border bg-card shadow-panel">
         {/* header */}
         <div className="flex flex-wrap items-start gap-x-[24px] gap-y-[12px] px-[20px] pt-[18px] pb-[14px]">
-          <div className="min-w-0 flex-1">
+          {/* Narrow screens: the title takes the full row and the controls wrap below it. */}
+          <div className="min-w-0 flex-1 max-[900px]:basis-full">
             <h2 className="flex items-center gap-[8px] text-[15px] font-semibold">
               <Sparkles className="size-[16px] shrink-0 text-primary" />
               <span className="line-clamp-2">{title}</span>

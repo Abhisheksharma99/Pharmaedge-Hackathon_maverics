@@ -12,6 +12,8 @@ export default defineConfig({
   build: {
     // Not the default "assets/": that path is the app's Asset Search route.
     assetsDir: 'static',
+    // Pages are lazy chunks. The one chunk above 500 kB is exceljs, loaded only when an Excel export is clicked.
+    chunkSizeWarningLimit: 1000,
   },
   server: {
     // Same-origin in dev too, so the httpOnly SameSite=Strict cookies just work.
