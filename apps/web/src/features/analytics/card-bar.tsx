@@ -9,3 +9,6 @@ export function CardBar(props: Parameters<typeof CardFilters>[0]) {
 }
 
 export const NoMatch = () => <p className="py-[24px] text-center text-[12px] text-muted-foreground">Nothing matches these filters.</p>
+
+/** A chart whose filters match nothing (the chart itself would draw empty axes). */
+export const NoData = () => <p className="py-[24px] text-center text-[12px] text-muted-foreground">No data for this filter</p>

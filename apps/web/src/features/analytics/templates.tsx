@@ -1,11 +1,8 @@
 import type { ReactNode } from 'react'
-import { Donut } from '@/components/charts/donut'
-import { StackBars } from '@/components/charts/stack-bars'
-import { CATEGORY_META, SIGNIFICANCE_COLORS, collectionMeta } from '@/features/journey/constants'
-import type { EventCategory } from '@/features/journey/types'
 import { todayIso } from '@/lib/dates'
+import { ActivityBody, SignificanceBody, SourceMixBody } from './aggregate-cards'
 import type { AnalyticsBlocks } from './api'
-import { enrolmentByIndication, mergeSafety, yearOf } from './card-filter-defs'
+import { enrolmentByIndication, yearOf } from './card-filter-defs'
 import { EnrolBody, LandscapeBody, MilestonesBody, PipelineBody, TrialsBody, TrialsPhaseBody } from './template-bodies'
 
 export interface OvTemplate {
@@ -16,7 +13,7 @@ export interface OvTemplate {
   basis: string
   /** Whether the blocks hold what this card needs; a card that can't be drawn is hidden. */
   requires: (b: AnalyticsBlocks) => boolean
-  render: (b: AnalyticsBlocks) => ReactNode
+  render: (b: AnalyticsBlocks, assetId: string) => ReactNode
 }
 
 export interface Milestone {
@@ -62,20 +59,7 @@ export const OV_TEMPLATES: Record<string, OvTemplate> = {
     span: 2,
     basis: 'journey events',
     requires: (b) => b.activityByYear?.cols.length > 0,
-    render: (b) => {
-      const { cols } = b.activityByYear
-      return (
-        <StackBars
-          h={120}
-          cols={cols}
-          every={cols.length > 16 ? 3 : 1}
-          series={mergeSafety(b.activityByYear).series.map((s) => ({
-            ...s,
-            c: CATEGORY_META[s.k as EventCategory]?.color ?? '#98a2b3',
-          }))}
-        />
-      )
-    },
+    render: (b, assetId) => <ActivityBody assetId={assetId} activity={b.activityByYear} compact />,
   },
   milestones: {
     title: 'Next milestones',
@@ -90,17 +74,7 @@ export const OV_TEMPLATES: Record<string, OvTemplate> = {
     span: 1,
     basis: 'journey events',
     requires: (b) => !!b.significance && sum(b.significance) > 0,
-    render: (b) => (
-      <Donut
-        size={120}
-        sub="events"
-        data={(['High', 'Medium', 'Low'] as const).map((s) => ({
-          l: s,
-          v: b.significance[s],
-          c: SIGNIFICANCE_COLORS[s],
-        }))}
-      />
-    ),
+    render: (b, assetId) => <SignificanceBody assetId={assetId} significance={b.significance} compact />,
   },
   trialsPhase: {
     title: 'Trials by phase',
@@ -128,17 +102,7 @@ export const OV_TEMPLATES: Record<string, OvTemplate> = {
     span: 1,
     basis: 'stored records',
     requires: (b) => b.sourceMix?.length > 0,
-    render: (b) => (
-      <Donut
-        size={120}
-        sub="records"
-        data={b.sourceMix.map((s) => ({
-          l: collectionMeta(s.coll).label,
-          v: s.n,
-          c: collectionMeta(s.coll).color,
-        }))}
-      />
-    ),
+    render: (b, assetId) => <SourceMixBody assetId={assetId} sourceMix={b.sourceMix} compact />,
   },
   landscape: {
     title: 'Competitive landscape',

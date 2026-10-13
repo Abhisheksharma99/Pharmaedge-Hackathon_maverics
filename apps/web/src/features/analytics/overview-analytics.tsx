@@ -131,7 +131,7 @@ export function OverviewAnalytics({ asset }: { asset: Pick<AssetSummary, 'id' | 
                 span={t.span}
                 actions={<RemoveButton title={t.title} onClick={() => remove(i)} />}
               >
-                {t.render(blocks.data)}
+                {t.render(blocks.data, asset.id)}
               </ChartCard>
             )
           })}
