@@ -2,26 +2,24 @@ import { Activity, Clock, Database, FlaskConical, Landmark } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useParams } from 'react-router'
 import { ChartCard, ChartGrid } from '@/components/charts/chart-card'
-import { Donut } from '@/components/charts/donut'
 import { Funnel } from '@/components/charts/funnel'
 import { Gantt, GanttScroll, type GanttRow } from '@/components/charts/gantt'
 import { HBars } from '@/components/charts/h-bars'
 import { Heat } from '@/components/charts/heat'
-import { StackBars } from '@/components/charts/stack-bars'
 import { Stat, StatRow } from '@/components/charts/stat'
 import { VBars } from '@/components/charts/v-bars'
 import { LoadError } from '@/features/assets/components/competitors/load-error'
 import { Skeleton } from '@/components/ui/skeleton'
 import { shortIndication } from '@/features/assets/components/competitors/utils'
 import { useAssetContext } from '@/features/assets/pages/asset-layout'
-import { CATEGORY_META, collectionMeta, PHASE_COLORS, SIGNIFICANCE_COLORS } from '@/features/journey/constants'
-import type { EventCategory } from '@/features/journey/types'
+import { PHASE_COLORS } from '@/features/journey/constants'
 import { relativeFuture, todayIso, yearFraction } from '@/lib/dates'
 import { formatNumber } from '@/lib/format'
 import { useCardFilter } from '@/components/card-filters'
+import { ActivityBody, EvidenceBody, SignificanceBody, SourceMixBody } from './aggregate-cards'
 import { approvedIndications } from './approved'
 import { useAssetAnalytics, type AnalyticsLandscapeRow, type AnalyticsTrial, type AssetAnalytics } from './api'
-import { mergeSafety, pipelineFacets, pipelineText, trialFacets, trialText } from './card-filter-defs'
+import { pipelineFacets, pipelineText, trialFacets, trialText } from './card-filter-defs'
 import { CardBar, NoMatch } from './card-bar'
 import { PipelineMatrix } from './pipeline-matrix'
 import { phaseColor, phaseGroup, phaseTag, sortTrialsByPhase } from './trial-phase'
@@ -197,16 +195,8 @@ function Stats({ data, regions, trialCount }: { data: AssetAnalytics; regions: s
   )
 }
 
-function Charts({ data }: { data: AssetAnalytics }) {
+function Charts({ data, assetId }: { data: AssetAnalytics; assetId: string }) {
   const { activityByYear, trials, recordsByYear, sourceMix, triageFunnel: fn, landscape, significance } = data
-  const years = recordsByYear.map((r) => r.year)
-  const evCols = years.length ? Array.from({ length: Math.max(...years) - Math.min(...years) + 1 }, (_, i) => Math.min(...years) + i) : []
-  const evSeries = [...new Set(recordsByYear.map((r) => r.coll))].map((coll) => ({
-    k: coll,
-    l: coll.replace('_records', ''),
-    c: collectionMeta(coll).color,
-    vals: evCols.map((y) => recordsByYear.filter((r) => r.coll === coll && r.year === y).reduce((s, r) => s + r.n, 0)),
-  }))
   const funnel = [
     { l: 'Unstructured records', v: fn.screened, c: '#98a2b3' },
     { l: 'Relevant to the asset', v: fn.relevant, c: '#5873e8' },
@@ -221,11 +211,7 @@ function Charts({ data }: { data: AssetAnalytics }) {
       </ChartCard>
       <ChartCard title="Journey activity by year" description="Events per year by category; hover a year for the breakdown" span={2}>
         {activityByYear.cols.length ? (
-          <StackBars
-            cols={activityByYear.cols}
-            every={activityByYear.cols.length > 18 ? 2 : 1}
-            series={mergeSafety(activityByYear).series.map((s) => ({ ...s, c: CATEGORY_META[s.k as EventCategory]?.color ?? '#98a2b3' }))}
-          />
+          <ActivityBody assetId={assetId} activity={activityByYear} />
         ) : (
           <Empty>No dated journey events yet.</Empty>
         )}
@@ -245,18 +231,18 @@ function Charts({ data }: { data: AssetAnalytics }) {
           <EnrolmentByIndication trials={trials} />
         </ChartCard>
       )}
-      {evSeries.length > 0 && (
-        <ChartCard title="Evidence collected over time" description="Stored records by the year they describe" span={2}>
-          <StackBars cols={evCols} every={evCols.length > 18 ? 2 : 1} series={evSeries} />
+      {recordsByYear.length > 0 && (
+        <ChartCard title="Evidence collected over time" description="Stored records by the year they describe; they carry no indication, so filter by source" span={2}>
+          <EvidenceBody recordsByYear={recordsByYear} />
         </ChartCard>
       )}
       {sourceMix.length > 0 && (
         <ChartCard title="Source mix">
-          <Donut data={sourceMix.map((m) => ({ l: m.coll.replace('_records', ''), v: m.n, c: collectionMeta(m.coll).color }))} sub="records" />
+          <SourceMixBody assetId={assetId} sourceMix={sourceMix} />
         </ChartCard>
       )}
       {fn.screened > 0 && (
-        <ChartCard title="AI triage funnel" description="Unstructured records to journey events">
+        <ChartCard title="AI triage funnel" description="Unstructured records to journey events; crawl counts carry no indication, so it isn't filterable">
           <Funnel steps={funnel} />
         </ChartCard>
       )}
@@ -266,10 +252,7 @@ function Charts({ data }: { data: AssetAnalytics }) {
         </ChartCard>
       )}
       <ChartCard title="Significance mix">
-        <Donut
-          sub="events"
-          data={(['High', 'Medium', 'Low'] as const).map((k) => ({ l: k, v: significance[k], c: SIGNIFICANCE_COLORS[k] }))}
-        />
+        <SignificanceBody assetId={assetId} significance={significance} />
       </ChartCard>
     </ChartGrid>
   )
@@ -313,7 +296,7 @@ export function AnalyticsTab() {
   return (
     <div className="flex flex-col gap-[20px]">
       <Stats data={q.data} regions={asset?.kpis?.approvalRegions ?? []} trialCount={asset?.counts?.trials ?? 0} />
-      <Charts data={q.data} />
+      <Charts data={q.data} assetId={asset?.id ?? assetId} />
     </div>
   )
 }
