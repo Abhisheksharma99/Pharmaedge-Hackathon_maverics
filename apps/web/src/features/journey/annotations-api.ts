@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { ME_KEY, type User } from '@/features/auth/use-auth'
 import { apiFetch } from '@/lib/api'
@@ -146,6 +146,102 @@ export function useAddNote(assetId: string) {
       toast.error("The note couldn't be saved.")
     },
     onSettled: () => Promise.all([qc.invalidateQueries({ queryKey: key }), qc.invalidateQueries({ queryKey: timelineKey(assetId) })]),
+  })
+}
+
+/** The fields of a team note that can change after it was added (DATA_CONTRACTS §B.3, PATCH /notes/:id). */
+export type NotePatch = Partial<Pick<NewNote, 'date' | 'branch' | 'category' | 'tag' | 'title' | 'text'>>
+
+interface EventDetailCache {
+  event: JourneyEventV3
+}
+
+const eventKey = (assetId: string, id: string) => ['asset', assetId, 'event', id] as const
+
+/** Puts `apply` through every cached copy of the asset's notes: annotations, journey timelines and the open event. */
+function rewriteNote(qc: QueryClient, assetId: string, id: string, apply: (events: JourneyEventV3[]) => JourneyEventV3[]) {
+  qc.setQueryData<Annotations>(annotationsKey(assetId), (old) => old && { ...old, notes: apply(old.notes) })
+  qc.setQueriesData<TimelineCache>({ queryKey: timelineKey(assetId) }, (old) => {
+    if (!old?.events) return old
+    const events = apply(old.events)
+    return { events, total: old.total + events.length - old.events.length }
+  })
+  qc.setQueryData<EventDetailCache>(eventKey(assetId, id), (old) => {
+    if (!old) return old
+    const [event] = apply([old.event])
+    return event ? { ...old, event } : old
+  })
+}
+
+/** Refetch what a note change touches: the annotations, the timelines and the events (their neighbours move with it). */
+const refetchNotes = (qc: QueryClient, assetId: string) =>
+  Promise.all([
+    qc.invalidateQueries({ queryKey: annotationsKey(assetId) }),
+    qc.invalidateQueries({ queryKey: timelineKey(assetId) }),
+    qc.invalidateQueries({ queryKey: ['asset', assetId, 'event'] }),
+  ])
+
+/**
+ * Edit a team note (its author or an admin): the change shows at once everywhere the note is cached, the saved note
+ * replaces it when the PATCH returns, and a failed PATCH puts the old note back with a toast.
+ */
+export function useUpdateNote(assetId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: NotePatch }) =>
+      apiFetch<JourneyEventV3>(`/assets/${enc(assetId)}/notes/${enc(id)}`, { method: 'PATCH', body: patch }),
+    onMutate: async ({ id, patch }) => {
+      await Promise.all([qc.cancelQueries({ queryKey: annotationsKey(assetId) }), qc.cancelQueries({ queryKey: timelineKey(assetId) })])
+      const before = qc.getQueryData<Annotations>(annotationsKey(assetId))?.notes.find((n) => n.id === id) ?? qc.getQueryData<EventDetailCache>(eventKey(assetId, id))?.event
+      const edit = (e: JourneyEventV3): JourneyEventV3 => ({
+        ...e,
+        ...(patch.date !== undefined && { date: patch.date }),
+        ...(patch.branch !== undefined && { branch: patch.branch }),
+        ...(patch.category !== undefined && { category: patch.category }),
+        ...(patch.title !== undefined && { title: patch.title }),
+        ...(patch.text !== undefined && { summary: patch.text }),
+        ...(patch.tag !== undefined && e.user && { user: { ...e.user, tag: patch.tag } }),
+      })
+      rewriteNote(qc, assetId, id, (events) => events.map((e) => (e.id === id ? edit(e) : e)))
+      return { before }
+    },
+    onSuccess: (saved, { id }) => rewriteNote(qc, assetId, id, (events) => events.map((e) => (e.id === id ? saved : e))),
+    onError: (_err, { id }, ctx) => {
+      const before = ctx?.before
+      if (before) rewriteNote(qc, assetId, id, (events) => events.map((e) => (e.id === id ? before : e)))
+      toast.error("The note couldn't be saved.")
+    },
+    onSettled: () => refetchNotes(qc, assetId),
+  })
+}
+
+/**
+ * Delete a team note (its author or an admin), with its stars and comments: it leaves every cached list at once and
+ * comes back with a toast if the server refuses.
+ */
+export function useDeleteNote(assetId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => apiFetch<void>(`/assets/${enc(assetId)}/notes/${enc(id)}`, { method: 'DELETE' }),
+    onMutate: async (id) => {
+      await Promise.all([qc.cancelQueries({ queryKey: annotationsKey(assetId) }), qc.cancelQueries({ queryKey: timelineKey(assetId) })])
+      const annotations = qc.getQueryData<Annotations>(annotationsKey(assetId))
+      const timelines = qc.getQueriesData<TimelineCache>({ queryKey: timelineKey(assetId) })
+      qc.setQueryData<Annotations>(annotationsKey(assetId), (old) => old && { ...old, notes: old.notes.filter((n) => n.id !== id) })
+      qc.setQueriesData<TimelineCache>({ queryKey: timelineKey(assetId) }, (old) => {
+        if (!old?.events) return old
+        const events = old.events.filter((e) => e.id !== id)
+        return { events, total: old.total - (old.events.length - events.length) }
+      })
+      return { annotations, timelines }
+    },
+    onSuccess: (_void, id) => qc.removeQueries({ queryKey: eventKey(assetId, id) }),
+    onError: (_err, _id, ctx) => {
+      if (ctx?.annotations) qc.setQueryData(annotationsKey(assetId), ctx.annotations)
+      for (const [key, data] of ctx?.timelines ?? []) qc.setQueryData(key, data)
+      toast.error("The note couldn't be deleted.")
+    },
+    onSettled: () => refetchNotes(qc, assetId),
   })
 }
 

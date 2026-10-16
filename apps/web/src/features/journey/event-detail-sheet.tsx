@@ -18,6 +18,7 @@ import { eventIndications } from './indications'
 import { CATEGORY_META } from './constants'
 import { BTN_SM, FOCUS, ICON_BTN } from './controls'
 import { branchModel, chronological, laneOf } from './journey-model'
+import { NoteActions } from './note-actions'
 import { BranchLineage } from './sheet/branch-lineage'
 import { Comments } from './sheet/comments'
 import { Evidence } from './sheet/evidence'
@@ -93,6 +94,7 @@ export function EventDetailSheet({ current, onClose }: { current: OpenEvent | nu
               )}
             </div>
             <div className="flex shrink-0 gap-[2px]">
+              {event && <NoteActions assetId={assetId} event={event} />}
               {event && <StarButton assetId={assetId} eventId={event.id} />}
               <Button variant="ghost" size="icon-sm" aria-label="Close" onClick={onClose} className={ICON_BTN}>
                 <X className="size-[16px]" />
