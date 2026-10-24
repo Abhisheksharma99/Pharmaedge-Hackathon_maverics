@@ -1,3 +1,4 @@
+import { useCardData } from '@/components/charts/card-data'
 import { STAGES, BRANCH_PALETTE } from '@/features/journey/constants'
 import { relativeFuture } from '@/lib/dates'
 import { cn } from '@/lib/utils'
@@ -9,6 +10,18 @@ const READOUT = /^(Phase \d readout expected|FDA decision expected \(PDUFA date\
 
 /** Development pipeline: one bar per branch/indication to its furthest stage, with the next milestone on the right. */
 export function PipelineMatrix({ rows }: { rows: PipelineRow[] }) {
+  useCardData({
+    columns: ['Indication', 'Name', 'Furthest stage', 'Terminated', 'Next milestone', 'Next date', 'Since'],
+    rows: rows.map((r) => [
+      r.label,
+      r.full,
+      STAGES[Math.min(Math.max(r.stage, 0), STAGES.length - 1)]!,
+      r.ended ? r.ended.slice(0, 10) : '',
+      r.next?.title.replace(READOUT, '') ?? '',
+      r.next?.date ?? '',
+      r.since?.slice(0, 10) ?? '',
+    ]),
+  })
   return (
     <div className="flex flex-col gap-[6px] text-[12px]">
       <div className={cn('grid items-center', COLS)} aria-hidden="true">

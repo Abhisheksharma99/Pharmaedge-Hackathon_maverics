@@ -1,6 +1,7 @@
-import { Fragment, type ReactNode } from 'react'
+import { Fragment, use, type ReactNode } from 'react'
 import { todayIso, yearFraction } from '@/lib/dates'
 import { cn } from '@/lib/utils'
+import { ChartExpanded, fractionMonth, useCardData } from './card-data'
 
 export interface GanttRow {
   l: string
@@ -19,6 +20,10 @@ export interface GanttRow {
 
 /** Start→end bars on a year axis (trial timeline, patent runway) with a Today line. */
 export function Gantt({ rows, from, to, today = todayIso() }: { rows: GanttRow[]; from: number; to: number; today?: string }) {
+  useCardData({
+    columns: ['Label', 'Detail', 'Group', 'Tag', 'Start', 'End'],
+    rows: rows.map((r) => [r.l, r.sub ?? '', r.group ?? '', r.tag ?? '', fractionMonth(r.s), fractionMonth(r.e)]),
+  })
   const span = Math.max(1e-6, to - from)
   const pct = (v: number) => Math.min(100, Math.max(0, ((v - from) / span) * 100))
   const step = span > 36 ? 8 : span > 14 ? 4 : 2
@@ -104,5 +109,6 @@ export function Gantt({ rows, from, to, today = todayIso() }: { rows: GanttRow[]
 
 /** A real asset has hundreds of trials or patents: keep the card the prototype's size and scroll the rows. */
 export function GanttScroll({ children }: { children: ReactNode }) {
-  return <div className="max-h-[560px] overflow-y-auto pt-[16px]">{children}</div>
+  // Expanded, the dialog scrolls instead.
+  return <div className={cn('pt-[16px]', !use(ChartExpanded) && 'max-h-[560px] overflow-y-auto')}>{children}</div>
 }

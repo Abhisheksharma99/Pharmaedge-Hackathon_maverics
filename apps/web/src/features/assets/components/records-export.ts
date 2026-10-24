@@ -41,8 +41,9 @@ export function exportedCount(rows: number, total: number): string {
 }
 
 /**
- * A records tab's rows as an export table: the tab's visible columns as text (Indications added when the tab shows
- * none), the journey events each record feeds when the tab shows that column, and the record's source link.
+ * A records tab's rows as an export table: the tab's visible columns as text (Indications added when the tab has no
+ * Indication column of its own), the journey events each record feeds when the tab shows that column, and the record's
+ * source link.
  */
 export function recordsTable({
   sheet,
@@ -50,6 +51,7 @@ export function recordsTable({
   records,
   total,
   journey,
+  indications = !columns.some((c) => c.header === 'Indication'),
   about,
 }: {
   sheet: string
@@ -57,11 +59,13 @@ export function recordsTable({
   records: SourceRecord[]
   total: number
   journey: boolean
+  /** Add an Indications column: by default when `columns` has none; false when the user hid the tab's own. */
+  indications?: boolean
   /** Asset, tab and filters, first on the About sheet. */
   about: [string, string][]
 }): ExportTable {
   const cols: { header: string; kind?: ExportColumn['kind']; text: (r: SourceRecord) => string }[] = columns.map((c) => ({ header: c.header, kind: c.date ? 'date' : undefined, text: c.text }))
-  if (!columns.some((c) => c.header === 'Indication')) cols.push({ header: 'Indications', text: (r) => recordIndications(r).join('; ') })
+  if (indications) cols.push({ header: 'Indications', text: (r) => recordIndications(r).join('; ') })
   if (journey) cols.push({ header: 'Journey events', text: (r) => (r.journey_events ?? []).map((e) => e.title).join('; ') })
   cols.push({ header: 'Source link', kind: 'link', text: (r) => recordUrl(r) ?? '' })
   return {

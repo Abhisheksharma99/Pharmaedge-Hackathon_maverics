@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { RefreshCw } from 'lucide-react'
+import { Quote, RefreshCw } from 'lucide-react'
 import { useEffect, useId, useState, type ComponentProps, type ReactNode } from 'react'
+import { toast } from 'sonner'
 import { FiltersToggle } from '@/components/filters-toggle'
 import { TableExportMenu, type TableExportResult } from '@/components/table-export-menu'
 import { Button } from '@/components/ui/button'
@@ -8,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { TabInsights } from '@/features/analytics/tab-insights'
 import { stepShort } from '@/features/jobs/steps'
 import type { Job } from '@/features/jobs/api'
@@ -20,11 +21,15 @@ import { toQueryString, useAsset, useRecords, type RecordsPage, type RecordTab, 
 import { JourneyLink } from './journey-link'
 import { DistributionBar } from './distribution-bar'
 import { EmptyState } from './panel'
+import { recordTitle } from './record-text'
 import { RecordsCard, SearchBox, TD, TH, TR } from './records-cells'
+import { recordCitation } from './records-citation'
+import { RecordsColumnsMenu } from './records-columns'
 import { RecordsFooter } from './records-footer'
 import { Pager } from './pager'
 import { RecordSheet } from './record-sheet'
 import { EXPORT_CAP, exportedCount, fetchAllRecords, recordsTable } from './records-export'
+import { useDensity, useHiddenColumns } from './records-prefs'
 
 export interface Column {
   header: string
@@ -38,6 +43,20 @@ export interface Column {
 
 const PAGE_SIZE = 25
 const ALL = '__all__'
+const JOURNEY = 'Journey'
+/** The header stays put while the rows scroll inside the card; a shadow, not the border, rules it off (borders collapse away). */
+const STICKY_TH = 'shadow-[inset_0_-1px_0_var(--color-border)] border-b-0'
+const CHECK = 'size-[15px] cursor-pointer align-middle accent-primary'
+
+/** Copies a record's citation and says so (the clipboard can be refused: then it says that). */
+async function copyCitation(text: string) {
+  try {
+    await navigator.clipboard.writeText(text)
+    toast.success('Citation copied', { description: text })
+  } catch {
+    toast.error('The citation could not be copied', { description: text })
+  }
+}
 
 /** Debounce typing so every keystroke doesn't hit the API. */
 function useDebounced<T>(value: T, ms = 300): T {
@@ -105,6 +124,16 @@ function RecordsPanel({
   const [picked, setPicked] = useState<Record<string, string>>({})
   const [toggled, setToggled] = useState(false)
   const debouncedQ = useDebounced(q.trim())
+  // Ticked rows, across pages and filters, kept whole so "Export selected" needs no refetch.
+  const [selected, setSelected] = useState<Map<string, SourceRecord>>(() => new Map())
+  const [hidden, setHidden] = useHiddenColumns(tab)
+  const [density, setDensity] = useDensity()
+  const compact = density === 'compact'
+  const headers = [...columns.map((c) => c.header), ...(journeyColumn ? [JOURNEY] : [])]
+  // A stored choice that would hide every column (the tab's columns changed) shows them all.
+  const hide = headers.some((h) => !hidden.includes(h)) ? hidden : []
+  const shownColumns = columns.filter((c) => !hide.includes(c.header))
+  const showJourney = journeyColumn && !hide.includes(JOURNEY)
   // New search or filters → back to page 1 (reset while rendering, so the old page number is never fetched with them).
   const filterKey = JSON.stringify([debouncedQ, picked, toggled])
   const [pageFilters, setPageFilters] = useState(filterKey)
@@ -158,32 +187,57 @@ function RecordsPanel({
   ].filter(Boolean) as string[]
   const filtersText = appliedFilters.join(' · ') || 'None'
   const matching = data?.total ?? 0
+  const assetAbout: [string, string][] = [
+    ['Asset', asset.data ? (asset.data.company?.name ? `${asset.data.name} (${asset.data.company.name})` : asset.data.name) : assetId],
+    ['Asset id', assetId],
+    ['Tab', title],
+  ]
+  // Exports hold the columns the table shows (the Columns menu), plus the source link.
+  const exportShape = { sheet: title, columns: shownColumns, journey: showJourney, indications: !columns.some((c) => c.header === 'Indication') }
   const exportRecords = async (): Promise<TableExportResult> => {
     const { items, total } = await fetchAllRecords(assetId, tab, query)
     const count = exportedCount(items.length, total)
     return {
-      table: recordsTable({
-        sheet: title,
-        columns,
-        records: items,
-        total,
-        journey: journeyColumn,
-        about: [
-          ['Asset', asset.data ? (asset.data.company?.name ? `${asset.data.name} (${asset.data.company.name})` : asset.data.name) : assetId],
-          ['Asset id', assetId],
-          ['Tab', title],
-          ['Filters', filtersText],
-        ],
-      }),
+      table: recordsTable({ ...exportShape, records: items, total, about: [...assetAbout, ['Filters', filtersText]] }),
       stem: `${assetId}-${tab}`,
       done: `Exported ${count}`,
       note: items.length < total ? `capped at ${formatNumber(EXPORT_CAP)} rows` : undefined,
     }
   }
+  const nSelected = selected.size
+  const exportSelected = async (): Promise<TableExportResult> => {
+    const items = [...selected.values()]
+    return {
+      table: recordsTable({ ...exportShape, records: items, total: items.length, about: [...assetAbout, ['Rows', `${items.length} selected`]] }),
+      stem: `${assetId}-${tab}-selected`,
+      done: `Exported ${exportedCount(items.length, items.length)}`,
+    }
+  }
+  const pageItems = data?.items ?? []
+  const pageAll = pageItems.length > 0 && pageItems.every((r) => selected.has(r.key))
+  const pageSome = pageItems.some((r) => selected.has(r.key))
+  const toggleRow = (r: SourceRecord) =>
+    setSelected((prev) => {
+      const next = new Map(prev)
+      if (next.has(r.key)) next.delete(r.key)
+      else next.set(r.key, r)
+      return next
+    })
+  const togglePage = () =>
+    setSelected((prev) => {
+      const next = new Map(prev)
+      for (const r of pageItems) {
+        if (pageAll) next.delete(r.key)
+        else next.set(r.key, r)
+      }
+      return next
+    })
+  const company = asset.data?.company?.name
   const actions = (
     <span className="flex flex-wrap items-center gap-[12px]">
       {status}
       <FiltersToggle collapsed={filtersHidden} onCollapsed={setFiltersHidden} controls={filtersId} active={nActive} onClear={clearFilters} />
+      <RecordsColumnsMenu headers={headers} hidden={hide} onHidden={setHidden} density={density} onDensity={setDensity} />
       <TableExportMenu
         title={
           matching > EXPORT_CAP
@@ -199,6 +253,20 @@ function RecordsPanel({
 
   return (
     <RecordsCard title={title} description={description} actions={actions}>
+      {nSelected > 0 && (
+        <div role="region" aria-label="Selected records" className="flex flex-wrap items-center gap-x-[12px] gap-y-[8px] border-b border-hair bg-primary-soft px-[20px] py-[8px]">
+          <span className="font-semibold text-primary tabular-nums">{`${formatNumber(nSelected)} selected`}</span>
+          <TableExportMenu
+            label="Export selected"
+            title={`Exports the ${formatNumber(nSelected)} selected record${nSelected === 1 ? '' : 's'}`}
+            detail="The rows you ticked, on any page, with the columns the table shows"
+            build={exportSelected}
+          />
+          <Button variant="ghost" size="sm" className="h-[32px] rounded-[8px] px-[10px] text-[13px] text-text-secondary" onClick={() => setSelected(new Map())}>
+            Clear selection
+          </Button>
+        </div>
+      )}
       <div id={filtersId} hidden={filtersHidden}>
         {lead && (
           <DistributionBar
@@ -262,43 +330,81 @@ function RecordsPanel({
       )}
       {data && data.items.length > 0 && (
         <>
-          <Table className={cn('text-[13px]', records.isFetching && 'opacity-60')}>
-            <TableHeader>
-              <TableRow className="border-0 bg-background hover:bg-background">
-                {columns.map((c) => (
-                  <TableHead key={c.header} className={cn(TH, c.className)}>
-                    {c.header}
+          {/* Not the shared Table: its wrapper scrolls sideways only, and the sticky header needs the card's own scroller. */}
+          <div data-slot="table-container" className="relative max-h-[min(72vh,780px)] w-full overflow-auto overscroll-x-contain">
+            <table data-density={density} className={cn('w-full caption-bottom text-[13px]', records.isFetching && 'opacity-60')}>
+              <TableHeader className="sticky top-0 z-[2]">
+                <TableRow className="border-0 bg-background hover:bg-background">
+                  <TableHead className={cn(TH, STICKY_TH, compact && 'py-[6px]', 'w-[44px] pr-0')}>
+                    <input
+                      type="checkbox"
+                      className={CHECK}
+                      aria-label="Select all rows on this page"
+                      checked={pageAll}
+                      ref={(el) => {
+                        if (el) el.indeterminate = pageSome && !pageAll
+                      }}
+                      onChange={togglePage}
+                    />
                   </TableHead>
-                ))}
-                {journeyColumn && <TableHead className={cn(TH, 'pr-[20px]')}>Journey</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.items.map((r, i) => {
-                return (
-                  <TableRow
-                    key={r.key}
-                    tabIndex={0}
-                    onClick={() => setOpenKey(r.key)}
-                    onKeyDown={(e) => e.target === e.currentTarget && e.key === 'Enter' && setOpenKey(r.key)}
-                    className={TR}
-                    style={{ animationDuration: '350ms', animationDelay: `${Math.min(i, 12) * 25}ms` }}
-                  >
-                    {columns.map((c) => (
-                      <TableCell key={c.header} className={cn(TD, c.className)}>
-                        {c.cell(r)}
+                  {shownColumns.map((c) => (
+                    <TableHead key={c.header} className={cn(TH, STICKY_TH, compact && 'py-[6px]', c.className)}>
+                      {c.header}
+                    </TableHead>
+                  ))}
+                  {showJourney && <TableHead className={cn(TH, STICKY_TH, compact && 'py-[6px]')}>Journey</TableHead>}
+                  <TableHead className={cn(TH, STICKY_TH, compact && 'py-[6px]', 'w-[48px] pr-[20px]')}>
+                    <span className="sr-only">Citation</span>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.items.map((r, i) => {
+                  const ticked = selected.has(r.key)
+                  return (
+                    <TableRow
+                      key={r.key}
+                      tabIndex={0}
+                      onClick={() => setOpenKey(r.key)}
+                      onKeyDown={(e) => e.target === e.currentTarget && e.key === 'Enter' && setOpenKey(r.key)}
+                      data-state={ticked ? 'selected' : undefined}
+                      className={cn(TR, ticked && 'bg-primary-soft/50 hover:bg-primary-soft/70')}
+                      style={{ animationDuration: '350ms', animationDelay: `${Math.min(i, 12) * 25}ms` }}
+                    >
+                      <TableCell className={cn(TD, compact && 'py-[5px]', 'w-[44px] pr-0')} onClick={(e) => e.stopPropagation()}>
+                        <input type="checkbox" className={CHECK} aria-label={`Select ${recordTitle(r)}`} checked={ticked} onChange={() => toggleRow(r)} />
                       </TableCell>
-                    ))}
-                    {journeyColumn && (
-                      <TableCell className={cn(TD, 'pr-[20px]')}>
-                        <JourneyLink assetId={assetId} events={r.journey_events} />
+                      {shownColumns.map((c) => (
+                        <TableCell key={c.header} className={cn(TD, compact && 'py-[5px]', c.className)}>
+                          {c.cell(r)}
+                        </TableCell>
+                      ))}
+                      {showJourney && (
+                        <TableCell className={cn(TD, compact && 'py-[5px]')}>
+                          <JourneyLink assetId={assetId} events={r.journey_events} />
+                        </TableCell>
+                      )}
+                      <TableCell className={cn(TD, compact && 'py-[5px]', 'pr-[20px]')}>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="size-[28px] rounded-[8px] text-muted-foreground hover:text-foreground"
+                          aria-label={`Copy citation: ${recordTitle(r)}`}
+                          title="Copy citation"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            void copyCitation(recordCitation(r, tab, company))
+                          }}
+                        >
+                          <Quote className="size-[14px]" aria-hidden="true" />
+                        </Button>
                       </TableCell>
-                    )}
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </table>
+          </div>
           <Pager page={page} pageSize={PAGE_SIZE} total={data.total} onPage={setPage} />
         </>
       )}

@@ -1,4 +1,5 @@
 import { Fragment, type ReactNode } from 'react'
+import { useCardData } from './card-data'
 
 export interface HeatCell {
   label: ReactNode
@@ -6,6 +7,9 @@ export interface HeatCell {
   fg: string
   t?: string
 }
+
+/** A cell's text for the CSV: its label when it is text, else its tooltip. */
+const cellText = (x: HeatCell) => (typeof x.label === 'string' || typeof x.label === 'number' ? String(x.label) : (x.t ?? ''))
 
 /** Row × column matrix (competitive landscape, congress × year). */
 export function Heat<R extends { l: string; sub?: string }>({
@@ -17,6 +21,10 @@ export function Heat<R extends { l: string; sub?: string }>({
   cols: string[]
   cell: (row: R, col: string) => HeatCell
 }) {
+  useCardData({
+    columns: ['Row', 'Detail', ...cols],
+    rows: rows.map((r) => [r.l, r.sub ?? '', ...cols.map((c) => cellText(cell(r, c)))]),
+  })
   return (
     // Narrow screens scroll the matrix sideways instead of the page (the columns keep their 64px minimum).
     <div className="overflow-x-auto">

@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react'
+import { use, useRef, useState } from 'react'
 import { useElementWidth } from '@/lib/use-element-width'
+import { ChartExpanded, useCardData } from './card-data'
 
 export interface BarDatum {
   l: string
@@ -8,7 +9,9 @@ export interface BarDatum {
 }
 
 /** Vertical bars with value labels (Trials by phase). */
-export function VBars({ data, h = 150, unit = '' }: { data: BarDatum[]; h?: number; unit?: string }) {
+export function VBars({ data, h: base = 150, unit = '' }: { data: BarDatum[]; h?: number; unit?: string }) {
+  const h = use(ChartExpanded) ? base * 2 : base
+  useCardData({ columns: ['Label', unit ? `Value (${unit})` : 'Value'], rows: data.map((d) => [d.l, d.v]) })
   const ref = useRef<HTMLDivElement>(null)
   const W = Math.max(useElementWidth(ref), 200)
   const [hover, setHover] = useState<number | null>(null)

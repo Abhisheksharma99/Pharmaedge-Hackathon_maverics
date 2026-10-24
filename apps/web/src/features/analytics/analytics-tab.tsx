@@ -195,7 +195,8 @@ function Stats({ data, regions, trialCount }: { data: AssetAnalytics; regions: s
   )
 }
 
-function Charts({ data, assetId }: { data: AssetAnalytics; assetId: string }) {
+function Charts({ data, assetId, subject }: { data: AssetAnalytics; assetId: string; subject: string }) {
+  const menu = { subject }
   const { activityByYear, trials, recordsByYear, sourceMix, triageFunnel: fn, landscape, significance } = data
   const funnel = [
     { l: 'Unstructured records', v: fn.screened, c: '#98a2b3' },
@@ -206,10 +207,10 @@ function Charts({ data, assetId }: { data: AssetAnalytics; assetId: string }) {
   ]
   return (
     <ChartGrid>
-      <ChartCard title="Development pipeline" description="Furthest stage reached per indication, derived from trials, filings and approvals on the journey" span={2}>
+      <ChartCard menu={menu} title="Development pipeline" description="Furthest stage reached per indication, derived from trials, filings and approvals on the journey" span={2}>
         {data.pipeline.length ? <PipelineCard rows={data.pipeline} /> : <Empty>No indications or branches yet.</Empty>}
       </ChartCard>
-      <ChartCard title="Journey activity by year" description="Events per year by category; hover a year for the breakdown" span={2}>
+      <ChartCard menu={menu} title="Journey activity by year" description="Events per year by category; hover a year for the breakdown" span={2}>
         {activityByYear.cols.length ? (
           <ActivityBody assetId={assetId} activity={activityByYear} />
         ) : (
@@ -217,41 +218,41 @@ function Charts({ data, assetId }: { data: AssetAnalytics; assetId: string }) {
         )}
       </ChartCard>
       {trials.length > 0 && (
-        <ChartCard title="Clinical trial timeline" description="Grouped by phase, then start date; coloured by phase" span={2}>
+        <ChartCard menu={menu} title="Clinical trial timeline" description="Grouped by phase, then start date; coloured by phase" span={2}>
           <TrialTimeline trials={trials} />
         </ChartCard>
       )}
       {trials.length > 0 && (
-        <ChartCard title="Trials by phase">
+        <ChartCard menu={menu} title="Trials by phase">
           <TrialsByPhase trials={trials} />
         </ChartCard>
       )}
       {trials.length > 0 && (
-        <ChartCard title="Enrolment by indication" description="Patients across all studies">
+        <ChartCard menu={menu} title="Enrolment by indication" description="Patients across all studies">
           <EnrolmentByIndication trials={trials} />
         </ChartCard>
       )}
       {recordsByYear.length > 0 && (
-        <ChartCard title="Evidence collected over time" description="Stored records by the year they describe; they carry no indication, so filter by source" span={2}>
+        <ChartCard menu={menu} title="Evidence collected over time" description="Stored records by the year they describe; they carry no indication, so filter by source" span={2}>
           <EvidenceBody recordsByYear={recordsByYear} />
         </ChartCard>
       )}
       {sourceMix.length > 0 && (
-        <ChartCard title="Source mix">
+        <ChartCard menu={menu} title="Source mix">
           <SourceMixBody assetId={assetId} sourceMix={sourceMix} />
         </ChartCard>
       )}
       {fn.screened > 0 && (
-        <ChartCard title="AI triage funnel" description="Unstructured records to journey events; crawl counts carry no indication, so it isn't filterable">
+        <ChartCard menu={menu} title="AI triage funnel" description="Unstructured records to journey events; crawl counts carry no indication, so it isn't filterable">
           <Funnel steps={funnel} />
         </ChartCard>
       )}
       {landscape.rows.length > 1 && landscape.cols.length > 0 && (
-        <ChartCard title="Competitive landscape" description="Indication coverage of ranked competitors" span={2}>
+        <ChartCard menu={menu} title="Competitive landscape" description="Indication coverage of ranked competitors" span={2}>
           <Landscape landscape={landscape} />
         </ChartCard>
       )}
-      <ChartCard title="Significance mix">
+      <ChartCard menu={menu} title="Significance mix">
         <SignificanceBody assetId={assetId} significance={significance} />
       </ChartCard>
     </ChartGrid>
@@ -296,7 +297,7 @@ export function AnalyticsTab() {
   return (
     <div className="flex flex-col gap-[20px]">
       <Stats data={q.data} regions={asset?.kpis?.approvalRegions ?? []} trialCount={asset?.counts?.trials ?? 0} />
-      <Charts data={q.data} assetId={asset?.id ?? assetId} />
+      <Charts data={q.data} assetId={asset?.id ?? assetId} subject={asset?.name ?? assetId} />
     </div>
   )
 }

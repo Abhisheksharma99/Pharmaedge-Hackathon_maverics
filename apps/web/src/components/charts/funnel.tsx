@@ -1,10 +1,12 @@
 import { formatNumber } from '@/lib/format'
+import { useCardData } from './card-data'
 import type { Slice } from './donut'
 
 const rate = (v: number, prev: number) => (prev > 0 ? `${Math.round((v / prev) * 100)}%` : '—')
 
 /** Funnel (AI triage): bars sized against the largest step; labels stay visible beside the 62% track. */
 export function Funnel({ steps }: { steps: Slice[] }) {
+  useCardData({ columns: ['Step', 'Count'], rows: steps.map((s) => [s.l, s.v]) })
   const max = Math.max(1, ...steps.map((s) => s.v))
   return (
     <ol className="flex flex-col gap-[6px]">

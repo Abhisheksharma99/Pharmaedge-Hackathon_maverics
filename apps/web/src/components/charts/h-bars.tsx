@@ -1,8 +1,10 @@
 import { formatNumber } from '@/lib/format'
+import { useCardData } from './card-data'
 import type { BarDatum } from './v-bars'
 
 /** Horizontal bars with labels that clamp to two lines (enrolment by indication, journals). */
 export function HBars({ data, unit = '' }: { data: BarDatum[]; unit?: string }) {
+  useCardData({ columns: ['Label', unit ? `Value (${unit})` : 'Value'], rows: data.map((d) => [d.l, d.v]) })
   const max = Math.max(1, ...data.map((d) => d.v))
   return (
     <ul className="flex flex-col gap-[7px]">

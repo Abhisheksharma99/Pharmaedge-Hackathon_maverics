@@ -28,10 +28,11 @@ function RemoveButton({ title, onClick }: { title: string; onClick: () => void }
   )
 }
 
-function CustomCard({ spec, onRemove }: { spec: AnalyticsSpec; onRemove: () => void }) {
+function CustomCard({ spec, subject, onRemove }: { spec: AnalyticsSpec; subject: string; onRemove: () => void }) {
   return (
     <ChartCard
       title={spec.title}
+      menu={{ subject }}
       span={SPEC_WIDE.has(spec.chart) ? 2 : 1}
       description={spec.method === 'web' ? 'Asset AI · public web sources' : 'Asset AI · indexed data'}
       actions={<RemoveButton title={spec.title} onClick={onRemove} />}
@@ -118,7 +119,7 @@ export function OverviewAnalytics({ asset }: { asset: Pick<AssetSummary, 'id' | 
               // Values never show without their sources; the same spec pinned twice shows once.
               const first = items.findIndex((x) => x.custom?.id === it.custom!.id) === i
               return it.custom.sources.length && first ? (
-                <CustomCard key={`c:${it.custom.id}`} spec={it.custom} onRemove={() => remove(i)} />
+                <CustomCard key={`c:${it.custom.id}`} spec={it.custom} subject={asset.name} onRemove={() => remove(i)} />
               ) : null
             }
             const t = it.key ? OV_TEMPLATES[it.key] : undefined
@@ -128,6 +129,7 @@ export function OverviewAnalytics({ asset }: { asset: Pick<AssetSummary, 'id' | 
                 key={it.key}
                 title={t.title}
                 description={t.description}
+                menu={{ subject: asset.name }}
                 span={t.span}
                 actions={<RemoveButton title={t.title} onClick={() => remove(i)} />}
               >

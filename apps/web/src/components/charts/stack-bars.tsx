@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react'
+import { use, useRef, useState } from 'react'
 import { useElementWidth } from '@/lib/use-element-width'
+import { ChartExpanded, useCardData } from './card-data'
 import { Legend } from './legend'
 
 export interface Series {
@@ -16,7 +17,7 @@ const colLabel = (c: string | number) => (/^\d{4}$/.test(String(c)) ? `’${Stri
 export function StackBars({
   cols,
   series,
-  h = 160,
+  h: base = 160,
   every = 1,
 }: {
   cols: (string | number)[]
@@ -24,6 +25,12 @@ export function StackBars({
   h?: number
   every?: number
 }) {
+  const h = use(ChartExpanded) ? base * 2 : base
+  useCardData({
+    columns: [cols.every((c) => /^\d{4}$/.test(String(c))) ? 'Year' : 'Column', ...series.map((s) => s.l)],
+    rows: cols.map((c, i) => [c, ...series.map((s) => s.vals[i] ?? 0)]),
+    legend: series.map((s) => ({ l: s.l, c: s.c })),
+  })
   const ref = useRef<HTMLDivElement>(null)
   const W = Math.max(useElementWidth(ref), 260)
   const [hover, setHover] = useState<number | null>(null)

@@ -100,7 +100,8 @@ describe('records tabs: columns per tab (README §5.5)', () => {
     respond({ '/api/assets/trep/series': [], [`/api/assets/trep/records/${path}`]: page([record as SourceRecord]) })
     renderTab(element, path)
     await screen.findAllByRole('columnheader')
-    expect(headers()).toEqual(expected)
+    // Plus the row checkboxes first and the Copy citation buttons last.
+    expect(headers()).toEqual(['', ...expected, 'Citation'])
   })
 })
 
@@ -214,7 +215,7 @@ describe('Journey column and record sheet', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     // The record without events shows a dash, not a link.
     const rows = screen.getAllByRole('row')
-    expect(within(rows[2]).queryByRole('button')).not.toBeInTheDocument()
+    expect(within(rows[2]).queryByRole('button', { name: /Open in the journey/ })).not.toBeInTheDocument()
     expect(within(rows[2]).getByText('—', { selector: 'span' })).toBeInTheDocument()
   })
 

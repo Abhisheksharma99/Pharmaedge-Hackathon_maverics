@@ -1,3 +1,4 @@
+import { useCardData } from '@/components/charts/card-data'
 import { IndicationBadges } from '@/features/assets/components/badges'
 
 /** Date chip + title list (Next milestones card, calendar results). */
@@ -14,6 +15,10 @@ export function MilestoneList({
     indications?: string[]
   }[]
 }) {
+  useCardData({
+    columns: ['Month', 'Year', 'Title', 'When', 'Indications'],
+    rows: items.map((e) => [e.month, e.year, e.title, e.sub, (e.indications ?? []).join('; ')]),
+  })
   return (
     <ul className="flex flex-col">
       {items.map((e) => (

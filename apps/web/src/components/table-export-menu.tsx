@@ -34,7 +34,20 @@ async function exportTable(format: TableFormat, build: () => Promise<TableExport
  * A table's "Export" menu (CSV / Excel) for what a records tab or card shows. `title` and `detail` head the menu
  * ("Exports the 128 records matching" · "Search “tyvaso” · Phase: Phase 3"); `build` gathers the rows on click.
  */
-export function TableExportMenu({ title, detail, disabled = false, build }: { title: string; detail?: string; disabled?: boolean; build: () => Promise<TableExportResult> }) {
+export function TableExportMenu({
+  label = 'Export',
+  title,
+  detail,
+  disabled = false,
+  build,
+}: {
+  /** The button's text, e.g. "Export selected". */
+  label?: string
+  title: string
+  detail?: string
+  disabled?: boolean
+  build: () => Promise<TableExportResult>
+}) {
   const [busy, setBusy] = useState(false)
 
   const run = async (format: TableFormat) => {
@@ -53,7 +66,7 @@ export function TableExportMenu({ title, detail, disabled = false, build }: { ti
       <DropdownMenuTrigger asChild disabled={disabled || busy}>
         <Button variant="outline" size="sm" className={BTN_SM}>
           {busy ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Download aria-hidden="true" />}
-          {busy ? 'Exporting…' : 'Export'}
+          {busy ? 'Exporting…' : label}
           <ChevronDown className="-mr-[2px] size-[13px] text-muted-foreground" aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
