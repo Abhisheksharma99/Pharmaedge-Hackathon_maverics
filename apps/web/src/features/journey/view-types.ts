@@ -7,6 +7,11 @@ import type { JourneyEventV3 } from './types'
 export interface JourneyViewHandle {
   /** Scroll to the event and flash its card; false when the view doesn't show it. */
   jump: (id: string) => boolean
+  /**
+   * Keyboard: focus the next (1) or previous (−1) event card and bring it into view; with no card focused yet, focus
+   * the active one.
+   */
+  step: (delta: 1 | -1) => void
 }
 
 /** Props shared by both journey views. */

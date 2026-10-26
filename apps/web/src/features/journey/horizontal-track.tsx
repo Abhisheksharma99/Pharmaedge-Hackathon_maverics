@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { BranchChip, NoteTagChip, Targets } from './chips'
 import { eventDate } from './format'
 import { eventIndications } from './indications'
+import { CARD_KEYS } from './use-journey-keys'
 import { noteColor } from './constants'
 import { inBranch, laneOf, spanOf } from './journey-model'
 import { HZ, trackActive, trackHoverAt, trackLayout, trackOffsetFor, trackSeen, trackWindow, type TrackHover, type TrackLane } from './track-layout'
@@ -116,18 +117,6 @@ export function HorizontalTrack({ list, newestFirst, model, closures, stars, com
 
   useEffect(() => () => window.clearTimeout(flashTimer.current), [])
 
-  useImperativeHandle(ref, () => ({
-    jump(id) {
-      const i = list.findIndex((e) => e.id === id)
-      if (i < 0) return false
-      goTo(i)
-      setFlash(id)
-      window.clearTimeout(flashTimer.current)
-      flashTimer.current = window.setTimeout(() => setFlash((f) => (f === id ? null : f)), 1800)
-      return true
-    },
-  }))
-
   const move = (i: number) => {
     const j = Math.min(n - 1, Math.max(0, i))
     pendingFocus.current = j
@@ -138,6 +127,22 @@ export function HorizontalTrack({ list, newestFirst, model, closures, stars, com
       pendingFocus.current = null
     }
   }
+
+  useImperativeHandle(ref, () => ({
+    jump(id) {
+      const i = list.findIndex((e) => e.id === id)
+      if (i < 0) return false
+      goTo(i)
+      setFlash(id)
+      window.clearTimeout(flashTimer.current)
+      flashTimer.current = window.setTimeout(() => setFlash((f) => (f === id ? null : f)), 1800)
+      return true
+    },
+    step(delta) {
+      const focused = [...cards.current].find(([, el]) => el === document.activeElement)?.[0]
+      move(focused === undefined ? win.active : focused + delta)
+    },
+  }))
 
   // Stable callbacks for the memoised cards: they read the latest props through a ref, so scroll and hover renders skip them.
   const latest = useRef({ onOpen, move })
@@ -386,6 +391,7 @@ const TrackCard = memo(function TrackCard({ e, i, n, left, edge, up, active, see
       type="button"
       data-card={e.id}
       tabIndex={active ? 0 : -1}
+      aria-keyshortcuts={CARD_KEYS}
       onClick={() => onOpen(e.id)}
       onKeyDown={(ev) => {
         const to = ev.key === 'ArrowRight' ? i + 1 : ev.key === 'ArrowLeft' ? i - 1 : ev.key === 'Home' ? 0 : ev.key === 'End' ? n - 1 : null

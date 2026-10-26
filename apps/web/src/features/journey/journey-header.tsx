@@ -1,6 +1,7 @@
-import { Activity, Columns2, Flag, Plus, Rows2, Search, Star } from 'lucide-react'
-import { useId, useMemo, useState, type CSSProperties } from 'react'
-import { Link } from 'react-router'
+import { Activity, Columns2, Flag, Keyboard, Link2, Plus, Rows2, Search, Star } from 'lucide-react'
+import { useId, useImperativeHandle, useMemo, useRef, useState, type CSSProperties, type Ref } from 'react'
+import { flushSync } from 'react-dom'
+import { Link, useLocation } from 'react-router'
 import { FiltersToggle } from '@/components/filters-toggle'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -8,8 +9,9 @@ import { Segmented } from '@/features/assets/components/segmented'
 import { useCollapsed } from '@/lib/use-collapsed'
 import { cn } from '@/lib/utils'
 import type { JourneyScope } from './api'
-import { BTN_SM, CHIP, CHIP_ON, FOCUS } from './controls'
+import { BTN_SM, CHIP, CHIP_ON, FOCUS, ICON_BTN } from './controls'
 import { CATEGORIES, CATEGORY_META } from './constants'
+import { copyLink, journeyLink } from './copy-link'
 import { inBranch, laneOf, type BranchModel, type JourneyOrder, type JourneyView, type Mine } from './journey-model'
 import type { EventCategory, JourneyEventV3 } from './types'
 
@@ -45,6 +47,15 @@ export interface JourneyHeaderProps {
   onFocusBranch: (id: string | null) => void
   onClear: () => void
   onAdd: () => void
+  /** Open the keyboard shortcuts. */
+  onHelp: () => void
+  ref?: Ref<JourneyHeaderHandle>
+}
+
+/** What JourneySection can ask the header to do (keyboard shortcuts). */
+export interface JourneyHeaderHandle {
+  /** "/": show the filters if they are hidden and focus the title search. */
+  focusSearch: () => void
 }
 
 /**
@@ -53,7 +64,7 @@ export interface JourneyHeaderProps {
  * branch cards and filters away (remembered) so the timeline sits right under the actions; the filters keep applying.
  */
 export function JourneyHeader(p: JourneyHeaderProps) {
-  const { model, list, unbranched } = p
+  const { model, list, unbranched, ref } = p
   const span = list.length ? `${list[0]!.date.slice(0, 4)}–${list[list.length - 1]!.date.slice(0, 4)}` : ''
   const perBranch = useMemo(() => new Map(model.list.map((b) => [b.id, unbranched.filter((e) => inBranch(e, b.id, model))])), [unbranched, model])
   const laneCount = useMemo(() => {
@@ -62,6 +73,15 @@ export function JourneyHeader(p: JourneyHeaderProps) {
   }, [list, model])
   const [collapsed, setCollapsed] = useCollapsed('journey.filters')
   const filtersId = useId()
+  const location = useLocation()
+  const searchRef = useRef<HTMLInputElement>(null)
+  useImperativeHandle(ref, () => ({
+    focusSearch() {
+      if (collapsed) flushSync(() => setCollapsed(false))
+      searchRef.current?.focus()
+      searchRef.current?.select()
+    },
+  }))
   const nActive = p.cats.length + (p.focusBranch ? 1 : 0) + (p.mine ? 1 : 0) + (p.ind ? 1 : 0) + (p.q ? 1 : 0)
   return (
     <section aria-label="Journey" className="flex flex-wrap items-start justify-between gap-x-[24px] gap-y-[12px] rounded-[14px] border bg-card px-[20px] py-[18px] shadow-panel">
@@ -106,6 +126,14 @@ export function JourneyHeader(p: JourneyHeaderProps) {
           <Plus /> Add to timeline
         </Button>
         <FiltersToggle collapsed={collapsed} onCollapsed={setCollapsed} controls={filtersId} active={nActive} onClear={p.onClear} />
+        <span className="flex items-center">
+          <Button variant="ghost" size="icon-sm" aria-label="Copy link" title="Copy a link to this view of the journey" onClick={() => void copyLink(journeyLink(location))} className={ICON_BTN}>
+            <Link2 className="size-[16px]" />
+          </Button>
+          <Button variant="ghost" size="icon-sm" aria-label="Keyboard shortcuts" aria-keyshortcuts="?" title="Keyboard shortcuts (?)" onClick={p.onHelp} className={ICON_BTN}>
+            <Keyboard className="size-[16px]" />
+          </Button>
+        </span>
       </div>
       <div id={filtersId} hidden={collapsed} className="flex basis-full flex-col gap-[12px]">
         {model.multi && (
@@ -183,7 +211,7 @@ export function JourneyHeader(p: JourneyHeaderProps) {
               </SelectContent>
             </Select>
           )}
-          <TitleSearch value={p.q} onChange={p.onQuery} />
+          <TitleSearch ref={searchRef} value={p.q} onChange={p.onQuery} />
           {(p.cats.length > 0 || p.focusBranch || p.mine || p.ind || p.q) && (
             <button type="button" onClick={p.onClear} className={cn('rounded-sm px-[4px] text-[12.5px] font-medium text-primary hover:underline', FOCUS)}>
               Clear
@@ -199,7 +227,7 @@ export function JourneyHeader(p: JourneyHeaderProps) {
  * Title search, typed into local state (the URL's `?q=` follows and may render a beat later, which would move the
  * caret); a cleared filter empties it.
  */
-function TitleSearch({ value, onChange }: { value: string; onChange: (q: string) => void }) {
+function TitleSearch({ value, onChange, ref }: { value: string; onChange: (q: string) => void; ref: Ref<HTMLInputElement> }) {
   const [text, setText] = useState(value)
   const [prev, setPrev] = useState(value)
   if (value !== prev) {
@@ -211,7 +239,9 @@ function TitleSearch({ value, onChange }: { value: string; onChange: (q: string)
       <span className="sr-only">Search event titles</span>
       <Search className="pointer-events-none absolute top-1/2 left-[9px] size-[13px] -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
       <input
+        ref={ref}
         type="search"
+        aria-keyshortcuts="/"
         value={text}
         onChange={(e) => {
           setText(e.target.value)

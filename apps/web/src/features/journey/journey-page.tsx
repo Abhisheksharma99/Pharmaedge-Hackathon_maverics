@@ -1,9 +1,10 @@
-import { ArrowRight, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { ArrowRight, GitCompareArrows, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { useEffect, useId, useMemo, useRef, type ReactNode } from 'react'
 import { Link, Navigate, useParams, useSearchParams } from 'react-router'
 import { CardFilters } from '@/components/card-filters'
 import { useCardFilter, type FilterFacet } from '@/components/use-card-filter'
 import { Page } from '@/components/layout/page'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { byKindThenName, useAssets, type AssetSummary } from '@/features/assets/api'
 import { IndicationBadges, KindBadge } from '@/features/assets/components/badges'
@@ -13,6 +14,8 @@ import { EmptyState, Panel } from '@/features/assets/components/panel'
 import { useCollapsed } from '@/lib/use-collapsed'
 import { cn } from '@/lib/utils'
 import { useShellStore } from '@/stores/shell-store'
+import { ComparePicker } from './compare/compare-picker'
+import { defaultCompare } from './compare/compare-url'
 import { CHIP, FOCUS } from './controls'
 import { JourneyExportButton } from './export/export-menu'
 import { JourneySection } from './journey-section'
@@ -151,6 +154,7 @@ export function JourneyPage() {
               <>
                 <AssetHeading
                   asset={selected}
+                  all={all}
                   showList={
                     !listShown && (
                       <button ref={toggleRef} type="button" aria-expanded="false" aria-controls={listId} onClick={() => toggleList(false)} className={CHIP}>
@@ -199,7 +203,7 @@ function AssetItem({ asset: a, to, current }: { asset: AssetSummary; to: string;
   )
 }
 
-function AssetHeading({ asset: a, showList }: { asset: AssetSummary; showList: ReactNode }) {
+function AssetHeading({ asset: a, all, showList }: { asset: AssetSummary; all: AssetSummary[]; showList: ReactNode }) {
   return (
     <div className="flex flex-wrap items-center gap-x-[12px] gap-y-[6px]">
       {showList}
@@ -211,6 +215,11 @@ function AssetHeading({ asset: a, showList }: { asset: AssetSummary; showList: R
         <Link to={`/assets/${encodeURIComponent(a.id)}/overview`} className={cn('inline-flex items-center gap-[4px] rounded-sm text-[12.5px] font-medium text-primary hover:underline', FOCUS)}>
           Open asset <ArrowRight className="size-[12px]" aria-hidden="true" />
         </Link>
+        <ComparePicker assets={all} initial={defaultCompare(a, all)}>
+          <Button variant="outline">
+            <GitCompareArrows aria-hidden="true" /> Compare…
+          </Button>
+        </ComparePicker>
         <JourneyExportButton asset={{ id: a.id, name: a.name, company: a.company.name }} />
       </span>
     </div>

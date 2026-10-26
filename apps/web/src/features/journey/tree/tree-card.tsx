@@ -10,6 +10,7 @@ import { CATEGORY_META, noteColor } from '../constants'
 import { FOCUS } from '../controls'
 import { subtree, subtreeSize, viaLabel, type SubtreeNode } from '../journey-model'
 import type { JourneyEventV3 } from '../types'
+import { CARD_KEYS } from '../use-journey-keys'
 
 export interface TreeCardProps {
   assetId: string
@@ -75,7 +76,7 @@ export function TreeCard({ assetId, titleId, e, open, onToggle, starred, nCommen
         <SignificanceBadge value={e.significance} />
       </div>
       <h3 className={cn('mt-[12px] leading-tight font-[650] tracking-[-0.015em] text-balance', TITLE[e.significance])}>
-        <button type="button" id={titleId} onClick={onOpen} className={cn('rounded-sm text-left text-balance hover:text-primary', FOCUS)}>
+        <button type="button" id={titleId} aria-keyshortcuts={CARD_KEYS} onClick={onOpen} className={cn('rounded-sm text-left text-balance hover:text-primary', FOCUS)}>
           {e.title}
         </button>
       </h3>
