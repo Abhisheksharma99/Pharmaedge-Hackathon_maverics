@@ -71,6 +71,7 @@ export function AssetCard({
   competitors = 0,
   variant,
   index = 0,
+  star,
 }: {
   asset: AssetSummary
   /** Key events of this asset: sparkline and next milestone. */
@@ -83,6 +84,8 @@ export function AssetCard({
   competitors?: number
   variant: 'home' | 'search'
   index?: number
+  /** A watch star, drawn in the card's top-right corner beside (not inside) its link. */
+  star?: ReactNode
 }) {
   const today = todayIso()
   const brand = asset.aliases.find((a) => a.toLowerCase() !== asset.name.toLowerCase())
@@ -90,64 +93,74 @@ export function AssetCard({
   const next = events.filter((e) => e.is_milestone && daysBetween(today, e.date) >= 0).sort((a, b) => a.date.localeCompare(b.date))[0]
 
   return (
-    <Link
-      to={`/assets/${encodeURIComponent(asset.id)}/overview`}
-      className="flex animate-fade-up flex-col gap-[12px] rounded-[14px] border bg-card p-[16px] text-left shadow-panel transition-[border-color,box-shadow,transform] motion-reduce:hover:translate-y-0 hover:-translate-y-[2px] hover:border-[#c4ccda] hover:shadow-card-hover"
+    // The wrapper carries the entrance and lift, so the star (a sibling of the link, not inside it) moves with the card.
+    <div
+      className="relative flex animate-fade-up flex-col transition-transform motion-reduce:hover:translate-y-0 hover:-translate-y-[2px]"
       style={{ animationDelay: `${index * (variant === 'home' ? 70 : 50)}ms` }}
     >
-      <span className="flex items-center gap-[10px]">
-        <AssetTile name={asset.name} kind={asset.kind} size={36} />
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span className="flex flex-wrap items-center gap-[6px]">
-            <b className="text-[15px] font-semibold tracking-[-0.01em]">{asset.name}</b>
-            {variant === 'search' && <KindBadge kind={asset.kind} competitorOf={rivals} />}
-          </span>
-          <span className="truncate text-[12px] text-muted-foreground">
-            {variant === 'home' && brand ? `${brand} · ` : ''}
-            {asset.company.name}
-          </span>
-        </span>
-        <AssetStatusPill asset={asset} progress={progress} regions={regions} variant={variant} />
-      </span>
-      <span className="flex flex-wrap gap-[4px]">
-        {(asset.tags.indications ?? []).map((x) => (
-          <Tag key={x} title={x}>
-            {shortIndication(x)}
-          </Tag>
-        ))}
-        {(asset.tags.investigational_indications ?? []).map((x) => (
-          <Tag key={`i-${x}`} dashed title={`${x} (investigational)`}>
-            {shortIndication(x)}
-          </Tag>
-        ))}
-        {variant === 'search' && asset.kind === 'competitor' && rivals.length > 0 && <Tag>vs {rivals.join(', ')}</Tag>}
-      </span>
-      <Sparkline events={events} thisYear={Number(today.slice(0, 4))} />
-      {(variant !== 'home' || asset.latestEvent || progress !== null) && (
-        <span className="flex min-w-0 gap-[8px] text-[12.5px] text-secondary-foreground">
-          <span className="shrink-0 text-muted-foreground">Latest</span>
-          <span className="truncate">{asset.latestEvent?.title ?? (progress !== null ? 'Collecting records…' : '—')}</span>
-        </span>
-      )}
-      {variant === 'home' && (
-        <span className="flex flex-wrap gap-x-[12px] gap-y-[4px] border-t border-hair pt-[10px] text-[12px] text-muted-foreground">
-          <span>
-            <b className="font-semibold text-foreground">{formatNumber(asset.counts.events)}</b> events
-          </span>
-          <span>
-            <b className="font-semibold text-foreground">{formatNumber(asset.counts.trials)}</b> trials
-          </span>
-          <span>
-            <b className="font-semibold text-foreground">{competitors}</b> competitor{competitors === 1 ? '' : 's'}
-          </span>
-          {next && (
-            <span className="ml-auto inline-flex items-center gap-[4px] font-semibold text-primary">
-              <Clock className="size-[11px]" />
-              {relativeFuture(next.date, today)}
+      <Link
+        to={`/assets/${encodeURIComponent(asset.id)}/overview`}
+        className="flex flex-1 flex-col gap-[12px] rounded-[14px] border bg-card p-[16px] text-left shadow-panel transition-[border-color,box-shadow] hover:border-[#c4ccda] hover:shadow-card-hover"
+      >
+        <span className="flex items-center gap-[10px]">
+          <AssetTile name={asset.name} kind={asset.kind} size={36} />
+          {/* A long status pill (Collecting · 5%) wraps under the name rather than squeezing it. */}
+          <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-[10px] gap-y-[6px]">
+            <span className="flex min-w-0 flex-[1_1_80px] flex-col">
+              <span className="flex flex-wrap items-center gap-[6px]">
+                <b className="text-[15px] font-semibold tracking-[-0.01em]">{asset.name}</b>
+                {variant === 'search' && <KindBadge kind={asset.kind} competitorOf={rivals} />}
+              </span>
+              <span className="truncate text-[12px] text-muted-foreground">
+                {variant === 'home' && brand ? `${brand} · ` : ''}
+                {asset.company.name}
+              </span>
             </span>
-          )}
+            <AssetStatusPill asset={asset} progress={progress} regions={regions} variant={variant} />
+          </span>
+          {star && <span aria-hidden="true" className="w-[24px] shrink-0" />}
         </span>
-      )}
-    </Link>
+        <span className="flex flex-wrap gap-[4px]">
+          {(asset.tags.indications ?? []).map((x) => (
+            <Tag key={x} title={x}>
+              {shortIndication(x)}
+            </Tag>
+          ))}
+          {(asset.tags.investigational_indications ?? []).map((x) => (
+            <Tag key={`i-${x}`} dashed title={`${x} (investigational)`}>
+              {shortIndication(x)}
+            </Tag>
+          ))}
+          {variant === 'search' && asset.kind === 'competitor' && rivals.length > 0 && <Tag>vs {rivals.join(', ')}</Tag>}
+        </span>
+        <Sparkline events={events} thisYear={Number(today.slice(0, 4))} />
+        {(variant !== 'home' || asset.latestEvent || progress !== null) && (
+          <span className="flex min-w-0 gap-[8px] text-[12.5px] text-secondary-foreground">
+            <span className="shrink-0 text-muted-foreground">Latest</span>
+            <span className="truncate">{asset.latestEvent?.title ?? (progress !== null ? 'Collecting records…' : '—')}</span>
+          </span>
+        )}
+        {variant === 'home' && (
+          <span className="flex flex-wrap gap-x-[12px] gap-y-[4px] border-t border-hair pt-[10px] text-[12px] text-muted-foreground">
+            <span>
+              <b className="font-semibold text-foreground">{formatNumber(asset.counts.events)}</b> events
+            </span>
+            <span>
+              <b className="font-semibold text-foreground">{formatNumber(asset.counts.trials)}</b> trials
+            </span>
+            <span>
+              <b className="font-semibold text-foreground">{competitors}</b> competitor{competitors === 1 ? '' : 's'}
+            </span>
+            {next && (
+              <span className="ml-auto inline-flex items-center gap-[4px] font-semibold text-primary">
+                <Clock className="size-[11px]" />
+                {relativeFuture(next.date, today)}
+              </span>
+            )}
+          </span>
+        )}
+      </Link>
+      {star && <span className="absolute top-[20px] right-[12px]">{star}</span>}
+    </div>
   )
 }

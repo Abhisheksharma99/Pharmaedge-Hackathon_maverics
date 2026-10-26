@@ -6,7 +6,7 @@ import { toEventV3 } from '../journey/events.js';
 import { CacheService } from '../valkey/cache.service.js';
 
 const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const EVENT_FIELDS = { asset: 1, date: 1, title: 1, type: 1, category: 1, significance: 1, is_milestone: 1, branch: 1, indications: 1, span: 1, origin: 1, key: 1, sources: 1, nct_id: 1 };
+const EVENT_FIELDS = { asset: 1, date: 1, title: 1, type: 1, category: 1, significance: 1, is_milestone: 1, branch: 1, indications: 1, span: 1, origin: 1, key: 1, sources: 1, nct_id: 1, first_seen: 1 };
 
 /** Home portfolio timeline and ⌘K search across every tracked asset (DATA_CONTRACTS §B.1, §B.5). */
 @Injectable()

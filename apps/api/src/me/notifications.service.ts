@@ -3,8 +3,21 @@ import { ObjectId, type Db } from 'mongodb';
 import { MONGO_DB } from '../database/database.module.js';
 import type { PrefsDto } from './prefs.dto.js';
 
-export const DEFAULT_PREFS = { journeyView: 'h' as 'h' | 'v', sidebarCollapsed: false, notify: { highEvents: true, crawls: true, weeklyDigest: false } };
+export const DEFAULT_PREFS = {
+  journeyView: 'h' as 'h' | 'v',
+  sidebarCollapsed: false,
+  notify: { highEvents: true, crawls: true, weeklyDigest: false },
+  watchlist: [] as string[],
+  homeWatchlistOnly: false,
+  /** Home visits (ISO): the latest, and the one before it, which "Since your last visit" compares against. */
+  lastSeen: { home: null as string | null, homePrev: null as string | null },
+};
 export type Prefs = typeof DEFAULT_PREFS;
+
+/** Home opens closer together than this are one visit: the latest time moves on, the previous visit stays put. */
+export const VISIT_GAP_MS = 30 * 60_000;
+
+const iso = (d: unknown) => (d instanceof Date ? d.toISOString() : null);
 
 /** In-app notifications (stored per user, fanned out at write time) and per-user preferences (DATA_CONTRACTS §B.5). */
 @Injectable()
@@ -18,7 +31,14 @@ export class NotificationsService implements OnModuleInit {
 
   async prefs(user: string): Promise<Prefs> {
     const doc = await this.db.collection('user_prefs').findOne({ user });
-    return { ...DEFAULT_PREFS, ...(doc && { journeyView: doc.journeyView ?? DEFAULT_PREFS.journeyView, sidebarCollapsed: doc.sidebarCollapsed ?? false }), notify: { ...DEFAULT_PREFS.notify, ...doc?.notify } };
+    return {
+      journeyView: doc?.journeyView ?? DEFAULT_PREFS.journeyView,
+      sidebarCollapsed: doc?.sidebarCollapsed ?? false,
+      notify: { ...DEFAULT_PREFS.notify, ...doc?.notify },
+      watchlist: doc?.watchlist ?? [],
+      homeWatchlistOnly: doc?.homeWatchlistOnly ?? false,
+      lastSeen: { home: iso(doc?.lastSeen?.home), homePrev: iso(doc?.lastSeen?.homePrev) },
+    };
   }
 
   async savePrefs(user: string, patch: PrefsDto): Promise<Prefs> {
@@ -26,6 +46,15 @@ export class NotificationsService implements OnModuleInit {
     if (patch.journeyView) set.journeyView = patch.journeyView;
     if (patch.sidebarCollapsed !== undefined) set.sidebarCollapsed = patch.sidebarCollapsed;
     for (const [k, v] of Object.entries(patch.notify ?? {})) if (v !== undefined) set[`notify.${k}`] = v;
+    if (patch.watchlist) set.watchlist = [...new Set(patch.watchlist)];
+    if (patch.homeWatchlistOnly !== undefined) set.homeWatchlistOnly = patch.homeWatchlistOnly;
+    if (patch.lastSeen?.home) {
+      // Server time caps the client's clock; after a gap of VISIT_GAP_MS the stored visit becomes the previous one.
+      const at = new Date(Math.min(Date.parse(patch.lastSeen.home), Date.now()));
+      const prev = (await this.db.collection('user_prefs').findOne({ user }, { projection: { lastSeen: 1 } }))?.lastSeen?.home as Date | undefined;
+      if (!prev || at > prev) set['lastSeen.home'] = at;
+      if (prev && at.getTime() - prev.getTime() > VISIT_GAP_MS) set['lastSeen.homePrev'] = prev;
+    }
     if (Object.keys(set).length) await this.db.collection('user_prefs').updateOne({ user }, { $set: set }, { upsert: true });
     return this.prefs(user);
   }

@@ -11,22 +11,23 @@ import { eventIndications } from '@/features/journey/indications'
 import type { JourneyEventV3 } from '@/features/journey/types'
 import { daysBetween, relativeFuture, todayIso } from '@/lib/dates'
 import { useEventSheet } from '@/stores/event-sheet-store'
-import { usePortfolioTimeline } from '../api'
 import { proximity, upcomingMilestones } from '../home-data'
 import { cardFiltersText, portfolioEventsExport } from '../home-export'
+import { useHomePortfolio } from '../home-scope'
 import { ListSkeleton } from './list-skeleton'
+import { NewDot } from './new-dot'
 import { NoMatches } from './no-matches'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 /** Home "Next milestones" (README §5.2): date block, title, asset, countdown and a proximity bar. */
 export function NextMilestones() {
-  const portfolio = usePortfolioTimeline()
+  const { portfolio, data, isNew } = useHomePortfolio()
   const openEvent = useEventSheet((s) => s.openEvent)
   const today = todayIso()
-  const assets = new Map((portfolio.data?.assets ?? []).map((a) => [a.id, a]))
+  const assets = new Map((data?.assets ?? []).map((a) => [a.id, a]))
   // Filter every upcoming milestone, then show the soonest few of what is left.
-  const upcoming = portfolio.data ? upcomingMilestones(portfolio.data.events, today, Infinity) : []
+  const upcoming = data ? upcomingMilestones(data.events, today, Infinity) : []
   const assetName = (e: JourneyEventV3) => assets.get(e.asset)?.name ?? e.asset
   const { filtered, filters } = useCardFilter(upcoming, (e) => `${e.title} ${assetName(e)}`, [
     { label: 'Indication', of: eventIndications },
@@ -51,7 +52,7 @@ export function NextMilestones() {
     <Panel title="Next milestones" description="Readouts, regulatory decisions and patent expiries" actions={exportMenu} bodyClassName="pt-[4px] pb-[6px]">
       {portfolio.isPending && <ListSkeleton rows={3} />}
       {portfolio.isError && <InlineError message="Milestones couldn't be loaded." onRetry={() => void portfolio.refetch()} />}
-      {portfolio.data && items.length === 0 && (
+      {data && items.length === 0 && (
         <EmptyState title="No upcoming milestones">Expected readouts and decisions appear here once they are in a journey.</EmptyState>
       )}
       {upcoming.length > 0 && <CardFilters {...filters} collapseKey="home.next-milestones" placeholder="Search title or asset" />}
@@ -67,7 +68,10 @@ export function NextMilestones() {
                   <b className="text-[14px] font-semibold tracking-[-0.02em]">{e.date.slice(0, 4)}</b>
                 </span>
                 <span className="flex min-w-0 flex-1 flex-col gap-[4px]">
-                  <span className="font-medium text-pretty">{e.title}</span>
+                  <span className="flex items-start gap-[8px] font-medium text-pretty">
+                    {isNew(e) && <NewDot className="mt-[6px]" />}
+                    {e.title}
+                  </span>
                   <span className="flex flex-wrap items-center gap-x-[6px] gap-y-[4px] text-[12px] text-muted-foreground">
                     {asset && <AssetTile name={asset.name} kind={asset.kind} size={16} />}
                     {asset?.name ?? e.asset}
