@@ -16,7 +16,7 @@ beforeAll(async () => {
   ]);
   await db.collection('jobs').insertOne({ _id: 'j' as never, asset: 'trep', type: 'onboard', status: 'running', steps: [{ status: 'done' }, { status: 'done' }, { status: 'running' }, { status: 'pending' }], created_at: new Date() });
   await db.collection('journey_events').insertMany([
-    { _id: 'e1' as never, asset: 'trep', origin: 'rule', title: 'Phase 3 trial started: TETON-1', nct_id: 'NCT04708782', date: '2021-06-01', category: 'clinical', key: true },
+    { _id: 'e1' as never, asset: 'trep', origin: 'rule', title: 'Phase 3 trial started: TETON-1', nct_id: 'NCT04708782', date: '2021-06-01', category: 'clinical', key: true, first_seen: new Date('2026-10-20T08:00:00Z') },
     { _id: 'e2' as never, asset: 'nint', origin: 'ai', title: 'Ofev approved for PPF', date: '2020-03-09', category: 'regulatory', key: true },
     { _id: 'e3' as never, asset: 'trep', origin: 'rule', title: 'Label update for TETON', date: '2022-01-01', category: 'regulatory', key: false },
   ]);
@@ -28,6 +28,8 @@ describe('portfolio timeline', () => {
     const out = (await get('/api/portfolio/timeline?from=2015-01-01&to=2030-01-01')).json();
     expect(out.assets).toEqual([expect.objectContaining({ id: 'trep', kind: 'primary', status: 'onboarding', progress: 0.5, company: 'United Therapeutics' })]);
     expect(out.events.map((e: { id: string }) => e.id)).toEqual(['e1']);
+    // When the event was first stored: Home's "Since your last visit" compares it with the user's previous visit.
+    expect(out.events[0].first_seen).toBe('2026-10-20T08:00:00.000Z');
   });
   it('adds competitors on request', async () => {
     const out = (await get('/api/portfolio/timeline?competitors=true')).json();

@@ -15,10 +15,13 @@ export interface PortfolioAsset {
   competitorOf: string[]
 }
 
+/** A portfolio key event; `first_seen` (ISO) is when the crawler first stored it (older events may lack it). */
+export type PortfolioEvent = JourneyEventV3 & { first_seen?: string }
+
 export interface PortfolioTimeline {
   assets: PortfolioAsset[]
   /** Key events of those assets (spec §4.1), oldest first. */
-  events: JourneyEventV3[]
+  events: PortfolioEvent[]
 }
 
 /**

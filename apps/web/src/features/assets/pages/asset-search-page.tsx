@@ -1,4 +1,4 @@
-import { LayoutGrid, List, Plus, Search } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronsUpDown, LayoutGrid, List, Plus, Search } from 'lucide-react'
 import { useId, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { FiltersToggle } from '@/components/filters-toggle'
@@ -6,9 +6,12 @@ import { InlineError } from '@/components/inline-error'
 import { Page } from '@/components/layout/page'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { TableExportMenu } from '@/components/table-export-menu'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { eventsByAsset, usePortfolioTimeline } from '@/features/home/api'
+import { cardFiltersText } from '@/features/home/home-export'
+import { FOCUS } from '@/features/journey/controls'
 import { indicationOptions } from '@/features/journey/indications'
 import { useJobs } from '@/features/jobs/api'
 import { jobProgress, runningByAsset } from '@/features/jobs/steps'
@@ -16,13 +19,15 @@ import { formatDay } from '@/lib/dates'
 import { formatNumber } from '@/lib/format'
 import { useCollapsed } from '@/lib/use-collapsed'
 import { cn } from '@/lib/utils'
-import { assetIndications, assetMatches, byKindThenName, useAssetDetails, useAssets, type AssetSummary } from '../api'
+import { assetIndications, assetMatches, useAssetDetails, useAssets, type AssetSummary } from '../api'
 import { AssetCard, AssetStatusPill } from '../components/asset-card'
 import { AssetTile } from '../components/asset-tile'
 import { KindBadge } from '../components/badges'
 import { EmptyState } from '../components/panel'
 import { shortIndication } from '../components/competitors/utils'
 import { Segmented } from '../components/segmented'
+import { WatchStar } from '../components/watch-star'
+import { assetsExport, nextSort, parseSort, sortAssets, sortLabel, sortParam, type AssetSort, type SortKey } from './asset-search-sort'
 
 type Kind = 'all' | 'primary' | 'competitor'
 type View = 'table' | 'grid'
@@ -59,6 +64,24 @@ function IndicationTags({ asset }: { asset: AssetSummary }) {
   )
 }
 
+/** A sortable column header's button: the arrow shows the active direction, the column's `aria-sort` says it too. */
+function SortButton({ label, sortKey, sort, onSort }: { label: string; sortKey: SortKey; sort: AssetSort | null; onSort: (key: SortKey) => void }) {
+  const active = sort?.key === sortKey
+  const Icon = !active ? ChevronsUpDown : sort.desc ? ArrowDown : ArrowUp
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(sortKey)}
+      className={cn('-mx-[4px] inline-flex items-center gap-[4px] rounded-[5px] px-[4px] whitespace-nowrap hover:text-foreground', active && 'text-foreground', FOCUS)}
+    >
+      {label}
+      <Icon className={cn('size-[12px]', !active && 'opacity-50')} aria-hidden="true" />
+    </button>
+  )
+}
+
+const ariaSort = (sort: AssetSort | null, ...keys: SortKey[]) => (sort && keys.includes(sort.key) ? (sort.desc ? 'descending' : 'ascending') : undefined)
+
 /** Asset Search (README §5.3): every tracked asset, primary or competitor, as a table or cards. */
 export function AssetSearchPage() {
   const navigate = useNavigate()
@@ -71,6 +94,7 @@ export function AssetSearchPage() {
   const kind: Kind = KINDS.find((k) => k === params.get('kind')) ?? 'all'
   const view: View = params.get('view') === 'grid' ? 'grid' : 'table'
   const indication = params.get('indication') ?? ''
+  const sort = parseSort(params.get('sort'))
   const [filtersHidden, setFiltersHidden] = useCollapsed('asset-search.filters')
   const filtersId = useId()
 
@@ -86,16 +110,24 @@ export function AssetSearchPage() {
       { replace: true },
     )
 
-  const all = [...(assets.data ?? [])].sort(byKindThenName)
+  const progressOf = (id: string) => {
+    const job = running.get(id)
+    return job ? jobProgress(job) : null
+  }
+  const all = sortAssets(assets.data ?? [], sort, progressOf)
   const primaries = all.filter((a) => a.kind === 'primary').length
   const indications = indicationOptions(all, assetIndications)
   const shown = all.filter((a) => (kind === 'all' || a.kind === kind) && (!indication || assetIndications(a).includes(indication)) && assetMatches(a, q.trim()))
   const details = useAssetDetails(shown.map((a) => a.id))
   const byAsset = eventsByAsset(portfolio.data?.events ?? [])
-  const progressOf = (id: string) => {
-    const job = running.get(id)
-    return job ? jobProgress(job) : null
-  }
+  const onSort = (key: SortKey) => setParam('sort', sortParam(nextSort(sort, key)), '')
+  const filtersText = cardFiltersText({
+    query: q,
+    selects: [
+      { label: 'Kind', value: kind === 'all' ? null : kind === 'primary' ? 'Primary' : 'Competitors' },
+      { label: 'Indication', value: indication || null },
+    ],
+  })
   const assetPath = (id: string) => `/assets/${encodeURIComponent(id)}/overview`
 
   return (
@@ -226,24 +258,62 @@ export function AssetSearchPage() {
         </section>
       )}
 
+      {all.length > 0 && (
+        <div className="-mb-[4px] flex flex-wrap items-center justify-between gap-x-[16px] gap-y-[8px]">
+          <p aria-live="polite" className="text-text-secondary">
+            <b className="font-semibold text-foreground">{shown.length === all.length ? `${all.length}` : `${shown.length} of ${all.length}`}</b> asset{all.length === 1 ? '' : 's'}
+            {sort && ` · sorted by ${sortLabel(sort)}`}
+          </p>
+          <TableExportMenu
+            title={`Exports the ${shown.length} asset${shown.length === 1 ? '' : 's'} shown`}
+            detail={`In this order${sort ? ` (${sortLabel(sort)})` : ''} · ${filtersText === 'None' ? 'no filters' : `filters: ${filtersText}`}`}
+            disabled={shown.length === 0}
+            build={async () =>
+              assetsExport({
+                assets: shown,
+                regions: Object.fromEntries(shown.map((a) => [a.id, details[a.id]?.kpis.approvalRegions])),
+                progressOf,
+                filters: filtersText,
+                sort,
+                origin: window.location.origin,
+              })
+            }
+          />
+        </div>
+      )}
+
       {shown.length > 0 && view === 'table' && (
         <section className="overflow-hidden rounded-[14px] border bg-card shadow-panel">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Asset</TableHead>
+                <TableHead aria-sort={ariaSort(sort, 'name', 'company', 'kind')}>
+                  {/* Starts where the asset tile does, past the row's watch star. */}
+                  <span className="flex items-center gap-[14px] pl-[24px]">
+                    <SortButton label="Asset" sortKey="name" sort={sort} onSort={onSort} />
+                    <SortButton label="Company" sortKey="company" sort={sort} onSort={onSort} />
+                    <SortButton label="Kind" sortKey="kind" sort={sort} onSort={onSort} />
+                  </span>
+                </TableHead>
                 <TableHead>Indications</TableHead>
                 <TableHead>Approved in</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Events</TableHead>
-                <TableHead>Latest update</TableHead>
+                <TableHead aria-sort={ariaSort(sort, 'status')}>
+                  <SortButton label="Status" sortKey="status" sort={sort} onSort={onSort} />
+                </TableHead>
+                <TableHead aria-sort={ariaSort(sort, 'events')}>
+                  <SortButton label="Events" sortKey="events" sort={sort} onSort={onSort} />
+                </TableHead>
+                <TableHead aria-sort={ariaSort(sort, 'latest')}>
+                  <SortButton label="Latest update" sortKey="latest" sort={sort} onSort={onSort} />
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {shown.map((a) => (
                 <TableRow key={a.id} onClick={() => navigate(assetPath(a.id))} className="cursor-pointer">
-                  <TableCell className="min-w-[260px]">
+                  <TableCell className="min-w-[280px]">
                     <div className="flex items-center gap-[10px]">
+                      <WatchStar id={a.id} name={a.name} className="-mr-[6px] -ml-[8px]" />
                       <AssetTile name={a.name} kind={a.kind} size={30} />
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-[7px]">
@@ -284,7 +354,15 @@ export function AssetSearchPage() {
       {shown.length > 0 && view === 'grid' && (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(270px,1fr))] gap-[16px]">
           {shown.map((a, i) => (
-            <AssetCard key={a.id} asset={a} variant="search" index={i} events={byAsset.get(a.id) ?? []} progress={progressOf(a.id)} />
+            <AssetCard
+              key={a.id}
+              asset={a}
+              variant="search"
+              index={i}
+              events={byAsset.get(a.id) ?? []}
+              progress={progressOf(a.id)}
+              star={<WatchStar id={a.id} name={a.name} />}
+            />
           ))}
         </div>
       )}

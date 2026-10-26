@@ -16,7 +16,8 @@ import type { JourneyEventV3 } from '@/features/journey/types'
 import { formatDay, formatMonth, todayIso, yearFraction } from '@/lib/dates'
 import { useElementWidth } from '@/lib/use-element-width'
 import { useEventSheet } from '@/stores/event-sheet-store'
-import { eventsByAsset, usePortfolioTimeline, type PortfolioAsset } from '../api'
+import { eventsByAsset, type PortfolioAsset } from '../api'
+import { useHomePortfolio } from '../home-scope'
 import { DOT_RADIUS, RANGE_OPTIONS, rangeBounds, rangeTicks, type PortfolioRange } from '../portfolio-scale'
 import { NoMatches } from './no-matches'
 
@@ -31,12 +32,11 @@ const whenLabel = (e: JourneyEventV3) => (e.is_milestone ? `expected ${formatMon
 /** Home "Portfolio timeline" (README §5.2): every tracked journey on one axis; a dot opens the event sheet. */
 export function PortfolioTimeline() {
   const running = runningByAsset(useJobs({ status: 'running' }).data)
-  const portfolio = usePortfolioTimeline({ live: running.size > 0 })
+  const { portfolio, data } = useHomePortfolio({ live: running.size > 0 })
   // Only an onboarding build shows "Building" and whole-history record ticks; a routine refresh leaves the row as is.
   const onboarding = new Map([...running].filter(([, job]) => job.type === 'onboard'))
   const [range, setRange] = useState<PortfolioRange>('3y')
   const [showCompetitors, setShowCompetitors] = useState(false)
-  const data = portfolio.data
   const names = new Map((data?.assets ?? []).map((a) => [a.id, a.name]))
   // Search is by asset: it narrows the rows and the dots; the Indication filter keeps only matching events.
   const { filtered, filters } = useCardFilter(data?.events ?? [], (e) => names.get(e.asset) ?? e.asset, [{ label: 'Indication', of: eventIndications }])

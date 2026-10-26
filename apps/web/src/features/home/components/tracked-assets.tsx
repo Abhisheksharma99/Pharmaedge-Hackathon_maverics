@@ -9,24 +9,27 @@ import { useAssetDetails, useAssets } from '@/features/assets/api'
 import { AssetCard } from '@/features/assets/components/asset-card'
 import { shortIndication } from '@/features/assets/components/competitors/utils'
 import { EmptyState } from '@/features/assets/components/panel'
+import { WatchStar } from '@/features/assets/components/watch-star'
 import { useJobs } from '@/features/jobs/api'
 import { jobProgress, runningByAsset } from '@/features/jobs/steps'
-import { eventsByAsset, usePortfolioTimeline } from '../api'
+import { eventsByAsset } from '../api'
+import { useHomePortfolio } from '../home-scope'
 import { NoMatches } from './no-matches'
 
-/** Home "Tracked assets" (README §5.2): one card per primary asset. */
+/** Home "Tracked assets" (README §5.2): one card per primary asset (watched ones with the Watchlist chip), each with a watch star. */
 export function TrackedAssets() {
   const assets = useAssets()
-  const portfolio = usePortfolioTimeline()
+  const { data, scope } = useHomePortfolio()
   const running = runningByAsset(useJobs({ status: 'running' }).data)
   const all = assets.data ?? []
-  const primary = all.filter((a) => a.kind === 'primary')
-  const competitors = all.length - primary.length
+  const everyPrimary = all.filter((a) => a.kind === 'primary')
+  const primary = scope.watched ? everyPrimary.filter((a) => scope.watched!.has(a.id)) : everyPrimary
+  const competitors = all.length - everyPrimary.length
   const { filtered, filters } = useCardFilter(primary, (a) => [a.name, a.company.name, ...a.aliases].join(' '), [
     { label: 'Indication', of: (a) => [...(a.tags.indications ?? []), ...(a.tags.investigational_indications ?? [])].map(shortIndication) },
   ])
   const details = useAssetDetails(primary.map((a) => a.id))
-  const byAsset = eventsByAsset(portfolio.data?.events ?? [])
+  const byAsset = eventsByAsset(data?.events ?? [])
 
   return (
     <section aria-labelledby="tracked-assets-title" className="flex flex-col gap-[12px]">
@@ -37,7 +40,7 @@ export function TrackedAssets() {
           </h2>
           {assets.data && (
             <p className="text-text-secondary">
-              {primary.length} primary · {competitors} competitor{competitors === 1 ? '' : 's'}
+              {scope.watched ? `${primary.length} of ${everyPrimary.length} primary on your watchlist` : `${primary.length} primary`} · {competitors} competitor{competitors === 1 ? '' : 's'}
             </p>
           )}
         </div>
@@ -57,7 +60,11 @@ export function TrackedAssets() {
       {assets.isError && <InlineError message="Assets couldn't be loaded." onRetry={() => void assets.refetch()} className="px-0" />}
       {assets.data && primary.length === 0 && (
         <div className="rounded-[14px] border bg-card">
-          <EmptyState title="No assets yet">Add a drug by name with Asset AI.</EmptyState>
+          {scope.watched && everyPrimary.length > 0 ? (
+            <EmptyState title="No primary assets on your watchlist">Star an asset to keep it here, or turn off the Watchlist filter.</EmptyState>
+          ) : (
+            <EmptyState title="No assets yet">Add a drug by name with Asset AI.</EmptyState>
+          )}
         </div>
       )}
       {primary.length > 0 && <CardFilters {...filters} collapseKey="home.tracked-assets" placeholder="Search assets" className="px-0 pt-0" />}
@@ -80,6 +87,7 @@ export function TrackedAssets() {
                 progress={job ? jobProgress(job) : null}
                 regions={details[a.id]?.kpis.approvalRegions}
                 competitors={all.filter((c) => c.competitorOf.some((p) => p.id === a.id)).length}
+                star={<WatchStar id={a.id} name={a.name} />}
               />
             )
           })}

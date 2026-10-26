@@ -137,9 +137,9 @@ describe('notifications and prefs', () => {
   });
 
   it('returns default prefs and saves partial updates per user', async () => {
-    expect((await call(admin, 'GET', '/api/me/prefs')).json()).toEqual({ journeyView: 'h', sidebarCollapsed: false, notify: { highEvents: true, crawls: true, weeklyDigest: false } });
+    expect((await call(admin, 'GET', '/api/me/prefs')).json()).toMatchObject({ journeyView: 'h', sidebarCollapsed: false, notify: { highEvents: true, crawls: true, weeklyDigest: false } });
     const saved = (await call(admin, 'PATCH', '/api/me/prefs', { journeyView: 'v', notify: { weeklyDigest: true } })).json();
-    expect(saved).toEqual({ journeyView: 'v', sidebarCollapsed: false, notify: { highEvents: true, crawls: true, weeklyDigest: true } });
+    expect(saved).toMatchObject({ journeyView: 'v', sidebarCollapsed: false, notify: { highEvents: true, crawls: true, weeklyDigest: true } });
     expect((await call(analyst, 'GET', '/api/me/prefs')).json().journeyView).toBe('h');
     expect((await call(admin, 'PATCH', '/api/me/prefs', { journeyView: 'x' })).statusCode).toBe(400);
   });

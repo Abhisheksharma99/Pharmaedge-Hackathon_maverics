@@ -7,6 +7,9 @@ import type { Job, JobStep } from '@/features/jobs/api'
 import type { AssetSummary } from '../api'
 import { AssetSearchPage } from './asset-search-page'
 
+const downloadBlob = vi.hoisted(() => vi.fn<(blob: Blob, filename: string) => void>())
+vi.mock('@/features/journey/export/build', () => ({ downloadBlob }))
+
 const json = (status: number, body?: unknown) =>
   new Response(body === undefined ? null : JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 
@@ -55,11 +58,22 @@ const REGIONS: Record<string, string[]> = { trep: ['US', 'EU'], sota: ['US'], ni
 
 /** What GET /api/assets does: answer with the list (default), hang, or fail. */
 let assetsMode: 'ok' | 'pending' | 'error' = 'ok'
+/** The watchlist PATCHes sent. */
+let watchPatches: unknown[] = []
 
 function renderSearch(path = '/assets') {
+  let watchlist: string[] = ['nint']
+  watchPatches = []
   vi.stubGlobal(
     'fetch',
-    vi.fn(async (url: string) => {
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === '/api/me/prefs') {
+        if (init?.method === 'PATCH') {
+          watchPatches.push(JSON.parse(String(init.body)))
+          watchlist = JSON.parse(String(init.body)).watchlist
+        }
+        return json(200, { journeyView: 'h', sidebarCollapsed: false, notify: { highEvents: true, crawls: true, weeklyDigest: false }, watchlist })
+      }
       if (url === '/api/assets') {
         if (assetsMode === 'pending') return new Promise<Response>(() => {})
         if (assetsMode === 'error') return json(500, { code: 'INTERNAL', message: 'boom' })
@@ -99,7 +113,10 @@ beforeAll(() => {
   Element.prototype.releasePointerCapture ??= () => {}
   Element.prototype.scrollIntoView ??= () => {}
 })
-beforeEach(() => (assetsMode = 'ok'))
+beforeEach(() => {
+  assetsMode = 'ok'
+  downloadBlob.mockClear()
+})
 afterEach(() => vi.unstubAllGlobals())
 
 describe('AssetSearchPage', () => {
@@ -206,6 +223,94 @@ describe('AssetSearchPage', () => {
     const router = renderSearch()
     await userEvent.click(await screen.findByText('Winrevair · Merck'))
     expect(router.state.location.pathname).toBe('/assets/sota/overview')
+  })
+})
+
+const names = () => screen.getAllByRole('row').slice(1).map((r) => within(r).getAllByRole('link')[0].textContent)
+
+describe('AssetSearchPage sorting, count, stars and export', () => {
+  it('sorts by a column header, flips on a second click and keeps the sort in the URL', async () => {
+    const router = renderSearch()
+    await screen.findByRole('link', { name: 'Treprostinil' })
+    expect(screen.getByText(/assets$/)).toHaveTextContent('3 assets')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Events' }))
+    expect(router.state.location.search).toBe('?sort=-events')
+    expect(names()).toEqual(['Treprostinil', 'Sotatercept', 'Nintedanib'])
+    expect(screen.getByRole('columnheader', { name: 'Events' })).toHaveAttribute('aria-sort', 'descending')
+    expect(screen.getByText(/sorted by/)).toHaveTextContent('3 assets · sorted by Events, most first')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Events' }))
+    expect(router.state.location.search).toBe('?sort=events')
+    expect(names()).toEqual(['Nintedanib', 'Sotatercept', 'Treprostinil'])
+    expect(screen.getByRole('columnheader', { name: 'Events' })).toHaveAttribute('aria-sort', 'ascending')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Company' }))
+    expect(router.state.location.search).toBe('?sort=company')
+    expect(names()).toEqual(['Nintedanib', 'Sotatercept', 'Treprostinil'])
+    expect(screen.getByRole('columnheader', { name: /Asset/ })).toHaveAttribute('aria-sort', 'ascending')
+    expect(screen.getByRole('columnheader', { name: 'Events' })).not.toHaveAttribute('aria-sort')
+  })
+
+  it('reads the sort from the URL: latest update newest first, assets without one last; kind; status', async () => {
+    renderSearch('/assets?sort=-latest')
+    await screen.findByRole('link', { name: 'Treprostinil' })
+    expect(names()[0]).toBe('Treprostinil')
+    await userEvent.click(screen.getByRole('button', { name: 'Latest update' }))
+    expect(names()[0]).toBe('Treprostinil')
+    await userEvent.click(screen.getByRole('button', { name: 'Kind' }))
+    expect(names()).toEqual(['Sotatercept', 'Treprostinil', 'Nintedanib'])
+    await userEvent.click(screen.getByRole('button', { name: 'Kind' }))
+    expect(names()[0]).toBe('Nintedanib')
+    // Treprostinil is collecting (a running job); "Collecting" sorts before "Ready".
+    await userEvent.click(screen.getByRole('button', { name: 'Status' }))
+    expect(names()[0]).toBe('Treprostinil')
+    await userEvent.click(screen.getByRole('button', { name: 'Asset' }))
+    expect(names()).toEqual(['Nintedanib', 'Sotatercept', 'Treprostinil'])
+  })
+
+  it('counts the assets the filters keep', async () => {
+    renderSearch('/assets?kind=primary')
+    await screen.findByRole('link', { name: 'Treprostinil' })
+    expect(screen.getByText(/assets$/)).toHaveTextContent('2 of 3 assets')
+  })
+
+  it('stars an asset from its row and its card; the star does not open the asset', async () => {
+    const router = renderSearch()
+    await screen.findByRole('link', { name: 'Treprostinil' })
+    await waitFor(() => expect(within(rowOf('Nintedanib')).getByRole('button', { name: 'Watch Nintedanib' })).toHaveAttribute('aria-pressed', 'true'))
+    const star = within(rowOf('Treprostinil')).getByRole('button', { name: 'Watch Treprostinil' })
+    expect(star).toHaveAttribute('aria-pressed', 'false')
+    await userEvent.click(star)
+    expect(router.state.location.pathname).toBe('/assets')
+    await waitFor(() => expect(star).toHaveAttribute('aria-pressed', 'true'))
+    expect(watchPatches).toEqual([{ watchlist: ['nint', 'trep'] }])
+
+    await userEvent.click(screen.getByRole('button', { name: 'Grid view' }))
+    const cardStar = await screen.findByRole('button', { name: 'Watch Nintedanib' })
+    await userEvent.click(cardStar)
+    expect(router.state.location.pathname).toBe('/assets')
+    await waitFor(() => expect(cardStar).toHaveAttribute('aria-pressed', 'false'))
+    expect(watchPatches.at(-1)).toEqual({ watchlist: ['trep'] })
+  })
+
+  it('exports the assets shown, in their order, as CSV', async () => {
+    renderSearch('/assets?kind=primary&sort=-events')
+    await screen.findByRole('link', { name: 'Treprostinil' })
+    await waitFor(() => expect(rowOf('Treprostinil')).toHaveTextContent('US, EU'))
+    await userEvent.click(screen.getByRole('button', { name: 'Export' }))
+    expect(await screen.findByText('Exports the 2 assets shown')).toBeInTheDocument()
+    expect(screen.getByText('In this order (Events, most first) · filters: Kind: Primary')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('menuitem', { name: /CSV/ }))
+    await waitFor(() => expect(downloadBlob).toHaveBeenCalledTimes(1))
+    const [blob, filename] = downloadBlob.mock.calls[0]!
+    expect(filename).toMatch(/^asset-search-\d{4}-\d{2}-\d{2}\.csv$/)
+    const lines = (await blob.text()).replace(/^\uFEFF/, '').trim().split('\r\n')
+    expect(lines).toEqual([
+      'Asset,Kind,Competitor of,Company,Brands and aliases,Approved indications,Investigational indications,Mechanism,Approved in,Status,Events,Latest update,Latest update date,Asset link',
+      `Treprostinil,Primary,,United Therapeutics,Tyvaso; Remodulin,PAH,PH-ILD,,US; EU,Collecting,909,Study highlights inhaled treprostinil in IPF,2026-10-05,${window.location.origin}/assets/trep/overview`,
+      `Sotatercept,Primary,,Merck,Winrevair,PAH,,,US,Ready,9,,,${window.location.origin}/assets/sota/overview`,
+    ])
   })
 })
 
