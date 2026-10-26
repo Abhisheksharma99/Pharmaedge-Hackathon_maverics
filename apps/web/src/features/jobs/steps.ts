@@ -1,4 +1,5 @@
-import { isActive, type Job, type JobStep } from './api'
+import { formatNumber } from '@/lib/format'
+import { isActive, type Job, type JobStep, type StepProgress } from './api'
 
 /**
  * Short label and expected relative duration of each crawl step (design: aj/data.js STEPS; crawler:
@@ -40,10 +41,53 @@ export function stepsFinished(job: Pick<Job, 'steps'>): number {
   return job.steps.filter((s) => s.status !== 'pending' && s.status !== 'running').length
 }
 
-/** Share of finished steps, 0–1 (0 for a job without steps). */
-export function jobProgress(job: Pick<Job, 'steps'>): number {
-  return job.steps.length ? stepsFinished(job) / job.steps.length : 0
+/** Share of a running step done, 0–1, when it reports a total; null otherwise. */
+export function stepFraction(step: Pick<JobStep, 'progress'>): number | null {
+  const p = step.progress
+  return p?.total ? Math.min(1, Math.max(0, p.done / p.total)) : null
 }
+
+/**
+ * Share of the job done, 0–1 (0 for a job without steps): finished steps, plus the running step's fraction when it
+ * reports a total (API: jobs/job-progress.ts).
+ */
+export function jobProgress(job: Pick<Job, 'steps'>): number {
+  if (!job.steps.length) return 0
+  const running = job.steps.find((s) => s.status === 'running')
+  return Math.min(1, (stepsFinished(job) + (running ? (stepFraction(running) ?? 0) : 0)) / job.steps.length)
+}
+
+/** "1,240 pages checked · 12 events found", "512 of 1,800 records triaged". */
+export function progressText(p: StepProgress): string {
+  const count = p.total != null ? `${formatNumber(p.done)} of ${formatNumber(p.total)}` : formatNumber(p.done)
+  return [p.unit ? `${count} ${p.unit}` : count, p.note].filter(Boolean).join(' · ')
+}
+
+/** Short count for tight spots (top-bar chip): "1,240 pages", "512/1,800". */
+export function progressShort(p: StepProgress): string {
+  return p.total != null ? `${formatNumber(p.done)}/${formatNumber(p.total)}` : `${formatNumber(p.done)} ${p.unit.split(' ')[0]}`.trim()
+}
+
+/** A reporting step with no update for this long may be stuck (its slowest pages take a couple of minutes). */
+export const STALL_MINUTES = 5
+
+/** Seconds since the step's last progress update, and whether that looks stalled; null for a step without one. */
+export function heartbeat(step: Pick<JobStep, 'progress'>, now: number = Date.now()): { seconds: number; stalled: boolean } | null {
+  const at = Date.parse(step.progress?.at ?? '')
+  if (Number.isNaN(at)) return null
+  const seconds = Math.max(0, Math.round((now - at) / 1000))
+  return { seconds, stalled: seconds >= STALL_MINUTES * 60 }
+}
+
+/** "8 s", "6 min", "1 h 05 min". */
+export function formatSince(seconds: number): string {
+  if (seconds < 60) return `${seconds} s`
+  const minutes = Math.floor(seconds / 60)
+  return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')} min`
+}
+
+/** "just now", "8 s ago", "6 min ago". */
+export const formatAgo = (seconds: number) => (seconds < 3 ? 'just now' : `${formatSince(seconds)} ago`)
 
 export function currentStep(job: Pick<Job, 'steps'>): { step: JobStep; index: number } | null {
   const index = job.steps.findIndex((s) => s.status === 'running')

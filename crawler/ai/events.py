@@ -12,7 +12,7 @@ sources. Rule events (from FDA/EMA/trials) are authoritative and always kept.
 import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from pymongo import ReplaceOne
 
@@ -167,12 +167,17 @@ def _pending(asset_id: str) -> List[tuple]:
     return triaged + [(c, k, {"assets": asset_id, **extra}, t) for c, (k, extra, t) in UNTRIAGED_SOURCES.items()]
 
 
-def extract_events(asset: Dict[str, Any], workers: int = 6) -> Dict[str, int]:
+def extract_events(asset: Dict[str, Any], workers: int = 6,
+                   progress: Callable[..., None] = lambda done, **_: None) -> Dict[str, int]:
     """Run extraction on ingested records not yet processed for this asset. Each record's events are saved as
     soon as they arrive; a record whose call fails (network, API) is left for the next run, and the step only
-    fails when every call did."""
+    fails when every call did. `progress(done, total=..., note=events)` per record read."""
     db, asset_id = get_db(), asset["_id"]
     counts = {"documents": 0, "events": 0, "failed": 0}
+    sources = [(coll, key_field, {**query, f"events_done.{asset_id}": {"$exists": False}}, text_field)
+               for coll, key_field, query, text_field in _pending(asset_id)]
+    total = sum(db[coll].count_documents(query) for coll, _key, query, _text in sources)
+    progress(0, total=total)
     error: Exception = None
     # The asset's first extraction is the baseline for the change log: it is not a "change" to find them all.
     baseline = next(iter(db.journey_events.find({"asset": asset_id, "origin": "ai"}, {"_id": 1})), None) is None
@@ -183,13 +188,14 @@ def extract_events(asset: Dict[str, Any], workers: int = 6) -> Dict[str, int]:
         except Exception as e:  # noqa: BLE001 - reported in counts; the record is retried next run
             return record, None, e
 
-    for coll, key_field, query, text_field in _pending(asset_id):
-        records = list(db[coll].find({**query, f"events_done.{asset_id}": {"$exists": False}},
-                                     {key_field: 1, "title": 1, "date": 1, text_field: 1}))
+    for coll, key_field, query, text_field in sources:
+        records = list(db[coll].find(query, {key_field: 1, "title": 1, "date": 1, text_field: 1}))
         if not records:
             continue
         with ThreadPoolExecutor(workers) as pool:
             for record, events, failure in pool.map(lambda r: attempt(coll, key_field, text_field, r), records):
+                read = counts["documents"] + counts["failed"] + 1
+                progress(min(read, total), total=total, note=f"{counts['events']} events")
                 if failure:
                     counts["failed"] += 1
                     error = failure
@@ -259,8 +265,9 @@ def _merge_batch(db, batch: List[Dict[str, Any]], gone: set) -> int:
     return merged
 
 
-def consolidate(asset_id: str) -> Dict[str, int]:
-    """Merge duplicate coverage into one event per occurrence (rule events win as the survivor)."""
+def consolidate(asset_id: str, progress: Callable[..., None] = lambda done, **_: None) -> Dict[str, int]:
+    """Merge duplicate coverage into one event per occurrence (rule events win as the survivor).
+    `progress(windows compared, total=..., note=merged)` per window of close events."""
     db = get_db()
     events = list(db.journey_events.find({"asset": asset_id, "date": {"$ne": ""}}).sort("date", 1))
     merged = failed = 0
@@ -268,6 +275,7 @@ def consolidate(asset_id: str) -> Dict[str, int]:
     by_category: Dict[str, List[Dict[str, Any]]] = {}
     for e in events:
         by_category.setdefault(e["category"], []).append(e)
+    windows = []
     for group in by_category.values():
         clusters, current = [], []
         for e in group:
@@ -276,20 +284,21 @@ def consolidate(asset_id: str) -> Dict[str, int]:
                 current = []
             current.append(e)
         clusters.append(current)
-        for cluster in clusters:
-            if len(cluster) < 2 or not any(e["origin"] == "ai" for e in cluster):
-                continue
-            gone: set = set()  # absorbed in an earlier batch of this window
-            for start in range(0, len(cluster), MERGE_BATCH - MERGE_OVERLAP):
-                batch = [e for e in cluster[start:start + MERGE_BATCH] if e["_id"] not in gone]
-                if len(batch) >= 2 and any(e["origin"] == "ai" for e in batch):
-                    try:
-                        merged += _merge_batch(db, batch, gone)
-                    except Exception as e:  # noqa: BLE001 - this batch stays unmerged until the next run
-                        failed += 1
-                        error = e
-                if start + MERGE_BATCH >= len(cluster):
-                    break
+        windows += [c for c in clusters if len(c) >= 2 and any(e["origin"] == "ai" for e in c)]
+    for n, cluster in enumerate(windows):
+        progress(n, total=len(windows), note=f"{merged} merged")
+        gone: set = set()  # absorbed in an earlier batch of this window
+        for start in range(0, len(cluster), MERGE_BATCH - MERGE_OVERLAP):
+            batch = [e for e in cluster[start:start + MERGE_BATCH] if e["_id"] not in gone]
+            if len(batch) >= 2 and any(e["origin"] == "ai" for e in batch):
+                try:
+                    merged += _merge_batch(db, batch, gone)
+                except Exception as e:  # noqa: BLE001 - this batch stays unmerged until the next run
+                    failed += 1
+                    error = e
+            if start + MERGE_BATCH >= len(cluster):
+                break
+    progress(len(windows), total=len(windows), note=f"{merged} merged")
     if error and not merged:
         raise error
     return {"merged": merged, "merge_failed": failed}

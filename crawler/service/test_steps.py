@@ -68,7 +68,7 @@ def test_journey_step_logs_new_high_events(journey, monkeypatch):
 
 
 def test_ai_triage_logs_a_sample_of_verdicts(monkeypatch):
-    def triage(asset, notable=None):
+    def triage(asset, notable=None, progress=None):
         notable.extend([("FDA accepts sNDA", "ingest"), ("Market report", "skip"), ("Webinar", "headline")])
         return {"articles_ingest": 1, "articles_skip": 1, "articles_headline": 1}
 
@@ -284,7 +284,7 @@ def newsrooms(monkeypatch, mongo):
                                                              "progress": {"spiders_done": ["abbvie", "fierce"]}})
     runs = []
 
-    def run(names, *, known_urls, keywords=(), limit=25, timeout_min=10, is_cancelled=lambda: False):
+    def run(names, *, known_urls, keywords=(), limit=25, timeout_min=10, is_cancelled=lambda: False, progress=None):
         runs.append({"spiders": names, "keywords": list(keywords)})
         return [{"news_url": f"https://{n}.com/live", "spider": n, "title": "Tyvaso news", "content": ""}
                 for n in names], [{"errors": 0} for _ in names]
@@ -408,3 +408,20 @@ def test_finalize_survives_a_failed_catch_up(journey, monkeypatch):
     monkeypatch.setattr(steps, "triage_stored", lambda asset: (_ for _ in ()).throw(RuntimeError("model down")))
     out = steps.finalize(ctx())
     assert out["catch_up_error"] == "RuntimeError: model down" and out["suggested_questions"] == 4
+
+
+def test_clinical_reports_trials_found_per_result_page(monkeypatch):
+    from regulatory import clinicaltrials
+
+    def study(nct):
+        return {"protocolSection": {"identificationModule": {"nctId": nct}}}
+
+    pages = [{"studies": [study("NCT1"), study("NCT2")]}, {"studies": [study("NCT2"), study("NCT3")]}]
+    monkeypatch.setattr(clinicaltrials, "ClinicalTrialsClient", lambda: None)
+    monkeypatch.setattr(clinicaltrials, "iter_pages", lambda client, query: iter(pages))
+    monkeypatch.setattr(steps, "upsert_records", lambda coll, records, asset_id: {"inserted": len(records), "updated": 0})
+    calls = []
+    c = StepContext(asset=ASSET, is_cancelled=lambda: False,
+                    progress=lambda done, total=None, unit="", note=None: calls.append((done, total, unit, note)))
+    assert steps.clinical(c)["trials_new"] == 3
+    assert calls == [(2, None, "trials found", "1 result page read"), (3, None, "trials found", "2 result pages read")]

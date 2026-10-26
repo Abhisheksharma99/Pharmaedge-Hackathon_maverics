@@ -1,9 +1,11 @@
 import { ArrowRight, Check, X } from 'lucide-react'
-import { useEffect, useState, type CSSProperties } from 'react'
+import type { CSSProperties } from 'react'
 import { Button } from '@/components/ui/button'
 import type { JobStep } from '@/features/jobs/api'
+import { StepLive } from '@/features/jobs/components/step-live'
 import { recordsTotal, sourceProgress } from '@/features/jobs/job-counters'
-import { currentStep, jobDuration, stepDuration, stepsFinished } from '@/features/jobs/steps'
+import { currentStep, jobDuration, stepDuration, stepFraction, stepsFinished } from '@/features/jobs/steps'
+import { useNow } from '@/features/jobs/use-now'
 import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { JobProgress } from '../types'
@@ -19,17 +21,6 @@ const SEGMENT: Record<JobStep['status'], string> = {
 const STRIPES: CSSProperties = {
   backgroundImage: 'repeating-linear-gradient(45deg, rgba(255,255,255,0.3) 0 4px, transparent 4px 8px)',
   backgroundSize: '11.3px 11.3px',
-}
-
-/** Wall-clock time, re-read every second while `ticking` (the elapsed clock). */
-function useNow(ticking: boolean): number {
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    if (!ticking) return
-    const timer = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(timer)
-  }, [ticking])
-  return now
 }
 
 /**
@@ -92,9 +83,12 @@ export function BuildStrip({ job, eventsCount, onExplore }: { job: JobProgress; 
       <div className="flex flex-wrap items-center justify-between gap-x-[32px] gap-y-[16px]">
         <div className="flex min-w-0 flex-[1_1_380px] items-start gap-[12px]">
           <StatusDot phase={phase} status={job.status} />
-          <div aria-live="polite" className="min-w-0">
-            <h2 className="text-[17px] leading-[24px] font-semibold tracking-[-0.01em]">{title}</h2>
-            <p className="mt-[3px] text-text-secondary">{sub}</p>
+          <div className="min-w-0">
+            <div aria-live="polite">
+              <h2 className="text-[17px] leading-[24px] font-semibold tracking-[-0.01em]">{title}</h2>
+              <p className="mt-[3px] text-text-secondary">{sub}</p>
+            </div>
+            {phase === 'running' && <StepLive step={current?.step ?? null} now={now} named={false} className="mt-[8px] max-w-[460px]" />}
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-[28px]">
@@ -129,7 +123,12 @@ export function BuildStrip({ job, eventsCount, onExplore }: { job: JobProgress; 
             className={cn('relative block min-w-[4px] overflow-hidden rounded-[3px] transition-colors duration-300', SEGMENT[s.status])}
             style={{ flexGrow: stepDuration(s.name), flexBasis: 0 }}
           >
-            {s.status === 'running' && <span className="absolute inset-0 animate-stripes bg-primary" style={STRIPES} />}
+            {s.status === 'running' && (
+              <span
+                className="absolute inset-y-0 left-0 animate-stripes bg-primary transition-[width] duration-500"
+                style={{ ...STRIPES, width: `${(stepFraction(s) ?? 1) * 100}%` }}
+              />
+            )}
           </i>
         ))}
       </div>

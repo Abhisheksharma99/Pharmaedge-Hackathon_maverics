@@ -17,7 +17,7 @@ import tempfile
 import time
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 from . import TEAM_ROOT
 from conference.common import compile_keywords, matched_keywords
@@ -67,10 +67,48 @@ def news_spiders() -> List[str]:
     return NEWS_SPIDERS or [s["name"] for s in catalog() if s["category"] in ("news", "agency")] + ["google_news"]
 
 
+class _Tally:
+    """Items the spiders have written so far (their spiders/<name>.jsonl feeds) and the oldest date among them, read
+    incrementally: only the bytes added since the last read, and only whole lines."""
+
+    def __init__(self, folder: Path):
+        self.folder, self.offsets, self.items, self.oldest = folder, {}, 0, ""
+
+    def read(self) -> Tuple[int, str]:
+        for path in sorted(self.folder.glob("*.jsonl")) if self.folder.is_dir() else []:
+            at = self.offsets.get(path, 0)
+            with open(path, "rb") as f:
+                f.seek(at)
+                chunk = f.read()
+            whole = chunk[:chunk.rfind(b"\n") + 1]  # a line still being written waits for the next read
+            self.offsets[path] = at + len(whole)
+            for line in whole.split(b"\n"):
+                if not line.strip():
+                    continue
+                self.items += 1
+                try:
+                    day = str(json.loads(line).get("news_date") or "")[:10]
+                except ValueError:
+                    continue
+                if day[:4].isdigit() and (not self.oldest or day < self.oldest):
+                    self.oldest = day
+        return self.items, self.oldest
+
+
+def _report(tally: _Tally, progress: Callable[..., None]) -> None:
+    try:  # best effort: progress never stops a crawl
+        items, oldest = tally.read()
+    except OSError:
+        return
+    progress(items, note=f"back to {oldest[:4]}" if oldest else None)
+
+
 def run(spiders: List[str], *, known_urls: Iterable[str], keywords: List[str] = (), limit: int = 25,
-        timeout_min: int = 10, is_cancelled: Callable[[], bool] = lambda: False) -> Tuple[List[Dict], List[Dict]]:
+        timeout_min: int = 10, is_cancelled: Callable[[], bool] = lambda: False,
+        progress: Optional[Callable[..., None]] = None) -> Tuple[List[Dict], List[Dict]]:
     """Run spiders in a child process; returns (items, per-spider summary). Cancelling stops the spiders
-    gracefully, keeping what they collected."""
+    gracefully, keeping what they collected. `progress(items so far, note="back to 2018")` every poll while the
+    spiders run."""
     with tempfile.TemporaryDirectory(prefix="company_pr-") as tmp:
         tmp = Path(tmp)
         (tmp / "seen_urls.txt").write_text("\n".join(known_urls))  # run.py reads <output>/../seen_urls.txt
@@ -81,7 +119,10 @@ def run(spiders: List[str], *, known_urls: Iterable[str], keywords: List[str] = 
         with open(tmp / "stderr.log", "w") as err:
             proc = subprocess.Popen(cmd, cwd=PR_ROOT, env=env, stdout=subprocess.DEVNULL, stderr=err)
             deadline = time.monotonic() + timeout_min * 60 + 180
+            tally = _Tally(out / "spiders")
             while proc.poll() is None:
+                if progress:
+                    _report(tally, progress)
                 if is_cancelled() or time.monotonic() > deadline:
                     proc.terminate()  # Scrapy shuts down gracefully on SIGTERM and still writes its results
                     try:

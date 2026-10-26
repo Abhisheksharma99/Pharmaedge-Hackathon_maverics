@@ -13,7 +13,9 @@ import { ApiError } from '@/lib/api'
 import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { isActive, useCancelJob, useJob, useJobs, type JobStatus, type JobStep } from './api'
-import { jobDuration, stepsFinished } from './steps'
+import { StepLive, StepLiveInline } from './components/step-live'
+import { currentStep, jobDuration, jobProgress, stepsFinished } from './steps'
+import { useNow } from './use-now'
 
 const STATUS: Record<JobStatus, { label: string; className: string }> = {
   queued: { label: 'Queued', className: 'bg-muted text-secondary-foreground' },
@@ -49,6 +51,7 @@ function MiniBar({ value, bad = false, className }: { value: number; bad?: boole
 export function JobsPage() {
   const jobs = useJobs()
   const navigate = useNavigate()
+  const now = useNow(!!jobs.data?.some((j) => isActive(j.status)))
   return (
     <Page title="Crawl jobs" description="Data collection runs for your assets, newest first.">
       <section className="overflow-hidden rounded-[14px] border bg-card shadow-panel">
@@ -73,6 +76,7 @@ export function JobsPage() {
             <TableBody>
               {jobs.data.map((j) => {
                 const done = stepsFinished(j)
+                const live = currentStep(j)?.step
                 return (
                   <TableRow key={j.id} onClick={() => navigate(`/jobs/${encodeURIComponent(j.id)}`)} className="cursor-pointer">
                     <TableCell>
@@ -88,8 +92,9 @@ export function JobsPage() {
                     <TableCell>
                       <span className="flex items-center gap-[8px]">
                         <span className="font-mono">{done}/{j.steps.length}</span>
-                        <MiniBar value={j.steps.length ? done / j.steps.length : 0} bad={j.status === 'failed'} />
+                        <MiniBar value={jobProgress(j)} bad={j.status === 'failed'} />
                       </span>
+                      {live && <StepLiveInline step={live} now={now} className="mt-[2px] max-w-[280px]" />}
                     </TableCell>
                     <TableCell>{j.requested_by?.name ?? '—'}</TableCell>
                     <TableCell className="whitespace-nowrap text-muted-foreground">{when(j.started_at ?? j.created_at, SHORT)}</TableCell>
@@ -127,6 +132,7 @@ export function JobPage() {
   const { jobId = '' } = useParams()
   const job = useJob(jobId)
   const cancel = useCancelJob()
+  const now = useNow(!!job.data && isActive(job.data.status))
 
   if (job.isError && !job.data) {
     const missing = job.error instanceof ApiError && job.error.status === 404
@@ -184,7 +190,10 @@ export function JobPage() {
           ))}
         </div>
       ) : (
-        <Panel title="Steps" description={`${jobDuration(j)}${running ? ' so far' : ''} · ${done} of ${j.steps.length} finished`}>
+        <Panel
+          title="Steps"
+          description={`${jobDuration(j, now)}${running ? ' so far' : ''} · ${done} of ${j.steps.length} finished${running ? ` · ${Math.round(jobProgress(j) * 100)}%` : ''}`}
+        >
           <ol>
             {j.steps.map((s) => {
               const counts = Object.entries(s.counts).filter(([, v]) => v > 0)
@@ -193,6 +202,7 @@ export function JobPage() {
                   <StepGlyph step={s} />
                   <div className="min-w-0 flex-1">
                     <p className={cn('font-medium', s.status === 'pending' && 'font-normal text-text-secondary')}>{s.label}</p>
+                    {s.status === 'running' && <StepLive step={s} now={now} named={false} className="mt-[6px] max-w-[520px]" />}
                     {counts.length > 0 && (
                       <p className="mt-[2px] font-mono text-[11.5px] text-text-secondary">{counts.map(([k, v]) => `${humanize(k)}: ${formatNumber(v)}`).join(' · ')}</p>
                     )}

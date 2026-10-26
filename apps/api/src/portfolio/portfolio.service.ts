@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import type { Db, Document } from 'mongodb';
 import { MONGO_DB } from '../database/database.module.js';
+import { jobFraction } from '../jobs/job-progress.js';
 import { toEventV3 } from '../journey/events.js';
 import { CacheService } from '../valkey/cache.service.js';
 
@@ -24,7 +25,7 @@ export class PortfolioService {
     const assets = await this.db.collection('assets').find(q.competitors ? {} : { kind: 'primary' }, { projection: { name: 1, kind: 1, status: 1, company: 1, competitor_of: 1 } }).sort({ kind: -1, name: 1 }).toArray();
     const ids = assets.map((a) => a._id);
     const running = await this.db.collection('jobs').find({ asset: { $in: ids }, status: { $in: ['queued', 'running'] } }, { projection: { asset: 1, steps: 1 } }).toArray();
-    const progress = new Map(running.map((j) => [j.asset, (j.steps ?? []).length ? (j.steps as Document[]).filter((s) => s.status === 'done').length / j.steps.length : 0]));
+    const progress = new Map(running.map((j) => [j.asset, jobFraction(j.steps)]));
     const match: Document = { asset: { $in: ids }, key: true };
     if (q.from || q.to) match.date = { ...(q.from && { $gte: q.from }), ...(q.to && { $lte: q.to }) };
     const events = await this.db.collection('journey_events').find(match, { projection: EVENT_FIELDS }).sort({ date: 1 }).limit(2000).toArray();

@@ -21,7 +21,7 @@ links for FAILURE_TTL and such hosts for HOST_FAILURE_TTL.
 import asyncio
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 from urllib.parse import urlsplit
 
 import httpx
@@ -32,13 +32,15 @@ from patent_intel.config import settings
 from patent_intel.ctgov import other_products
 from patent_intel.net import MAX_ATTEMPTS, Cache, HostDown, Http
 
+from .counting_http import CountingHttp
+
 CACHE_DIR = Path(os.getenv("FDA_CALENDAR_CACHE_DIR", "cache/fda_calendar"))
 FAILURE_TTL = 3 * 86400
 HOST_FAILURE_TTL = 86400
 EVENT_LABELS = {"pdufa": "PDUFA date", "adcom": "FDA advisory committee", "advisory_panel": "FDA advisory panel"}
 
 
-class RemembersFailures(Http):
+class RemembersFailures(CountingHttp):
     """Http for the events' source links that also caches failures:
     - a link's failed fetch: the status, or the error (unexpected content type, oversize, blocked address),
       replayed until FAILURE_TTL. Rate limiting (429) is not remembered.
@@ -46,12 +48,18 @@ class RemembersFailures(Http):
       as bot protection) or tripped the client's circuit breaker: its links answer status 0 until
       HOST_FAILURE_TTL. Checked under a per-host lock, so links queued behind the failing one skip it too."""
 
-    def __init__(self, cache: Cache, public_web: bool = False) -> None:
-        super().__init__(cache, public_web=public_web)
+    def __init__(self, cache: Cache, public_web: bool = False, on_page: Optional[Callable[[], None]] = None) -> None:
+        super().__init__(cache, public_web=public_web, on_page=on_page)
         self._host_locks: Dict[str, asyncio.Lock] = {}
 
     async def get_html(self, url: str, ttl_s: float, ctype: Any = "html", headers: Any = None,
                        attempts: int = MAX_ATTEMPTS) -> Tuple[int, str]:
+        try:
+            return await self._remembered(url, ttl_s, ctype, headers, attempts)
+        finally:
+            self.on_page()
+
+    async def _remembered(self, url: str, ttl_s: float, ctype: Any, headers: Any, attempts: int) -> Tuple[int, str]:
         if (hit := await asyncio.to_thread(self.cache.get, url, ttl_s)) is not None:
             return 200, hit  # cached document: no need to wait for the host
         host, key = urlsplit(url).hostname or "", f"failed:{url}"
@@ -64,7 +72,7 @@ class RemembersFailures(Http):
                     raise ValueError(error)
                 return int(status), ""
             try:
-                status, text = await super().get_html(url, ttl_s, ctype=ctype, headers=headers, attempts=attempts)
+                status, text = await Http.get_html(self, url, ttl_s, ctype=ctype, headers=headers, attempts=attempts)
             except HostDown:
                 await asyncio.to_thread(self.cache.put, f"failed-host:{host}", "0")
                 raise
@@ -105,13 +113,22 @@ def to_record(event: Dict[str, Any], names: List[str]) -> Dict[str, Any]:
     }
 
 
-async def fetch(asset: Dict[str, Any], names: List[str]) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
-    """Matched calendar events for the asset, as records, plus the crawler's report."""
+async def fetch(asset: Dict[str, Any], names: List[str],
+                progress: Callable[..., None] = lambda done, **_: None) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    """Matched calendar events for the asset, as records, plus the crawler's report. `progress(pages)` after every
+    calendar feed and source document read (from the cache or the web), then `progress(pages, note=events found)`."""
     cfg = settings()
     start, end = cfg.reg_window()
     company = (asset.get("company") or {}).get("name")
-    http = Http(Cache(CACHE_DIR))
-    web = RemembersFailures(http.cache, public_web=True)  # SSRF-guarded client for the events' source links
+    pages = 0
+
+    def page() -> None:
+        nonlocal pages
+        pages += 1
+        progress(pages)
+
+    http = CountingHttp(Cache(CACHE_DIR), on_page=page)
+    web = RemembersFailures(http.cache, public_web=True, on_page=page)  # SSRF-guarded client for the events' source links
     try:
         events, report = await fdacal.collect(
             http, web, drug_id=asset["_id"], terms=fdacal.drug_terms(asset["name"], names[1:]),
@@ -121,4 +138,6 @@ async def fetch(asset: Dict[str, Any], names: List[str]) -> Tuple[List[Dict[str,
     finally:
         await web.aclose()
         await http.aclose()
-    return [to_record(e, names) for e in events if e["status"] == "matched"], report
+    records = [to_record(e, names) for e in events if e["status"] == "matched"]
+    progress(pages, note=f"{len(records)} events found")
+    return records, report

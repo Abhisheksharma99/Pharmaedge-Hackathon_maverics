@@ -7,6 +7,7 @@ import { CompetitorsService } from '../assets/competitors.service.js';
 import type { Env } from '../config/env.js';
 import { MONGO_DB } from '../database/database.module.js';
 import { CrawlerClient } from '../jobs/crawler.client.js';
+import { jobPercent, type StepProgress } from '../jobs/job-progress.js';
 import { StoryService } from '../assets/story.service.js';
 import { monthYear, type Story, type StoryEvent } from '../assets/story.js';
 import { CanvasService, type CanvasSpec } from './canvas.js';
@@ -980,13 +981,13 @@ export class ChatTools {
     const job = await this.db.collection('jobs').find(match).sort({ created_at: -1 }).limit(1).next();
     if (!job || !ctx.allowed.has(job.asset)) return { result: { error: 'No data collection job found' }, summary: 'no job' };
     const asset = await this.db.collection<AssetDoc>('assets').findOne({ _id: job.asset }, { projection: { name: 1 } });
-    const steps = (job.steps ?? []) as { label: string; status: string; error?: string | null }[];
+    const steps = (job.steps ?? []) as { label: string; status: string; error?: string | null; progress?: StepProgress | null }[];
     const finished = steps.filter((s) => ['done', 'failed', 'skipped'].includes(s.status)).length;
     return {
       result: {
         job_id: job._id, asset: asset?.name ?? job.asset, type: job.type, status: job.status,
-        progress: `${finished}/${steps.length} steps`, started_at: job.started_at, finished_at: job.finished_at,
-        steps: steps.map((s) => ({ step: s.label, status: s.status, error: s.error ?? undefined })),
+        progress: `${finished}/${steps.length} steps · ${jobPercent(steps)}%`, started_at: job.started_at, finished_at: job.finished_at,
+        steps: steps.map((s) => ({ step: s.label, status: s.status, error: s.error ?? undefined, live: s.status === 'running' ? (s.progress ?? undefined) : undefined })),
       },
       summary: `${job.status}, ${finished}/${steps.length} steps`,
       cards: [{ type: 'job', jobId: String(job._id), assetId: job.asset, assetName: asset?.name ?? job.asset }],

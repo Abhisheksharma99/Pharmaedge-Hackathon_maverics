@@ -36,9 +36,11 @@ def fresh(doc: Optional[Dict[str, Any]], ttl_s: float) -> bool:
 
 async def fetch(asset: Dict[str, Any], calendar_records: List[Dict[str, Any]],
                 stored_prices: Callable[[str], Optional[Dict[str, Any]]] = lambda t: None,
+                progress: Callable[..., None] = lambda done, **_: None,
                 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], Dict[str, Any]]:
     """(listings, price docs, report) for the asset. `stored_prices(ticker)` returns an already stored price doc
-    (platform or patent_intel's own `market_prices`); a fresh one is reused instead of fetched."""
+    (platform or patent_intel's own `market_prices`); a fresh one is reused instead of fetched. `progress(done,
+    total=...)` per ticker priced."""
     cfg = settings()
     ttl = cfg.market_price_ttl_s
     company = (asset.get("company") or {}).get("name")
@@ -65,7 +67,8 @@ async def fetch(asset: Dict[str, Any], calendar_records: List[Dict[str, Any]],
             if "fda_calendar_event" not in lst["roles"]:
                 lst["roles"].append("fda_calendar_event")
         price_docs = []
-        for t in listings:
+        for n, t in enumerate(listings):
+            progress(n, total=len(listings), note=f"pricing {t}")
             try:
                 stored = stored_prices(t)
                 if fresh(stored, ttl):
@@ -77,6 +80,7 @@ async def fetch(asset: Dict[str, Any], calendar_records: List[Dict[str, Any]],
                 report["prices"][t] = {"bars": len(doc["bars"]), "as_of": doc["as_of"], "source": doc["source"]}
             except Exception as e:  # noqa: BLE001 - unpriced ticker: listing kept, reactions say "no price history"
                 report["prices"][t] = {"error": f"{type(e).__name__}: {e}"[:200]}
+        progress(len(listings), total=len(listings))
     finally:
         await http.aclose()
     now = datetime.now(timezone.utc)

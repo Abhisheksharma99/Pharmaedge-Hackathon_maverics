@@ -22,7 +22,8 @@ def new_job(asset_id: str, job_type: str, steps: List[Dict[str, str]], requested
         "asset": asset_id,
         "type": job_type,
         "status": "queued",
-        "steps": [{**s, "status": "pending", "counts": {}, "error": None, "started_at": None, "finished_at": None}
+        "steps": [{**s, "status": "pending", "counts": {}, "error": None, "started_at": None, "finished_at": None,
+                   "progress": None}
                   for s in steps],
         "cancel_requested": False,
         "feed_cursor": 0,

@@ -25,6 +25,9 @@ class FakeCollection:
     def find(self, query, projection=None):
         return [d for d in self.docs if d.get("collection_hint", True)]
 
+    def count_documents(self, query):
+        return len(self.find(query))
+
     def update_one(self, flt, update):
         self.updates.append(flt)
 

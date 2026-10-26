@@ -6,6 +6,7 @@ import type { AuthUser } from '../auth/auth.types.js';
 import { CurrentUser } from '../common/decorators/auth.decorators.js';
 import { MONGO_DB } from '../database/database.module.js';
 import { CrawlerClient } from './crawler.client.js';
+import { jobPercent } from './job-progress.js';
 
 const STATUSES = ['queued', 'running', 'completed', 'completed_with_errors', 'failed', 'cancelled'];
 
@@ -47,9 +48,12 @@ export class FeedQueryDto {
 
 const toJob = ({ _id, ...job }: Record<string, unknown>) => ({ id: _id, ...job });
 
+/** A stored job with its overall percentage; each step's live `progress` ({done, total, unit, note, at}) passes through. */
+const withPercent = (job: Record<string, unknown>) => ({ ...job, percent: jobPercent(job.steps as { status: string }[] | undefined) });
+
 /** Live-build view of a job (DATA_CONTRACTS §A JobProgress). */
 const toProgress = (job: Record<string, unknown>) => ({
-  ...toJob(job),
+  ...withPercent(toJob(job)),
   records: Object.entries((job.records_by_coll as Record<string, number> | undefined) ?? {}).map(([coll, count]) => ({ coll, count })),
   events_created: (job.events_created as number | undefined) ?? 0,
   feed_cursor: (job.feed_cursor as number | undefined) ?? 0,
@@ -87,7 +91,7 @@ export class JobsController {
       (await this.db.collection('assets').find({ _id: { $in: [...new Set(jobs.map((j) => j.asset))] } }, { projection: { name: 1 } }).toArray())
         .map((a) => [a._id, a.name as string]),
     );
-    return jobs.map((j) => ({ ...toJob(j), assetName: names.get(j.asset) ?? j.asset }));
+    return jobs.map((j) => ({ ...withPercent(toJob(j)), assetName: names.get(j.asset) ?? j.asset }));
   }
 
   @Get('jobs/:id')

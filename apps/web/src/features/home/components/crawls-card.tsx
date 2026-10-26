@@ -14,13 +14,16 @@ import {
   type Job,
 } from "@/features/jobs/api";
 import { StepBar } from "@/features/jobs/components/step-bar";
+import { StepLive } from "@/features/jobs/components/step-live";
 import { JobStatusBadge } from "@/features/jobs/jobs-pages";
 import {
+  currentStep,
   jobDuration,
   jobProgress,
   jobStepLabel,
   stepsFinished,
 } from "@/features/jobs/steps";
+import { useNow } from "@/features/jobs/use-now";
 import type { JobProgress } from "@/features/journey/types";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -125,6 +128,8 @@ function LiveJob({
   const label = jobStepLabel(j);
   const name = j.assetName ?? j.asset;
   const records = progress?.records.reduce((sum, r) => sum + r.count, 0) ?? 0;
+  const now = useNow(!done);
+  const running = done ? null : currentStep(j)?.step ?? null;
   return (
     <Link
       to={`/assets/${encodeURIComponent(j.asset)}/overview${done ? "" : "?build=1"}`}
@@ -156,6 +161,7 @@ function LiveJob({
         </span>
       </span>
       <StepBar steps={j.steps} />
+      {!done && label !== "planning" && <StepLive step={running} now={now} />}
       {progress && !done && (
         <span className="flex gap-[16px] text-[12px] text-muted-foreground">
           <span>
