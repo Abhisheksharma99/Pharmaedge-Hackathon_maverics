@@ -92,6 +92,12 @@ export interface NavTarget {
   record?: { tab: string; key: string }
 }
 
+/** The reader's own thumbs up / down on an answer, with an optional short reason. */
+export interface ChatFeedback {
+  rating: 'up' | 'down'
+  reason: string | null
+}
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
@@ -101,6 +107,8 @@ export interface ChatMessage {
   citations: Citation[]
   followUps: string[]
   createdAt: string
+  /** Answers only: the reader's rating, null when not rated. */
+  feedback?: ChatFeedback | null
 }
 
 /** One line of the NDJSON stream from `POST /chat/sessions/:id/turn`. */
@@ -178,6 +186,51 @@ export function useDeleteChatSession() {
       qc.removeQueries({ queryKey: messagesKey(sessionId) })
       qc.invalidateQueries({ queryKey: ['chat', 'sessions'] })
     },
+  })
+}
+
+/** Rename one of the user's chats: the history shows the new title at once and goes back if the server refuses. */
+export function useRenameChatSession() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, title }: { id: string; title: string }) =>
+      apiFetch<ChatSession>(`/chat/sessions/${encodeURIComponent(id)}`, { method: 'PATCH', body: { title } }),
+    onMutate: async ({ id, title }) => {
+      await qc.cancelQueries({ queryKey: ['chat', 'sessions'] })
+      const prev = qc.getQueriesData<ChatSession[]>({ queryKey: ['chat', 'sessions'] })
+      qc.setQueriesData<ChatSession[]>({ queryKey: ['chat', 'sessions'] }, (old) => old?.map((s) => (s.id === id ? { ...s, title } : s)))
+      return { prev }
+    },
+    onError: (_err, _vars, ctx) => {
+      for (const [key, data] of ctx?.prev ?? []) qc.setQueryData(key, data)
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['chat', 'sessions'] }),
+  })
+}
+
+/**
+ * Rate an answer (one rating per answer: rating again replaces the rating and its reason). The thumb shows as selected at once and goes back
+ * if the server refuses.
+ */
+export function useAnswerFeedback(sessionId: string) {
+  const qc = useQueryClient()
+  const key = messagesKey(sessionId)
+  const put = (turnId: string, feedback: ChatFeedback | null) =>
+    qc.setQueryData<ChatMessage[]>(key, (old) => old?.map((m) => (m.id === turnId ? { ...m, feedback } : m)))
+  return useMutation({
+    mutationFn: ({ turnId, rating, reason }: { turnId: string; rating: ChatFeedback['rating']; reason?: string }) =>
+      apiFetch<ChatFeedback>(`/chat/sessions/${encodeURIComponent(sessionId)}/turns/${encodeURIComponent(turnId)}/feedback`, {
+        method: 'POST',
+        body: reason ? { rating, reason } : { rating },
+      }),
+    onMutate: async ({ turnId, rating, reason }) => {
+      await qc.cancelQueries({ queryKey: key })
+      const before = qc.getQueryData<ChatMessage[]>(key)?.find((m) => m.id === turnId)?.feedback ?? null
+      put(turnId, { rating, reason: reason || null })
+      return { before }
+    },
+    onSuccess: (saved, { turnId }) => put(turnId, saved),
+    onError: (_err, { turnId }, ctx) => put(turnId, ctx?.before ?? null),
   })
 }
 

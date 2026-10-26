@@ -1,6 +1,6 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, Query, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query, Res } from '@nestjs/common';
 import { Transform } from 'class-transformer';
-import { IsOptional, IsString, Length, Matches } from 'class-validator';
+import { IsIn, IsOptional, IsString, Length, Matches, MaxLength } from 'class-validator';
 import type { FastifyReply } from 'fastify';
 import type { AuthUser } from '../auth/auth.types.js';
 import { CurrentUser } from '../common/decorators/auth.decorators.js';
@@ -28,6 +28,24 @@ export class TurnDto {
   message: string;
 }
 
+export class RenameSessionDto {
+  @Transform(({ value }) => (typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : value))
+  @IsString()
+  @Length(1, 120)
+  title: string;
+}
+
+export class FeedbackDto {
+  @IsIn(['up', 'down'])
+  rating: 'up' | 'down';
+
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MaxLength(280)
+  reason?: string;
+}
+
 @Controller('chat')
 export class ChatController {
   constructor(private readonly chat: ChatService) {}
@@ -46,6 +64,18 @@ export class ChatController {
   @Get('sessions/:id/messages')
   messages(@Param('id') id: string, @CurrentUser() user: AuthUser) {
     return this.chat.messages(user, id);
+  }
+
+  @Patch('sessions/:id')
+  rename(@Param('id') id: string, @Body() dto: RenameSessionDto, @CurrentUser() user: AuthUser) {
+    return this.chat.renameSession(user, id, dto.title);
+  }
+
+  /** The user's thumbs up / down on one answer, with an optional short reason; sending again replaces it. */
+  @Post('sessions/:id/turns/:turnId/feedback')
+  @HttpCode(200)
+  feedback(@Param('id') id: string, @Param('turnId') turnId: string, @Body() dto: FeedbackDto, @CurrentUser() user: AuthUser) {
+    return this.chat.setFeedback(user, id, turnId, dto.rating, dto.reason);
   }
 
   @Delete('sessions/:id')

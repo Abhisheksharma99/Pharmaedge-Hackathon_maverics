@@ -13,8 +13,8 @@ import { ValkeyService } from '../valkey/valkey.service.js';
 import { AccessPolicy } from './access-policy.js';
 import { AUDIT_COLLECTION, ensureAuditIndexes, type TurnAudit } from './audit.js';
 import { ChatTools, TOOL_DEFINITIONS, toolLabel, type ToolOutput } from './chat-tools.js';
-import { addMessage, ensureChatIndexes, findSession, messages, sessions } from './chat.store.js';
-import { toMessage, toSession, type Card, type ChatSessionDoc, type StreamEvent } from './chat.types.js';
+import { addMessage, ensureChatIndexes, feedback, findSession, messages, sessions } from './chat.store.js';
+import { toFeedback, toMessage, toSession, type Card, type ChatFeedbackDoc, type ChatSessionDoc, type StreamEvent } from './chat.types.js';
 import { CitationRegistry } from './citations.js';
 import { leakIn, verifyAnswer } from './verify.js';
 
@@ -143,12 +143,45 @@ export class ChatService implements OnModuleInit {
 
   async messages(user: AuthUser, id: string) {
     const session = await this.session(user, id);
-    return (await messages(this.db).find({ session_id: session._id }).sort({ created_at: 1 }).toArray()).map(toMessage);
+    const [list, ratings] = await Promise.all([
+      messages(this.db).find({ session_id: session._id }).sort({ created_at: 1 }).toArray(),
+      feedback(this.db).find({ session_id: session._id, user_id: user.id }).toArray(),
+    ]);
+    const byTurn = new Map(ratings.map((f) => [f.turn_id, f]));
+    return list.map((m) => toMessage(m, byTurn.get(m._id) ?? null));
+  }
+
+  /** Renames the user's own session (another user's is a 404, as everywhere in the chat). */
+  async renameSession(user: AuthUser, id: string, title: string) {
+    const session = await this.session(user, id);
+    await sessions(this.db).updateOne({ _id: session._id }, { $set: { title } });
+    return toSession({ ...session, title });
+  }
+
+  /**
+   * Rates one answer of the user's own session: one rating per user and answer, so sending it again (or the other
+   * thumb, or a reason) replaces it. Only assistant messages of this session can be rated.
+   */
+  async setFeedback(user: AuthUser, id: string, turnId: string, rating: ChatFeedbackDoc['rating'], reason?: string) {
+    const session = await this.session(user, id);
+    const turn = await messages(this.db).findOne({ _id: turnId, session_id: session._id, role: 'assistant' }, { projection: { _id: 1 } });
+    if (!turn) throw new NotFoundException({ code: 'TURN_NOT_FOUND', message: 'Answer not found' });
+    const now = new Date();
+    const saved = await feedback(this.db).findOneAndUpdate(
+      { user_id: user.id, turn_id: turnId },
+      { $set: { rating, reason: reason || null, updated_at: now }, $setOnInsert: { _id: randomUUID(), session_id: session._id, created_at: now } },
+      { upsert: true, returnDocument: 'after' },
+    );
+    return toFeedback(saved!);
   }
 
   async deleteSession(user: AuthUser, id: string) {
     const session = await this.session(user, id);
-    await Promise.all([sessions(this.db).deleteOne({ _id: session._id }), messages(this.db).deleteMany({ session_id: session._id })]);
+    await Promise.all([
+      sessions(this.db).deleteOne({ _id: session._id }),
+      messages(this.db).deleteMany({ session_id: session._id }),
+      feedback(this.db).deleteMany({ session_id: session._id }),
+    ]);
   }
 
   /** Checks that run before the response starts streaming (so they can still answer with a normal error). */
