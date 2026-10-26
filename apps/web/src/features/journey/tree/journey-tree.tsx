@@ -153,51 +153,83 @@ export function JourneyTree({ assetId, list, newestFirst = false, model, closure
   const stopJump = useRef<() => void>(() => {})
   useEffect(() => () => stopJump.current(), [])
 
-  useImperativeHandle(ref, () => ({
-    jump(id) {
-      const flow = flowRef.current
-      if (!flow || !live.current.indexOf.has(id) || rows[live.current.indexOf.get(id)!]?.kind !== 'event') return false
-      const sc = findScroller(flow)
-      stopJump.current()
-      // Glide towards the row's current position (30% of the viewport), re-reading it each frame: rows measured on the
-      // way change the tops, so the target moves until the row itself is measured and in place (README §6.2 retry).
-      let raf = 0
-      let settled = 0
-      let stuck = 0
-      const cancel = () => {
-        cancelAnimationFrame(raf)
-        window.removeEventListener('wheel', cancel)
-        window.removeEventListener('touchstart', cancel)
-        window.removeEventListener('keydown', cancel)
+  /** Keyboard focus waiting for its card to render (the row may be outside the rendered window). */
+  const pendingFocus = useRef<string | null>(null)
+  const focusCard = (id: string) => {
+    const el = [...(flowRef.current?.querySelectorAll<HTMLElement>('[data-tree-event]') ?? [])].find((x) => x.dataset.treeEvent === id)
+    const btn = el?.querySelector<HTMLButtonElement>('h3 button')
+    if (!btn) return false
+    btn.focus({ preventScroll: true })
+    return true
+  }
+  useEffect(() => {
+    const id = pendingFocus.current
+    if (id && focusCard(id)) pendingFocus.current = null
+  }, [win])
+
+  /** Glide the row of event `id` to 30% of the viewport; false when the tree doesn't show it. */
+  const glide = (id: string, flashIt: boolean) => {
+    const flow = flowRef.current
+    if (!flow || !live.current.indexOf.has(id) || rows[live.current.indexOf.get(id)!]?.kind !== 'event') return false
+    const sc = findScroller(flow)
+    stopJump.current()
+    // Glide towards the row's current position (30% of the viewport), re-reading it each frame: rows measured on the
+    // way change the tops, so the target moves until the row itself is measured and in place (README §6.2 retry).
+    let raf = 0
+    let settled = 0
+    let stuck = 0
+    const cancel = () => {
+      cancelAnimationFrame(raf)
+      window.removeEventListener('wheel', cancel)
+      window.removeEventListener('touchstart', cancel)
+      window.removeEventListener('keydown', cancel)
+    }
+    stopJump.current = cancel
+    window.addEventListener('wheel', cancel, { passive: true })
+    window.addEventListener('touchstart', cancel, { passive: true })
+    // From the next frame on: the key that started a keyboard step is still on its way to the window.
+    let first = true
+    const frame = () => {
+      if (first) {
+        first = false
+        window.addEventListener('keydown', cancel)
       }
-      stopJump.current = cancel
-      window.addEventListener('wheel', cancel, { passive: true })
-      window.addEventListener('touchstart', cancel, { passive: true })
-      window.addEventListener('keydown', cancel)
-      const frame = () => {
-        const { tops: t, sizes: s, indexOf: ix } = live.current
-        const i = ix.get(id)
-        if (i === undefined) return cancel()
-        const max = Math.max(0, sc.scrollHeight - viewportHeight(sc))
-        const target = Math.min(max, Math.max(0, offsetIn(sc, flow) + t[i]! - viewportHeight(sc) * 0.3))
-        const cur = sc.scrollTop
-        const d = target - cur
-        if (Math.abs(d) < 2) {
-          if (s?.has(id) || ++settled > 20) return cancel()
-        } else {
-          const step = reduced || Math.abs(d) < 24 ? d : d * 0.2
-          const before = sc.scrollTop
-          scrollToTop(sc, cur + (Math.abs(step) < 1 ? Math.sign(d) : step), false)
-          stuck = sc.scrollTop === before ? stuck + 1 : 0
-          if (stuck > 6) return cancel()
-        }
-        raf = requestAnimationFrame(frame)
+      const { tops: t, sizes: s, indexOf: ix } = live.current
+      const i = ix.get(id)
+      if (i === undefined) return cancel()
+      const max = Math.max(0, sc.scrollHeight - viewportHeight(sc))
+      const target = Math.min(max, Math.max(0, offsetIn(sc, flow) + t[i]! - viewportHeight(sc) * 0.3))
+      const cur = sc.scrollTop
+      const d = target - cur
+      if (Math.abs(d) < 2) {
+        if (s?.has(id) || ++settled > 20) return cancel()
+      } else {
+        const step = reduced || Math.abs(d) < 24 ? d : d * 0.2
+        const before = sc.scrollTop
+        scrollToTop(sc, cur + (Math.abs(step) < 1 ? Math.sign(d) : step), false)
+        stuck = sc.scrollTop === before ? stuck + 1 : 0
+        if (stuck > 6) return cancel()
       }
       raf = requestAnimationFrame(frame)
+    }
+    raf = requestAnimationFrame(frame)
+    if (flashIt) {
       setFlash(id)
       window.clearTimeout(flashTimer.current)
       flashTimer.current = window.setTimeout(() => setFlash((f) => (f === id ? null : f)), 1800)
-      return true
+    }
+    return true
+  }
+
+  useImperativeHandle(ref, () => ({
+    jump: (id) => glide(id, true),
+    step(delta) {
+      const focused = (document.activeElement?.closest('[data-tree-event]') as HTMLElement | null)?.dataset.treeEvent
+      const from = focused === undefined ? -1 : dated.findIndex((e) => e.id === focused)
+      const target = dated[from < 0 ? Math.min(active, dated.length - 1) : Math.min(dated.length - 1, Math.max(0, from + delta))]
+      if (!target) return
+      glide(target.id, false)
+      if (!focusCard(target.id)) pendingFocus.current = target.id
     },
   }))
 
@@ -321,6 +353,7 @@ export function JourneyTree({ assetId, list, newestFirst = false, model, closure
         const e = r.e
         return (
           <article
+            data-tree-event={e.id}
             aria-labelledby={`${clipId}-t-${r.i}`}
             className={cn('flex py-[14px]', geo.narrow || r.side === 'r' ? 'justify-end' : 'justify-start', focusBranch !== null && !inBranch(e, focusBranch, model) && 'opacity-30 transition-opacity duration-300')}
           >

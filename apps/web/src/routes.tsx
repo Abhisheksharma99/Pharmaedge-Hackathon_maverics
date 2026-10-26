@@ -52,6 +52,7 @@ export const routes: RouteObject[] = [
             ],
           },
           { path: '/journey', element: page(() => import('@/features/journey/journey-page'), 'JourneyPage') },
+          { path: '/journey/compare', element: page(() => import('@/features/journey/compare/compare-page'), 'ComparePage') },
           { path: '/journey/:assetId', element: page(() => import('@/features/journey/journey-page'), 'JourneyPage') },
           { path: '/chat', element: page(() => import('@/features/chat/chat-page'), 'ChatPage') },
           { path: '/chat/:sessionId', element: page(() => import('@/features/chat/chat-page'), 'ChatPage') },

@@ -16,7 +16,7 @@ function setup(over: Partial<JourneyHeaderProps> = {}) {
   const props: JourneyHeaderProps = {
     assetId: 'trep', model: MODEL, list: LIST, unbranched: LIST, undated: 0, counts: journeyCounts(LIST, ['a']), view: 'h', order: 'oldest', scope: 'key', cats: [], mine: null,
     indications: ['PAH', 'PH-COPD', 'PH-ILD'], ind: null, q: '', focusBranch: null,
-    onView: vi.fn(), onOrder: vi.fn(), onScope: vi.fn(), onToggleCat: vi.fn(), onMine: vi.fn(), onInd: vi.fn(), onQuery: vi.fn(), onFocusBranch: vi.fn(), onClear: vi.fn(), onAdd: vi.fn(), ...over,
+    onView: vi.fn(), onOrder: vi.fn(), onScope: vi.fn(), onToggleCat: vi.fn(), onMine: vi.fn(), onInd: vi.fn(), onQuery: vi.fn(), onFocusBranch: vi.fn(), onClear: vi.fn(), onAdd: vi.fn(), onHelp: vi.fn(), ...over,
   }
   const router = createMemoryRouter([{ path: '*', element: <JourneyHeader {...props} /> }], { initialEntries: ['/journey/trep'] })
   render(<RouterProvider router={router} />)

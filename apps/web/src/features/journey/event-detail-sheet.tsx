@@ -1,6 +1,6 @@
-import { ArrowRight, ChevronLeft, ChevronRight, RefreshCw, Route, Star, X } from 'lucide-react'
+import { ArrowRight, ChevronLeft, ChevronRight, Link2, RefreshCw, Route, Star, X } from 'lucide-react'
 import { useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
@@ -17,6 +17,7 @@ import { eventDate } from './format'
 import { eventIndications } from './indications'
 import { CATEGORY_META } from './constants'
 import { BTN_SM, FOCUS, ICON_BTN } from './controls'
+import { copyLink, eventLink } from './copy-link'
 import { branchModel, chronological, laneOf } from './journey-model'
 import { NoteActions } from './note-actions'
 import { BranchLineage } from './sheet/branch-lineage'
@@ -26,10 +27,7 @@ import { PositionStrip } from './sheet/position-strip'
 import { RecordTerms } from './sheet/record-terms'
 import { RegulatoryPath } from './sheet/regulatory-path'
 import { SheetSection } from './sheet/sheet-section'
-
-/** Keys typed into a field never navigate or close the sheet (README §6.4 "ignored inside inputs"). */
-const isTypingTarget = (t: EventTarget | null) =>
-  t instanceof HTMLElement && (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName))
+import { isTypingTarget } from './use-journey-keys'
 
 const enc = encodeURIComponent
 
@@ -95,6 +93,7 @@ export function EventDetailSheet({ current, onClose }: { current: OpenEvent | nu
             </div>
             <div className="flex shrink-0 gap-[2px]">
               {event && <NoteActions assetId={assetId} event={event} />}
+              {event && <CopyEventLink assetId={assetId} eventId={event.id} />}
               {event && <StarButton assetId={assetId} eventId={event.id} />}
               <Button variant="ghost" size="icon-sm" aria-label="Close" onClick={onClose} className={ICON_BTN}>
                 <X className="size-[16px]" />
@@ -177,6 +176,17 @@ function HeaderBranch({ assetId, branch }: { assetId: string; branch?: string })
   const model = branchModel(useBranches(assetId).data)
   if (!model.multi) return null
   return <BranchChip branch={model.byId.get(laneOf({ branch }, model))!} />
+}
+
+/** "Copy link to event": the journey on screen (its view and filters) when it is this asset's, else its Asset Journey. */
+function CopyEventLink({ assetId, eventId }: { assetId: string; eventId: string }) {
+  const location = useLocation()
+  const onScreen = useEventSheet((s) => s.journeyAsset) === assetId
+  return (
+    <Button variant="ghost" size="icon-sm" aria-label="Copy link to event" title="Copy link to event" onClick={() => void copyLink(eventLink(assetId, eventId, onScreen ? location : null), 'Link to event copied')} className={ICON_BTN}>
+      <Link2 className="size-[16px]" />
+    </Button>
+  )
 }
 
 function StarButton({ assetId, eventId }: { assetId: string; eventId: string }) {

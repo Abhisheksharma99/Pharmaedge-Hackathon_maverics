@@ -99,6 +99,21 @@ describe('EventSheetHost', () => {
     expect(useEventSheet.getState().current).toBeNull()
   })
 
+  it('copies a link to the event: the on-screen journey with its filters, else the asset\'s Asset Journey', async () => {
+    serve(DETAIL)
+    const user = userEvent.setup()
+    const router = renderHost()
+    act(() => useEventSheet.getState().openEvent('trep', EVENT_ID))
+    const sheet = await screen.findByRole('dialog', { name: 'Tyvaso approved for PH-ILD' })
+    await user.click(within(sheet).getByRole('button', { name: 'Copy link to event' }))
+    expect(await navigator.clipboard.readText()).toBe(`${window.location.origin}/journey/trep?focus=${ENCODED}`)
+    // With this asset's journey on screen, the link keeps its view and filters.
+    await act(() => router.navigate('/journey/trep?view=v&ind=PH-ILD&focus=old'))
+    act(() => useEventSheet.getState().setJourneyAsset('trep'))
+    await user.click(within(sheet).getByRole('button', { name: 'Copy link to event' }))
+    expect(await navigator.clipboard.readText()).toBe(`${window.location.origin}/journey/trep?view=v&ind=PH-ILD&focus=${ENCODED}`)
+  })
+
   it('reads "Expected" for a milestone and closes with Escape', async () => {
     serve({ ...DETAIL, event: { ...DETAIL.event, is_milestone: true, date: '2099-01-15' } })
     renderHost()

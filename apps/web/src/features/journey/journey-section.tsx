@@ -8,12 +8,14 @@ import { useAnnotations, useToggleStar } from './annotations-api'
 import { useBranches, useEndedBranchEvents, useJourneyEvents } from './api'
 import { HorizontalTrack } from './horizontal-track'
 import { eventIndications, indicationOptions } from './indications'
-import { JourneyHeader } from './journey-header'
+import { JourneyHeader, type JourneyHeaderHandle } from './journey-header'
 import { JourneySkeleton } from './journey-skeleton'
 import { branchClosures, branchModel, chronological, filterJourney, inBranch, journeyCounts } from './journey-model'
 import { NoteComposer, type NoteDraft } from './note-composer'
+import { ShortcutsDialog } from './shortcuts-dialog'
 import { JourneyTree } from './tree/journey-tree'
 import { useJourneyFilters } from './use-journey-filters'
+import { useJourneyKeys } from './use-journey-keys'
 import type { JourneyViewHandle } from './view-types'
 
 const NO_STARS: string[] = []
@@ -23,7 +25,8 @@ const NO_COMMENTS = {}
  * The asset journey (README §6.2–6.3), on the Overview and the Asset Journey page: header + horizontal track (default,
  * with its HUD) or tree, oldest or newest first, filters in the URL (a selected indication branch too), `?focus=<eventId>`
  * deep links and in-place "Locate on timeline" from the event sheet. Both pages export the journey from their own
- * header (`JourneyExportButton`), so the journey header has no Export menu.
+ * header (`JourneyExportButton`), so the journey header has no Export menu. Keyboard shortcuts (`useJourneyKeys`, "?"
+ * lists them) step through the events and switch the view, order and search.
  */
 export function JourneySection({ asset }: { asset: Pick<AssetDetail, 'id' | 'name'> & { company?: { name: string } } }) {
   const assetId = asset.id
@@ -58,6 +61,16 @@ export function JourneySection({ asset }: { asset: Pick<AssetDetail, 'id' | 'nam
   const indications = useMemo(() => indicationOptions(dated, eventIndications), [dated])
   const [draft, setDraft] = useState<NoteDraft | null>(null)
   const viewRef = useRef<JourneyViewHandle>(null)
+  const headerRef = useRef<JourneyHeaderHandle>(null)
+  const sectionRef = useRef<HTMLElement>(null)
+  const [help, setHelp] = useState(false)
+  useJourneyKeys(sectionRef, {
+    step: (d) => viewRef.current?.step(d),
+    search: () => headerRef.current?.focusSearch(),
+    view: f.setView,
+    toggleOrder: () => f.setOrder(f.order === 'newest' ? 'oldest' : 'newest'),
+    help: () => setHelp(true),
+  })
   /** Whether the event a focus resolves to opens in the sheet (deep links do; "Locate on timeline" doesn't). */
   const focusOpens = useRef(true)
   const focusOn = useRef(f.focusOn)
@@ -150,8 +163,9 @@ export function JourneySection({ asset }: { asset: Pick<AssetDetail, 'id' | 'nam
   }
 
   return (
-    <section aria-label="Asset journey" className="relative flex flex-col">
+    <section ref={sectionRef} aria-label="Asset journey" className="relative flex flex-col">
       <JourneyHeader
+        ref={headerRef}
         assetId={assetId}
         model={model}
         list={list}
@@ -177,7 +191,9 @@ export function JourneySection({ asset }: { asset: Pick<AssetDetail, 'id' | 'nam
         onFocusBranch={f.setBranch}
         onClear={f.clearFilters}
         onAdd={() => setDraft({ date: '', branch: model.trunk.id })}
+        onHelp={() => setHelp(true)}
       />
+      <ShortcutsDialog open={help} onOpenChange={setHelp} />
       {(events.isPending || branches.isPending) && !events.isError && <JourneySkeleton view={f.view} />}
       {(branches.isError || annotations.isError) && !events.isError && (
         <p role="alert" className="mt-[12px] flex flex-wrap items-center gap-x-[8px] text-[12.5px] text-muted-foreground">

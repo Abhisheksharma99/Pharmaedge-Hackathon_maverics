@@ -87,6 +87,13 @@ export interface JourneyTimeline {
 /** The API caps `limit` at 5000; the largest journey today has ~1,300 events. */
 const JOURNEY_LIMIT = 5000
 
+/** The journey query, shared by `useJourneyEvents` and several journeys at once (Compare journeys). */
+export const journeyEventsQuery = (assetId: string, scope: JourneyScope) => ({
+  queryKey: ['asset', assetId, 'timeline-v3', scope] as const,
+  queryFn: () => apiFetch<JourneyTimeline>(`/assets/${encodeURIComponent(assetId)}/timeline?scope=${scope}&include=notes&limit=${JOURNEY_LIMIT}`),
+  staleTime: 60_000,
+})
+
 /**
  * A journey scope with the team's notes merged (`include=notes`), newest first as the API sends it. No category,
  * significance or milestone filters are sent: the views filter on the client, so chip counts stay right. (Phase 3's
@@ -94,11 +101,8 @@ const JOURNEY_LIMIT = 5000
  */
 export function useJourneyEvents(assetId: string, scope: JourneyScope, { enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
-    queryKey: ['asset', assetId, 'timeline-v3', scope],
-    queryFn: () =>
-      apiFetch<JourneyTimeline>(`/assets/${encodeURIComponent(assetId)}/timeline?scope=${scope}&include=notes&limit=${JOURNEY_LIMIT}`),
+    ...journeyEventsQuery(assetId, scope),
     enabled,
-    staleTime: 60_000,
     // Switching Key events ↔ All keeps the current journey on screen until the other scope arrives (no skeleton flash).
     placeholderData: (prev, prevQuery) => (prevQuery?.queryKey[1] === assetId ? keepPreviousData(prev) : undefined),
   })
