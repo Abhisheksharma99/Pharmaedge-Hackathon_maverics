@@ -3,8 +3,10 @@ import { Link } from 'react-router'
 import { Skeleton } from '@/components/ui/skeleton'
 import { isActive, useJobProgress } from '@/features/jobs/api'
 import { StepBar } from '@/features/jobs/components/step-bar'
+import { StepLive } from '@/features/jobs/components/step-live'
 import { recordsTotal, sourceProgress } from '@/features/jobs/job-counters'
 import { JobStatusBadge } from '@/features/jobs/jobs-pages'
+import { useNow } from '@/features/jobs/use-now'
 import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { Card } from '../../api'
@@ -22,6 +24,7 @@ export function JobCard({ card }: { card: JobCardData }) {
   const total = j?.steps.length ?? 0
   const current = j?.steps.find((s) => s.status === 'running')
   const problems = j?.steps.filter((s) => s.error) ?? []
+  const now = useNow(!!current)
 
   return (
     <div className="flex flex-col gap-[12px] rounded-[12px] border bg-card px-[16px] py-[14px]">
@@ -43,6 +46,7 @@ export function JobCard({ card }: { card: JobCardData }) {
       {job.isPending && <Skeleton className="h-[6px] w-full" />}
       {job.isError && <p className="text-destructive">Progress is unavailable right now.</p>}
       {j && <StepBar steps={j.steps} />}
+      {current && <StepLive step={current} now={now} named={false} />}
       {j && (
         <p className="flex flex-wrap gap-x-[16px] gap-y-[4px] text-[12.5px] text-muted-foreground">
           <span>

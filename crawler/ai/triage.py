@@ -12,9 +12,10 @@ never re-judged on refresh, and the reason for every drop is on record.
 
 import hashlib
 import json
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional
 
 from pymongo import UpdateOne
 
@@ -92,11 +93,12 @@ def pending_query(asset_id: str) -> Dict[str, Any]:
 
 
 def judge(asset: Dict[str, Any], items: List[Dict[str, Any]],
-          counts: Optional[Dict[str, int]] = None) -> Dict[str, Dict[str, str]]:
+          counts: Optional[Dict[str, int]] = None,
+          on_judged: Callable[[int], None] = lambda n: None) -> Dict[str, Dict[str, str]]:
     """items: {key, title, snippet, source, date}. Returns key -> {decision, category, reason}.
     Items already in the ledger reuse their decision; new ones go to the model in parallel batches. Items of a
     batch whose call failed are left out of the result (and of the ledger), so the next run judges them; the call
-    fails only when every batch did."""
+    fails only when every batch did. `on_judged(n)` as items are decided (from the ledger, then per batch)."""
     db = get_db()
     out: Dict[str, Dict[str, str]] = {}
     ids = {ledger_id(asset["_id"], i["key"]): i for i in items}
@@ -104,12 +106,19 @@ def judge(asset: Dict[str, Any], items: List[Dict[str, Any]],
     for row in db.crawl_ledger.find({"_id": {"$in": list(ids)}, **current}):
         out[ids[row["_id"]]["key"]] = {k: row[k] for k in ("decision", "category", "reason")}
     todo = [i for i in items if i["key"] not in out]
+    on_judged(len(items) - len(todo))
     context = json.dumps(asset_context(asset))
     now = datetime.now(timezone.utc)
     batches = [todo[s:s + BATCH] for s in range(0, len(todo), BATCH)]
     failed, error = 0, None
+
+    def ask(batch):
+        result = _ask(context, batch)
+        on_judged(len(batch))
+        return result
+
     with ThreadPoolExecutor(min(WORKERS, len(batches)) or 1) as pool:
-        results = list(pool.map(lambda b: _ask(context, b), batches))
+        results = list(pool.map(ask, batches))
     for by_id, decided in results:
         if isinstance(decided, Exception):
             failed, error = failed + 1, decided
@@ -156,11 +165,26 @@ TRIAGED_SOURCES = {
 }
 
 
-def triage_stored(asset: Dict[str, Any], notable: Optional[List[Any]] = None) -> Dict[str, int]:
-    """Triage records already stored for the asset that haven't been judged yet; store the verdict on them."""
+def triage_stored(asset: Dict[str, Any], notable: Optional[List[Any]] = None,
+                  progress: Callable[..., None] = lambda done, **_: None) -> Dict[str, int]:
+    """Triage records already stored for the asset that haven't been judged yet; store the verdict on them.
+    `progress(done, total=...)` as records are decided."""
     db, asset_id, counts = get_db(), asset["_id"], {}
+    queries = {coll: {"assets": asset_id, **pending_query(asset_id), **extra}
+               for coll, (_key, extra, _text) in TRIAGED_SOURCES.items()}
+    total = sum(db[coll].count_documents(q) for coll, q in queries.items())
+    done = 0
+    lock = threading.Lock()
+
+    def judged(n: int) -> None:  # called from the batch threads
+        nonlocal done
+        with lock:
+            done += n
+            progress(min(done, total), total=total)
+
+    progress(0, total=total)
     for coll, (key_field, extra, text_field) in TRIAGED_SOURCES.items():
-        query = {"assets": asset_id, **pending_query(asset_id), **extra}
+        query = queries[coll]
         records = list(db[coll].find(query, {key_field: 1, "title": 1, "date": 1, "source": 1, "company": 1,
                                              text_field: 1, "url": 1}))
         if not records:
@@ -168,7 +192,7 @@ def triage_stored(asset: Dict[str, Any], notable: Optional[List[Any]] = None) ->
         items = [{"key": r[key_field], "url": r.get("url"), "title": r.get("title"),
                   "snippet": (r.get(text_field) or "")[:400], "source": r.get("company") or r.get("source"),
                   "date": r.get("date"), "collection": coll} for r in records]
-        decisions = judge(asset, items, counts)
+        decisions = judge(asset, items, counts, on_judged=judged)
         if not decisions:
             continue
         if notable is not None:

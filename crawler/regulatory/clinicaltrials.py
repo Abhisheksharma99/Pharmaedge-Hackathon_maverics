@@ -7,7 +7,7 @@ start / completion dates, sponsor, conditions, enrollment, and whether results
 are posted. The full study JSON is kept under `study` for anything not flattened.
 """
 
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List
 
 import integrations  # noqa: F401  (puts the team packages on sys.path)
 from clinicalTrialgov.clinicaltrials import ClinicalTrialsClient, build_query, iter_pages, parse_payload
@@ -19,10 +19,11 @@ def _date(struct: Dict[str, Any]) -> str:
     return f"{d}-01" if len(d) == 7 else d
 
 
-def fetch_all(names: List[str]) -> List[Dict[str, Any]]:
+def fetch_all(names: List[str], progress: Callable[..., None] = lambda done, **_: None) -> List[Dict[str, Any]]:
+    """Studies for the names; `progress(trials so far, note=pages read)` after every result page."""
     records: Dict[str, Dict[str, Any]] = {}
     search_names, _ = parse_payload({"asset_name": names[0], "aliases": names[1:]})
-    for page in iter_pages(ClinicalTrialsClient(), build_query(search_names)):
+    for pages, page in enumerate(iter_pages(ClinicalTrialsClient(), build_query(search_names)), 1):
         for study in page.get("studies", []):
             p = study["protocolSection"]
             nct = p["identificationModule"]["nctId"]
@@ -54,4 +55,5 @@ def fetch_all(names: List[str]) -> List[Dict[str, Any]]:
                 "has_results": study.get("hasResults", False),
                 "study": study,
             }
+        progress(len(records), note=f"{pages} result {'page' if pages == 1 else 'pages'} read")
     return list(records.values())

@@ -204,14 +204,19 @@ class _Pending:
             self.counts["chunks"] += len(parts)
 
 
-def index_asset(asset_id: str) -> Dict[str, int]:
+def index_asset(asset_id: str, progress: Callable[..., None] = lambda done, **_: None) -> Dict[str, int]:
+    """Embed the asset's records whose text changed. `progress(records checked, total=..., note=chunks embedded)`."""
     db = get_db()
     db.record_chunks.create_index("record_key")
     counts = {"records": 0, "chunks": 0, "failed": 0, "tagged": 0}
     pending = _Pending(db, counts)
-    for src in _sources(asset_id):
+    sources = list(_sources(asset_id))
+    total, checked = sum(db[src.coll].count_documents(src.query) for src in sources), 0
+    for src in sources:
         unchanged: List[str] = []
         for r in db[src.coll].find(src.query, src.projection):
+            checked += 1
+            progress(min(checked, total), total=total, note=f"{counts['chunks']:,} chunks embedded")
             text = f"{r.get('title') or ''}\n{src.text(r)}".strip()
             if not text:
                 continue

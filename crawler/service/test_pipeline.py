@@ -3,7 +3,7 @@
 import asyncio
 
 from service.jobs import MemoryJobStore, new_job
-from service.pipeline import StepSkipped, run_job
+from service.pipeline import ProgressReporter, StepSkipped, run_job
 
 ASSET = {"_id": "trep", "name": "Treprostinil", "aliases": ["Tyvaso"]}
 PLAN = [{"name": n, "label": n} for n in ("a", "b", "c")]
@@ -196,3 +196,62 @@ def test_a_failing_progress_write_does_not_fail_the_job():
     status = asyncio.run(run_job(store, job["_id"], {n: (lambda c: {}) for n in "abc"}, load_asset=lambda _: ASSET,
                                  measure=measure))
     assert status == "completed" and store.get(job["_id"])["status"] == "completed"
+
+
+class Clock:
+    def __init__(self):
+        self.t = 0.0
+
+    def __call__(self):
+        return self.t
+
+
+def test_progress_writes_at_most_every_few_seconds_and_flushes_the_last_count():
+    clock, writes = Clock(), []
+    report = ProgressReporter(writes.append, every=2.5, clock=clock)
+    for t, done in [(0, 1), (1, 2), (2, 3), (2.6, 4), (3, 5), (4, 6)]:
+        clock.t = t
+        report(done, unit="pages checked")
+    assert [w["done"] for w in writes] == [1, 4]  # the first call, then the latest one once 2.5 s have passed
+    report.flush()
+    assert [w["done"] for w in writes] == [1, 4, 6]
+    report.flush()  # nothing new: no extra write
+    clock.t = 10
+    report(6, unit="pages checked")  # the same count again: the heartbeat stays at its last move
+    report.flush()
+    assert len(writes) == 3
+    assert writes[-1]["unit"] == "pages checked" and writes[-1]["total"] is None and writes[-1]["at"]
+
+
+def test_a_failed_progress_write_never_fails_the_step():
+    def broken(value):
+        raise ConnectionError("mongo blip")
+
+    report = ProgressReporter(broken)
+    report(1, total=10)
+    report.flush()  # no exception
+
+
+def test_steps_report_live_progress_on_the_job():
+    job = new_job("trep", "refresh", PLAN, None)
+    store, seen = MemoryJobStore(job), []
+    store_update = store.update_step
+
+    def spy(job_id, index, fields):  # what the app would read while step b runs
+        if "progress" in fields:
+            seen.append((index, fields["progress"]))
+        store_update(job_id, index, fields)
+
+    store.update_step = spy
+
+    def b(ctx):
+        for n in range(1, 4):
+            ctx.progress(n, total=3, unit="trials found", note="page 1")
+        return {"trials": 3}
+
+    assert run(store, job["_id"], {"a": lambda c: {}, "b": b, "c": lambda c: {}}) == "completed"
+    steps = store.get(job["_id"])["steps"]
+    assert seen[0] == (1, {**seen[0][1], "done": 1, "total": 3, "unit": "trials found", "note": "page 1"})
+    assert steps[1]["progress"]["done"] == 3  # the last count is flushed when the step ends
+    assert steps[0]["progress"] is None and steps[2]["progress"] is None  # silent steps report nothing
+    assert steps[1]["counts"] == {"trials": 3} and steps[1]["status"] == "done"

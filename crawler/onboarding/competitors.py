@@ -17,7 +17,7 @@ import json
 import re
 from collections import Counter
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Tuple
 
 import integrations  # noqa: F401  (puts the team packages on sys.path)
 from ai import llm
@@ -259,11 +259,13 @@ def save(db, primary: Dict[str, Any], ranked: List[Dict[str, Any]], candidates: 
     return new
 
 
-async def start_jobs(db, queue, primary: Dict[str, Any], ids: List[str], plan: List[Dict[str, str]]) -> int:
+async def start_jobs(db, queue, primary: Dict[str, Any], ids: List[str], plan: List[Dict[str, str]],
+                     progress: Callable[..., None] = lambda done, **_: None) -> int:
     """A competitor crawl for each competitor asset not crawled in the last 24 h and not already running.
-    Competitors that are primary assets themselves have their own jobs."""
+    Competitors that are primary assets themselves have their own jobs. `progress(checked, total=..., note=queued)`."""
     started, now = 0, datetime.now(timezone.utc)
-    for cid in ids:
+    for n, cid in enumerate(ids):
+        progress(n, total=len(ids), note=f"{started} crawls queued")
         doc = db.assets.find_one({"_id": cid}, {"kind": 1, "last_crawled_at": 1})
         if not doc or doc.get("kind") != "competitor":
             continue
@@ -275,4 +277,5 @@ async def start_jobs(db, queue, primary: Dict[str, Any], ids: List[str], plan: L
             started += 1
         except JobAlreadyRunning:
             pass
+    progress(len(ids), total=len(ids), note=f"{started} crawls queued")
     return started

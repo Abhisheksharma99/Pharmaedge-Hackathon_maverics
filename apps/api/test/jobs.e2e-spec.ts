@@ -156,6 +156,25 @@ describe('live build progress', () => {
     expect((await req('GET', '/api/jobs/old')).json()).toMatchObject({ records: [], events_created: 0, feed_cursor: 0, record_years: [] });
   });
 
+  it("passes the running step's live count through and counts it in the job's percentage", async () => {
+    const db = ctx.app.get<Db>(MONGO_DB);
+    const at = new Date();
+    await db.collection('jobs').insertOne({
+      _id: 'live' as any, asset: 'trep', type: 'refresh', status: 'running', created_at: new Date('2026-03-01'),
+      steps: [
+        { name: 'regulatory', status: 'done' },
+        { name: 'fda_calendar', status: 'running', progress: { done: 1240, total: 2000, unit: 'pages checked', note: '12 events', at } },
+        { name: 'patents', status: 'pending', progress: null },
+      ],
+    });
+    const job = (await req('GET', '/api/jobs/live')).json();
+    expect(job.steps[1].progress).toEqual({ done: 1240, total: 2000, unit: 'pages checked', note: '12 events', at: at.toISOString() });
+    expect(job.percent).toBe(54); // (1 finished + 1240/2000) of 3 steps
+    const listed = (await req('GET', '/api/jobs?status=running')).json().find((j: { id: string }) => j.id === 'live');
+    expect(listed).toMatchObject({ percent: 54, steps: [{}, { progress: { done: 1240, unit: 'pages checked' } }, {}] });
+    await db.collection('jobs').deleteOne({ _id: 'live' as never });
+  });
+
   it('pages the feed by cursor and never moves the cursor back', async () => {
     const first = (await req('GET', '/api/jobs/new/feed')).json();
     expect(first.items.map((i: { text: string }) => i.text)).toEqual(['line 1', 'line 2', 'line 3']);

@@ -1,12 +1,18 @@
 import type { Job, JobStep } from './api'
 import {
   currentStep,
+  formatAgo,
+  formatSince,
+  heartbeat,
   jobDuration,
   jobProgress,
   jobStepLabel,
+  progressShort,
+  progressText,
   runningByAsset,
   STEP_META,
   stepDuration,
+  stepFraction,
   stepShort,
   stepsFinished,
 } from './steps'
@@ -84,5 +90,40 @@ describe('job progress', () => {
     expect(jobDuration({ started_at: null, finished_at: null })).toBe('—')
     expect(jobDuration({ started_at: '2026-10-09T10:00:00Z', finished_at: '2026-10-09T10:00:42Z' })).toBe('42s')
     expect(jobDuration({ started_at: '2026-10-09T10:00:00Z', finished_at: null }, Date.parse('2026-10-09T10:03:05Z'))).toBe('3m 05s')
+  })
+})
+
+describe('live step progress', () => {
+  const NOW = Date.parse('2026-10-24T12:00:00Z')
+  const live = (done: number, total: number | null, at = '2026-10-24T11:59:52Z', unit = 'pages checked', note: string | null = null) => ({
+    ...step('fda_calendar', 'running'),
+    progress: { done, total, unit, note, at },
+  })
+
+  it("adds the running step's fraction to the job when it reports a total", () => {
+    const steps = [step('regulatory', 'done'), live(500, 1000), step('patents', 'pending'), step('finalize', 'pending')]
+    expect(jobProgress(job('j', 'trep', 'running', steps))).toBeCloseTo(1.5 / 4)
+    expect(jobProgress(job('j', 'trep', 'running', [step('regulatory', 'done'), live(1240, null)]))).toBe(0.5)
+    expect(jobProgress(job('j', 'trep', 'running', [step('regulatory', 'done'), live(30, 20)]))).toBe(1) // never past the step
+    expect(stepFraction(live(1, 4))).toBe(0.25)
+    expect(stepFraction(step('journey', 'running'))).toBeNull()
+  })
+
+  it('formats the live count with its unit, total and note', () => {
+    expect(progressText(live(1240, null, undefined, 'pages checked', '12 events found').progress)).toBe('1,240 pages checked · 12 events found')
+    expect(progressText(live(1093, null, undefined, 'releases collected', 'back to 2018').progress)).toBe('1,093 releases collected · back to 2018')
+    expect(progressText(live(512, 1800, undefined, 'records triaged').progress)).toBe('512 of 1,800 records triaged')
+    expect(progressShort(live(1240, null).progress)).toBe('1,240 pages')
+    expect(progressShort(live(512, 1800).progress)).toBe('512/1,800')
+  })
+
+  it('tells a step that is still moving from one that may be stalled', () => {
+    expect(heartbeat(live(1, null), NOW)).toEqual({ seconds: 8, stalled: false })
+    expect(heartbeat(live(1, null, '2026-10-24T11:54:00Z'), NOW)).toEqual({ seconds: 360, stalled: true })
+    expect(heartbeat(step('journey', 'running'), NOW)).toBeNull() // steps without a live count are never "stalled"
+    expect(formatAgo(1)).toBe('just now')
+    expect(formatAgo(8)).toBe('8 s ago')
+    expect(formatSince(360)).toBe('6 min')
+    expect(formatSince(3900)).toBe('1 h 05 min')
   })
 })

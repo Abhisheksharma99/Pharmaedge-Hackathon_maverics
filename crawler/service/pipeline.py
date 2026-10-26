@@ -9,6 +9,8 @@ the worker's event loop stays responsive.
 import asyncio
 import inspect
 import logging
+import threading
+import time
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Union
 
@@ -24,6 +26,53 @@ def _no_log(kind: str, text: str, **extra: Any) -> None:
     """Default step logger: tests and direct calls run without a live-build feed."""
 
 
+def _no_progress(done: int, total: Optional[int] = None, unit: str = "", note: Optional[str] = None) -> None:
+    """Default progress reporter: tests and direct calls run without a job document."""
+
+
+PROGRESS_EVERY = 2.5  # seconds between two progress writes of a step
+
+
+class ProgressReporter:
+    """`ctx.progress(done, total=None, unit="", note=None)` for one step: writes steps[i].progress = {done, total,
+    unit, note, at} at most every `every` seconds (the latest value wins; `flush` writes the last one at the end).
+    A repeated value is not written, so `at` is the step's heartbeat: when its count last moved (the app warns when a
+    reporting step hasn't moved for minutes). Thread safe (steps report from worker threads); best effort: a failed
+    write is logged, never raised."""
+
+    def __init__(self, write: Callable[[Dict[str, Any]], None], every: float = PROGRESS_EVERY,
+                 clock: Callable[[], float] = time.monotonic):
+        self._write, self._every, self._clock = write, every, clock
+        self._lock = threading.Lock()
+        self._last: Optional[float] = None
+        self._pending: Optional[Dict[str, Any]] = None
+        self._written: Optional[Dict[str, Any]] = None
+
+    def __call__(self, done: int, total: Optional[int] = None, unit: str = "", note: Optional[str] = None) -> None:
+        value = {"done": done, "total": total, "unit": unit, "note": note}
+        with self._lock:
+            if value == self._written:  # nothing moved: keep the last heartbeat
+                self._pending = None
+                return
+            self._pending = value
+            if self._last is None or self._clock() - self._last >= self._every:
+                self._send()
+
+    def flush(self) -> None:
+        with self._lock:
+            self._send()
+
+    def _send(self) -> None:
+        if self._pending is None:
+            return
+        value, self._pending, self._last = self._pending, None, self._clock()
+        self._written = value
+        try:
+            self._write({**value, "at": now()})
+        except Exception:  # noqa: BLE001
+            log.warning("progress write failed", exc_info=True)
+
+
 @dataclass
 class StepContext:
     asset: Dict[str, Any]
@@ -32,6 +81,8 @@ class StepContext:
     extras: Dict[str, Any] = field(default_factory=dict)
     # Live-build log line for the job feed: ctx.log("info" | "done" | "warn" | "ai" | "event", text, **extra)
     log: Callable[..., None] = field(default=_no_log)
+    # Live count of the running step: ctx.progress(done, total=None, unit="pages checked", note="12 events")
+    progress: Callable[..., None] = field(default=_no_progress)
 
     @property
     def asset_id(self) -> str:
@@ -99,11 +150,16 @@ async def run_job(store: JobStore, job_id: str, steps: Dict[str, StepFn], load_a
             emit(name, "warn", "Cancelled")
             break
         ctx.log = lambda kind, text, _step=name, **extra: emit(_step, kind, text, **extra)
+        reporter = ProgressReporter(lambda value, _i=i: store.update_step(job_id, _i, {"progress": value}))
+        ctx.progress = reporter
         store.update_step(job_id, i, {"status": "running", "started_at": now()})
         emit(name, "info", step.get("label") or name)
         fn = steps[name]
         try:
-            result = await fn(ctx) if inspect.iscoroutinefunction(fn) else await asyncio.to_thread(fn, ctx)
+            try:
+                result = await fn(ctx) if inspect.iscoroutinefunction(fn) else await asyncio.to_thread(fn, ctx)
+            finally:
+                reporter.flush()  # the step's last count stays on it
             counts = dict(result or {})
             summary = counts.pop("summary", None)
             store.update_step(job_id, i, {"status": "done", "counts": counts, "finished_at": now()})

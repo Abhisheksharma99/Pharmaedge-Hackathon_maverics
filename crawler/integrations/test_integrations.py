@@ -85,13 +85,13 @@ def test_patent_fetch_keeps_only_included_links(monkeypatch):
         return {"coverage": {"pages_fetched": 3}}
 
     class FakeHttp:
-        def __init__(self, cache): pass
+        def __init__(self, cache, on_page): pass
         async def aclose(self): pass
 
     monkeypatch.setattr(patents.llm, "structured", lambda *a, **k: {"assignees": ["United Therapeutics Corp", " "]})
     monkeypatch.setattr(patents, "search_seeds", lambda names: ["US1B2"])
     monkeypatch.setattr(patents, "run_drug", fake_run_drug)
-    monkeypatch.setattr(patents, "Http", FakeHttp)
+    monkeypatch.setattr(patents, "CountingHttp", FakeHttp)
     monkeypatch.setattr(patents, "Cache", lambda root: None)
     asset = {"_id": "treprostinil", "name": "Treprostinil", "company": {"name": "United Therapeutics"}}
     records, coverage = asyncio.run(patents.fetch(asset, NAMES))
@@ -379,3 +379,30 @@ def test_designations_match_the_asset_names_case_insensitively(mongo):
     assert r["record_key"] == "fda_designation:bt:1" and r["record_type"] == "fda_expedited_approval"
     assert (r["application_number"], r["submission_type"], r["submission_number"]) == ("NDA205832", "SUPPL", 13)
     assert r["title"] == "Breakthrough Therapy: OFEV (Chronic fibrosing ILD)" and r["date"] == "2020-03-09"
+
+
+def test_newsroom_tally_counts_written_items_incrementally(tmp_path):
+    feed = tmp_path / "abbvie.jsonl"
+    feed.write_bytes(b'{"news_date": "2021-05-01"}\n{"news_date": "2019-02-03"}\n{"news_da')  # last line half written
+    tally = newsroom._Tally(tmp_path)
+    assert tally.read() == (2, "2019-02-03")
+    with open(feed, "ab") as f:
+        f.write(b'te": "2018-07-09"}\n{"news_date": ""}\n')
+    assert tally.read() == (4, "2018-07-09")  # only the new bytes are read; undated items still count
+    assert newsroom._Tally(tmp_path / "missing").read() == (0, "")  # before the spiders write anything
+
+
+def test_fda_calendar_counts_every_page_checked_once(tmp_path, monkeypatch):
+    async def fetch(self, url, ttl_s, ctype="html", headers=None, attempts=6):
+        return (404, "") if url.endswith("/dead") else (200, "page")
+
+    monkeypatch.setattr(fda_calendar.Http, "get_html", fetch)
+    pages = []
+    web = fda_calendar.RemembersFailures(fda_calendar.Cache(tmp_path), public_web=True, on_page=lambda: pages.append(1))
+
+    async def check():
+        for url in ["https://x.com/dead", "https://x.com/dead", "https://x.com/ok"]:  # 2nd: a remembered failure
+            await web.get_html(url, 60)
+
+    asyncio.run(check())
+    assert len(pages) == 3

@@ -9,6 +9,7 @@ import asyncio
 import logging
 from collections import Counter
 from datetime import date, datetime, timezone
+from functools import partial
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
@@ -47,10 +48,15 @@ StepResult = Dict[str, Any]
 def regulatory(ctx: StepContext) -> StepResult:
     """openFDA, EMA's reports (EPAR, post-authorisation, DHPC, referrals, orphan designations: from the EMA corpus once
     it holds them, corpus/ema.py, else downloaded from EMA) and FDA expedited-program approvals (designations corpus)."""
+    report = partial(ctx.progress, total=3, unit="sources read")
+    report(0, note="reading openFDA")
     fda_counts = upsert_records("fda_records", fda.fetch_all(ctx.asset_id, ctx.names), ctx.asset_id)
+    report(1, note="reading EMA reports")
     ema_counts = upsert_records("ema_records", ema_corpus.for_asset(get_db(), ctx.names), ctx.asset_id)
+    report(2, note="reading FDA designations")
     # FDA expedited-program approvals (designations corpus): the journey rules attach them to the approval events.
     designation_counts = upsert_records("fda_records", designation_corpus.for_asset(get_db(), ctx.names), ctx.asset_id)
+    report(3)
     return {"fda_new": fda_counts["inserted"], "fda_updated": fda_counts["updated"],
             "ema_new": ema_counts["inserted"], "ema_updated": ema_counts["updated"],
             "expedited_programs": designation_counts["inserted"] + designation_counts["updated"],
@@ -60,7 +66,8 @@ def regulatory(ctx: StepContext) -> StepResult:
 
 async def fda_calendar(ctx: StepContext) -> StepResult:
     """PDUFA dates and advisory committee meetings naming the asset (team crawler patent_intel/fdacal.py)."""
-    records, report = await fda_calendar_source.fetch(ctx.asset, ctx.names)
+    records, report = await fda_calendar_source.fetch(ctx.asset, ctx.names,
+                                                      progress=partial(ctx.progress, unit="pages checked"))
     counts = upsert_records("fda_records", records, ctx.asset_id)
     return {"events": len(records), "events_new": counts["inserted"], "unresolved": report["unresolved"],
             "blocked_hosts": len(report["blocked_hosts"])}
@@ -97,7 +104,8 @@ async def market(ctx: StepContext) -> StepResult:
     def stored(ticker):
         return db.market_prices.find_one({"_id": ticker}) or team.market_prices.find_one({"_id": ticker})
 
-    listings, price_docs, report = await market_source.fetch(ctx.asset, calendar, stored)
+    listings, price_docs, report = await market_source.fetch(ctx.asset, calendar, stored,
+                                                             progress=partial(ctx.progress, unit="tickers priced"))
     if not listings:
         raise StepSkipped(f"No listed company found for {(ctx.asset.get('company') or {}).get('name') or 'this asset'}")
     now = datetime.now(timezone.utc)
@@ -124,7 +132,8 @@ def ema_chmp(ctx: StepContext) -> StepResult:
 
 
 def clinical(ctx: StepContext) -> StepResult:
-    counts = upsert_records("trial_records", clinicaltrials.fetch_all(ctx.names), ctx.asset_id)
+    trials = clinicaltrials.fetch_all(ctx.names, progress=partial(ctx.progress, unit="trials found"))
+    counts = upsert_records("trial_records", trials, ctx.asset_id)
     return {"trials_new": counts["inserted"], "trials_updated": counts["updated"],
             "summary": f"Stored {counts['inserted'] + counts['updated']} studies ({counts['inserted']} new)"}
 
@@ -170,8 +179,10 @@ def company_news(ctx: StepContext) -> StepResult:
         known = [r["url"] for r in db.company_records.find(
             {"record_type": "press_release", "source": {"$in": live}}, {"url": 1})]
         crawled, summary = newsroom.run(live, known_urls=known, limit=50 if known else 0,
-                                        timeout_min=15 if known else 60, is_cancelled=ctx.is_cancelled)
+                                        timeout_min=15 if known else 60, is_cancelled=ctx.is_cancelled,
+                                        progress=partial(ctx.progress, unit="releases collected"))
         items += crawled
+    ctx.progress(len(items), unit="releases collected", note="storing")
     counts = upsert_records("company_records", [newsroom.press_release(i, company.get("name"), ctx.names)
                                                 for i in items], ctx.asset_id)
     return {"spiders": ", ".join(spiders), "from_corpus": len(from_corpus), "press_releases_new": counts["inserted"],
@@ -216,7 +227,12 @@ def publications(ctx: StepContext) -> StepResult:
     batch: List[Dict[str, Any]] = []
     # Competitors get the 300 newest articles: enough for their landscape, cheap to triage.
     limit = 300 if ctx.job_type == "competitor" else pubmed_source.MAX_RESULTS
+    read, oldest = 0, ""
     for record in pubmed_source.fetch(ctx.names, known=known, max_results=limit):
+        read += 1
+        if record["date"] and (not oldest or record["date"] < oldest):
+            oldest = record["date"]
+        ctx.progress(read, unit="new records", note=f"back to {oldest[:4]}" if oldest else None)
         batch.append(record)
         if len(batch) >= 100:
             new += upsert_records("publication_records", batch, ctx.asset_id)["inserted"]
@@ -236,9 +252,11 @@ async def news(ctx: StepContext) -> StepResult:
     saved = duplicates = 0
     decisions: Dict[str, int] = {}
     before = llm.usage_snapshot()
-    for term in ctx.names[:3] if ctx.job_type == "competitor" else ctx.names:
+    terms = ctx.names[:3] if ctx.job_type == "competitor" else ctx.names
+    for i, term in enumerate(terms):
         if ctx.is_cancelled():
             break
+        ctx.progress(i, total=len(terms), unit="names searched", note=f"{saved} articles saved · searching {term}")
         crawler = SearchListingCrawler()
         crawler.entry_filter = lambda entries: triage_entries(ctx.asset, entries, decisions)
         result = await crawler.run_rss_crawler({
@@ -251,6 +269,7 @@ async def news(ctx: StepContext) -> StepResult:
         }, max_articles=25)
         saved += result.get("articles_saved", 0)
         duplicates += result.get("articles_duplicate", 0)
+        ctx.progress(i + 1, total=len(terms), unit="names searched", note=f"{saved} articles saved")
     return {"articles_new": saved, "already_had": duplicates,
             **{f"triaged_{k}": v for k, v in decisions.items()}, **llm.usage_delta(before)}
 
@@ -269,12 +288,14 @@ def industry_news(ctx: StepContext) -> StepResult:
         known |= {r["url"] for r in db.crawl_ledger.find({"asset": ctx.asset_id, "collection": "articles"},
                                                          {"url": 1}) if r.get("url")}
         crawled, summary = newsroom.run(live, known_urls=known, keywords=ctx.names, timeout_min=10,
-                                        is_cancelled=ctx.is_cancelled)
+                                        is_cancelled=ctx.is_cancelled,
+                                        progress=partial(ctx.progress, unit="articles collected"))
         items += crawled
     new = kept = 0
     skipped: List[UpdateOne] = []
     now = datetime.now(timezone.utc)
-    for item in items:
+    for n, item in enumerate(items, 1):
+        ctx.progress(n, total=len(items), unit="articles checked", note=f"{kept} mention the asset")
         found = newsroom.mentions(item, ctx.names)
         if found:
             kept += 1
@@ -294,14 +315,18 @@ def industry_news(ctx: StepContext) -> StepResult:
 
 def conferences(ctx: StepContext) -> StepResult:
     """ERS / ATS / CHEST abstracts mentioning the asset, from the team's conference corpus."""
-    records = list(conference_corpus.fetch(get_db(), ctx.names))
+    records = []
+    for record in conference_corpus.fetch(get_db(), ctx.names):
+        records.append(record)
+        ctx.progress(len(records), unit="abstracts matched")
     counts = upsert_records("conference_records", records, ctx.asset_id)
     return {"abstracts": len(records), "abstracts_new": counts["inserted"]}
 
 
 async def patents(ctx: StepContext) -> StepResult:
     """Patent families via the team's patent crawler (AdisInsight, PubChem, Google Patents)."""
-    records, coverage = await patent_crawler.fetch(ctx.asset, ctx.names)
+    records, coverage = await patent_crawler.fetch(ctx.asset, ctx.names,
+                                                   progress=partial(ctx.progress, unit="pages checked"))
     counts = upsert_records("patent_records", records, ctx.asset_id)
     return {"patents": len(records), "patents_new": counts["inserted"], "pages_fetched": coverage["pages_fetched"],
             "uncertain": coverage["uncertain"], "budget_exhausted": coverage["budget_exhausted"]}
@@ -310,7 +335,7 @@ async def patents(ctx: StepContext) -> StepResult:
 def ai_triage(ctx: StepContext) -> StepResult:
     before = llm.usage_snapshot()
     notable: List[Any] = []
-    counts = triage_stored(ctx.asset, notable=notable)
+    counts = triage_stored(ctx.asset, notable=notable, progress=partial(ctx.progress, unit="records triaged"))
     for title, decision in _sample_verdicts(notable):
         ctx.log("ai", f"“{str(title)[:110]}”", verdict=VERDICTS[decision])
     relevant = sum(v for k, v in counts.items() if k.endswith("_ingest"))
@@ -321,8 +346,8 @@ def ai_triage(ctx: StepContext) -> StepResult:
 def ai_events(ctx: StepContext) -> StepResult:
     before, db = llm.usage_snapshot(), get_db()
     high_before = _high_ids(db, ctx.asset_id)
-    counts = extract_events(ctx.asset)
-    merged = consolidate(ctx.asset_id)
+    counts = extract_events(ctx.asset, progress=partial(ctx.progress, unit="records read"))
+    merged = consolidate(ctx.asset_id, progress=partial(ctx.progress, unit="windows compared"))
     _log_new_events(ctx, db, high_before)
     return {**counts, **merged, **llm.usage_delta(before),
             "summary": f"{counts['documents']} documents · {counts['events']} events extracted · {merged['merged']} merged"}
@@ -330,7 +355,8 @@ def ai_events(ctx: StepContext) -> StepResult:
 
 def index(ctx: StepContext) -> StepResult:
     before = llm.usage_snapshot()
-    return {**index_asset(ctx.asset_id), **llm.usage_delta(before)}
+    return {**index_asset(ctx.asset_id, progress=partial(ctx.progress, unit="records checked")),
+            **llm.usage_delta(before)}
 
 
 def journey(ctx: StepContext) -> StepResult:
@@ -361,7 +387,8 @@ async def competitors(ctx: StepContext) -> StepResult:
         counts = {"candidates": candidates, "new_assets": scan.save(db, ctx.asset, ranked, candidates)}
     queue = await create_pool(redis_settings())
     try:
-        started = await scan.start_jobs(db, queue, ctx.asset, [c["id"] for c in ranked], PLANS["competitor"])
+        started = await scan.start_jobs(db, queue, ctx.asset, [c["id"] for c in ranked], PLANS["competitor"],
+                                        progress=partial(ctx.progress, unit="competitors checked"))
     finally:
         await queue.aclose()
     return {"competitors": len(ranked), **counts, "jobs_started": started}

@@ -17,7 +17,7 @@ reasoning model names the assignees to match on.
 import asyncio
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from urllib.parse import quote
 
@@ -27,8 +27,10 @@ from ai import llm
 
 from . import TEAM_ROOT  # noqa: F401  (puts the team packages on sys.path)
 from patent_intel import google_patents
-from patent_intel.net import Cache, Http
+from patent_intel.net import Cache
 from patent_intel.pipeline import run_drug
+
+from .counting_http import CountingHttp
 
 CACHE_DIR = Path(os.getenv("PATENT_CACHE_DIR", "cache/patents"))
 MAX_PAGES = int(os.getenv("PATENT_MAX_PAGES", "600"))
@@ -126,15 +128,24 @@ def to_record(patent: Dict[str, Any], match: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-async def fetch(asset: Dict[str, Any], names: List[str]) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
-    """Included patents for the asset, as records, plus the crawler's coverage report."""
+async def fetch(asset: Dict[str, Any], names: List[str],
+                progress: Callable[..., None] = lambda done, **_: None) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    """Included patents for the asset, as records, plus the crawler's coverage report. `progress(pages)` after every
+    page the crawler reads (from its cache or the web), then `progress(pages, note=patents found)`."""
     adis_id = (asset.get("ids") or {}).get("adis")
     company = (asset.get("company") or {}).get("name")
     if not adis_id and not company:
         raise ValueError("the asset needs an AdisInsight id or a company name to search patents")
     companies = None if adis_id else await asyncio.to_thread(patent_assignees, asset, names)
     seeds = [] if adis_id else await asyncio.to_thread(search_seeds, names)
-    store, http = _Collector(), Http(Cache(CACHE_DIR))
+    pages = 0
+
+    def page() -> None:
+        nonlocal pages
+        pages += 1
+        progress(pages, note=f"budget {MAX_PAGES + PROBE_PAGES:,} pages")
+
+    store, http = _Collector(), CountingHttp(Cache(CACHE_DIR), on_page=page)
     try:
         # With an Adis id the crawler reads the developer and alternative names from the profile.
         # Patents only: only patents/drug_patents are read back below, so run_drug's other steps would be work
@@ -152,4 +163,5 @@ async def fetch(asset: Dict[str, Any], names: List[str]) -> Tuple[List[Dict[str,
     records = [to_record(patents[link["patent_id"]], link["match"])
                for link in store.docs.get("drug_patents", [])
                if link["decision"] == "include" and link["patent_id"] in patents]
+    progress(pages, note=f"{len(records)} patents found")
     return records, run["coverage"]

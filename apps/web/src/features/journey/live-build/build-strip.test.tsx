@@ -62,6 +62,15 @@ describe('BuildStrip', () => {
     expect(within(strip).queryByRole('button', { name: /Explore the journey/ })).not.toBeInTheDocument()
   })
 
+  it("shows the running step's live count and fills its segment when the total is known", () => {
+    const running = { ...step('ai_triage', 'running', 'AI triage of stored records'), progress: { done: 450, total: 1800, unit: 'records triaged', note: null, at: '2026-10-09T10:01:57Z' } }
+    render(<BuildStrip job={job({ steps: [step('regulatory', 'done'), running, step('finalize', 'pending')] })} eventsCount={7} onExplore={() => {}} />)
+    const strip = screen.getByRole('region', { name: 'Live build' })
+    expect(within(strip).getByText('450 of 1,800 records triaged')).toBeInTheDocument()
+    expect(within(strip).getByText('Last update 8 s ago')).toBeInTheDocument()
+    expect(strip.querySelector<HTMLElement>('[data-status="running"] span')!.style.width).toBe('25%')
+  })
+
   it('plans before the first step starts', () => {
     render(
       <BuildStrip

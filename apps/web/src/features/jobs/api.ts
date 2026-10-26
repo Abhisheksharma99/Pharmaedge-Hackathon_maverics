@@ -6,6 +6,15 @@ import type { JobProgress } from '@/features/journey/types'
 export type JobStatus = 'queued' | 'running' | 'completed' | 'completed_with_errors' | 'failed' | 'cancelled'
 export type StepStatus = 'pending' | 'running' | 'done' | 'failed' | 'skipped'
 
+/** Live count of a running step, written by the crawler every few seconds; `at` is its heartbeat. */
+export interface StepProgress {
+  done: number
+  total: number | null
+  unit: string
+  note: string | null
+  at: string
+}
+
 export interface JobStep {
   name: string
   label: string
@@ -14,6 +23,8 @@ export interface JobStep {
   error: string | null
   started_at: string | null
   finished_at: string | null
+  /** Set by the steps that report a live count (absent on jobs created before it existed). */
+  progress?: StepProgress | null
 }
 
 export interface Job {
