@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { Db } from 'mongodb';
-import type { ChatMessageDoc, ChatSessionDoc } from './chat.types.js';
+import type { ChatFeedbackDoc, ChatMessageDoc, ChatSessionDoc } from './chat.types.js';
 
 /**
  * Chat persistence as plain functions over the database, so the assets module
@@ -10,10 +10,14 @@ import type { ChatMessageDoc, ChatSessionDoc } from './chat.types.js';
 
 export const sessions = (db: Db) => db.collection<ChatSessionDoc>('chat_sessions');
 export const messages = (db: Db) => db.collection<ChatMessageDoc>('chat_messages');
+export const feedback = (db: Db) => db.collection<ChatFeedbackDoc>('chat_feedback');
 
 export async function ensureChatIndexes(db: Db): Promise<void> {
   await sessions(db).createIndex({ user_id: 1, updated_at: -1 });
   await messages(db).createIndex({ session_id: 1, created_at: 1 });
+  // One rating per user and answer: a second rating replaces the first.
+  await feedback(db).createIndex({ user_id: 1, turn_id: 1 }, { unique: true });
+  await feedback(db).createIndex({ session_id: 1 });
 }
 
 /** The user's own session, or null (another user's session is indistinguishable from a missing one). */

@@ -26,11 +26,18 @@ export function ChatThread({
   )
   return (
     <div className="flex flex-col gap-[18px]">
-      {messages.map((m) =>
+      {messages.map((m, i) =>
         m.role === 'user' ? (
           <UserMessage key={m.id} text={m.content} />
         ) : (
-          <AssistantMessage key={m.id} message={m} sessionId={sessionId} startedAssets={startedAssets} onOpenRecord={setRecord} />
+          <AssistantMessage
+            key={m.id}
+            message={m}
+            question={messages[i - 1]?.role === 'user' ? messages[i - 1]!.content : null}
+            sessionId={sessionId}
+            startedAssets={startedAssets}
+            onOpenRecord={setRecord}
+          />
         ),
       )}
       {turn && (

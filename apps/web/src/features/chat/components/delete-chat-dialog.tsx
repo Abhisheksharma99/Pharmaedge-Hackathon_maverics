@@ -27,7 +27,7 @@ export function DeleteChatDialog({ session, onDeleted }: { session: ChatSession;
           variant="ghost"
           size="icon-sm"
           aria-label={`Delete chat “${title}”`}
-          className="absolute top-1/2 right-[4px] -translate-y-1/2 bg-accent text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:text-destructive"
+          className="absolute top-1/2 right-[4px] -translate-y-1/2 bg-accent text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:text-destructive [@media(hover:none)]:opacity-100"
         >
           <Trash2 />
         </Button>

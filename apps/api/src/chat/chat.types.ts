@@ -73,6 +73,18 @@ export interface ChatMessageDoc {
   created_at: Date;
 }
 
+/** A user's rating of one answer (`chat_feedback`), one per user and answer. */
+export interface ChatFeedbackDoc {
+  _id: string;
+  user_id: string;
+  session_id: string;
+  turn_id: string;
+  rating: 'up' | 'down';
+  reason: string | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
 /** One line of the streamed turn (application/x-ndjson). */
 /** A journey story streamed to the app layer by layer as Asset AI builds it (build_journey_story, annotate_story). */
 export type StoryLayer = 'axis' | 'approvals' | 'market' | 'lane' | 'changes' | 'compare' | 'chapters' | 'notes';
@@ -92,7 +104,10 @@ export type StreamEvent =
   | { type: 'error'; code: string; message: string }
   | { type: 'done' };
 
-export const toMessage = (m: ChatMessageDoc) => ({
+export const toFeedback = (f: Pick<ChatFeedbackDoc, 'rating' | 'reason'>) => ({ rating: f.rating, reason: f.reason });
+
+/** `feedback` is the reader's own rating of an answer (null when none). */
+export const toMessage = (m: ChatMessageDoc, feedback: Pick<ChatFeedbackDoc, 'rating' | 'reason'> | null = null) => ({
   id: m._id,
   role: m.role,
   content: m.content,
@@ -100,6 +115,7 @@ export const toMessage = (m: ChatMessageDoc) => ({
   citations: m.citations ?? [],
   followUps: m.follow_ups ?? [],
   createdAt: m.created_at,
+  ...(m.role === 'assistant' && { feedback: feedback && toFeedback(feedback) }),
 });
 
 export const toSession = (s: ChatSessionDoc) => ({

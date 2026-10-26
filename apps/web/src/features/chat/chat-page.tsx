@@ -2,7 +2,8 @@ import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { useCreateChatSession } from './api'
 import { ChatConversation } from './components/chat-conversation'
 import { ChatEmptyState } from './components/chat-empty-state'
-import { ChatHistory } from './components/chat-history'
+import { ChatExportMenu } from './components/chat-export-menu'
+import { ChatHistory, ChatHistorySheet } from './components/chat-history'
 import { useStarterQuestions } from './starters'
 import { useOfferNavigation } from './navigation'
 
@@ -24,9 +25,13 @@ export function ChatPage() {
     <div className="flex h-full min-h-0">
       <ChatHistory currentId={sessionId} />
       <section aria-label="Asset AI" className="flex min-w-0 flex-1 flex-col">
-        <div className="flex shrink-0 items-baseline gap-[10px] border-b bg-card px-[24px] py-[14px]">
-          <h1 className="font-semibold">Asset AI</h1>
-          <span className="text-muted-foreground">Your copilot for asset intelligence</span>
+        <div className="flex shrink-0 items-center gap-[10px] border-b bg-card px-[24px] py-[10px] max-[900px]:px-[16px]">
+          <ChatHistorySheet currentId={sessionId} />
+          <div className="flex min-w-0 flex-1 items-baseline gap-[10px]">
+            <h1 className="shrink-0 font-semibold">Asset AI</h1>
+            <span className="truncate text-muted-foreground max-[600px]:hidden">Your copilot for asset intelligence</span>
+          </div>
+          {sessionId && <ChatExportMenu sessionId={sessionId} />}
         </div>
         <ChatConversation
           key={`${sessionId ?? 'new'}${addIntent ? ':add' : ''}${askParam ? `:ask:${askParam}` : ''}`}

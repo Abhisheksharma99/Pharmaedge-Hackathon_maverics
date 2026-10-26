@@ -104,7 +104,7 @@ beforeEach(() => {
   resolveStatus = 200;
 });
 
-const req = (method: 'GET' | 'POST' | 'DELETE', url: string, payload?: object, as = cookies) =>
+const req = (method: 'GET' | 'POST' | 'PATCH' | 'DELETE', url: string, payload?: object, as = cookies) =>
   ctx.app.inject({ method, url, cookies: as, payload });
 const events = (body: string) => body.trim().split('\n').map((l) => JSON.parse(l));
 
@@ -429,6 +429,57 @@ describe('Asset AI chat', () => {
     expect(limitedAt).not.toBeNull();
     const again = await req('POST', `/api/chat/sessions/${id}/turn`, { message: 'again' });
     if (minute() === limitedAt) expect(again.json()).toMatchObject({ code: 'TOO_MANY_REQUESTS' }); // same window: still limited
+  });
+
+  it('renames a session for its owner only', async () => {
+    const id = await newSession();
+    const res = await req('PATCH', `/api/chat/sessions/${id}`, { title: '  TETON   readouts ' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ id, title: 'TETON readouts' });
+    expect((await req('GET', '/api/chat/sessions')).json().find((s: any) => s.id === id).title).toBe('TETON readouts');
+    expect((await req('PATCH', `/api/chat/sessions/${id}`, { title: '   ' })).statusCode).toBe(400);
+    expect((await req('PATCH', `/api/chat/sessions/${id}`, { title: 'x'.repeat(121) })).statusCode).toBe(400);
+
+    await req('POST', '/api/users', { email: 'rename-other@example.com', name: 'Other', password: 'other-password-123', role: 'analyst' });
+    const other = cookiesOf(await ctx.app.inject({ method: 'POST', url: '/api/auth/login', payload: { email: 'rename-other@example.com', password: 'other-password-123' } }));
+    expect((await req('PATCH', `/api/chat/sessions/${id}`, { title: 'Mine now' }, other)).json()).toMatchObject({ code: 'SESSION_NOT_FOUND' });
+    expect((await req('GET', '/api/chat/sessions')).json().find((s: any) => s.id === id).title).toBe('TETON readouts');
+  });
+
+  it('stores one rating per user and answer, shows it with the messages and drops it with the session', async () => {
+    const id = await newSession('trep');
+    // Stored directly: the per-minute question limit is spent by the test above.
+    const base = { session_id: id, user_id: (await db.collection('chat_sessions').findOne({ _id: id as any }))!.user_id, cards: [], citations: [], follow_ups: [] };
+    await db.collection('chat_messages').insertMany([
+      { _id: `${id}-q` as any, ...base, role: 'user', content: 'Which trials are active?', created_at: new Date(1) },
+      { _id: `${id}-a` as any, ...base, role: 'assistant', content: 'TETON is recruiting.', created_at: new Date(2) },
+    ]);
+    const [question, answer] = (await req('GET', `/api/chat/sessions/${id}/messages`)).json();
+    expect(answer.feedback).toBeNull();
+    expect(question.feedback).toBeUndefined();
+
+    const url = `/api/chat/sessions/${id}/turns/${answer.id}/feedback`;
+    expect((await req('POST', url, { rating: 'up' })).json()).toEqual({ rating: 'up', reason: null });
+    // Idempotent: the same user rating again replaces the rating (and adds the reason), never a second document.
+    expect((await req('POST', url, { rating: 'down', reason: '  Missed the EU trial  ' })).json()).toEqual({ rating: 'down', reason: 'Missed the EU trial' });
+    expect((await req('POST', url, { rating: 'down', reason: '  Missed the EU trial  ' })).statusCode).toBe(200);
+    const stored = await db.collection('chat_feedback').find({ turn_id: answer.id }).toArray();
+    expect(stored).toHaveLength(1);
+    expect(stored[0]).toMatchObject({ session_id: id, rating: 'down', reason: 'Missed the EU trial', created_at: expect.any(Date) });
+    expect((await req('GET', `/api/chat/sessions/${id}/messages`)).json()[1].feedback).toEqual({ rating: 'down', reason: 'Missed the EU trial' });
+
+    // Only answers of this session; a bad rating or an over-long reason is refused.
+    expect((await req('POST', `/api/chat/sessions/${id}/turns/${question.id}/feedback`, { rating: 'up' })).json()).toMatchObject({ code: 'TURN_NOT_FOUND' });
+    expect((await req('POST', url, { rating: 'meh' })).statusCode).toBe(400);
+    expect((await req('POST', url, { rating: 'up', reason: 'x'.repeat(281) })).statusCode).toBe(400);
+
+    // Another user can neither rate nor see it.
+    await req('POST', '/api/users', { email: 'feedback-other@example.com', name: 'Other', password: 'other-password-123', role: 'analyst' });
+    const other = cookiesOf(await ctx.app.inject({ method: 'POST', url: '/api/auth/login', payload: { email: 'feedback-other@example.com', password: 'other-password-123' } }));
+    expect((await req('POST', url, { rating: 'up' }, other)).json()).toMatchObject({ code: 'SESSION_NOT_FOUND' });
+
+    expect((await req('DELETE', `/api/chat/sessions/${id}`)).statusCode).toBe(204);
+    expect(await db.collection('chat_feedback').countDocuments({ session_id: id })).toBe(0);
   });
 
   it('rejects a session for an unknown asset and an empty question', async () => {
